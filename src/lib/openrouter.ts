@@ -7,8 +7,13 @@ function headers() {
 }
 
 export async function transcribe(audioBlob: Blob): Promise<string> {
+  const arrayBuffer = await audioBlob.arrayBuffer();
+  const file = new File([arrayBuffer], "audio.webm", {
+    type: "audio/webm",
+  });
+
   const form = new FormData();
-  form.append("file", audioBlob, "audio.webm");
+  form.append("file", file);
   form.append("model", "openai/whisper-large-v3");
 
   const res = await fetch(`${BASE_URL}/audio/transcriptions`, {
