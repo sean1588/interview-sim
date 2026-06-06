@@ -1,6 +1,7 @@
 export interface VADOptions {
   silenceThreshold?: number;
   silenceDuration?: number;
+  preRollMs?: number;
   onSpeechStart?: () => void;
   onSpeechEnd?: (audio: Blob) => void;
 }
@@ -14,17 +15,22 @@ export class SimpleVAD {
   private animationFrame = 0;
   private silenceThreshold: number;
   private silenceDuration: number;
+  private preRollChunks: number;
   private onSpeechStart: () => void;
   private onSpeechEnd: (audio: Blob) => void;
   private active = false;
-  private mimeType = "audio/webm";
-  private recorder: MediaRecorder | null = null;
-  private chunks: Blob[] = [];
   private frozen = false;
+  private mimeType = "audio/webm";
+
+  // Always-on recorder for pre-roll buffer
+  private recorder: MediaRecorder | null = null;
+  private ringBuffer: Blob[] = [];
+  private speechChunks: Blob[] = [];
 
   constructor(options: VADOptions = {}) {
     this.silenceThreshold = options.silenceThreshold ?? 15;
     this.silenceDuration = options.silenceDuration ?? 1200;
+    this.preRollChunks = Math.ceil((options.preRollMs ?? 400) / 100);
     this.onSpeechStart = options.onSpeechStart ?? (() => {});
     this.onSpeechEnd = options.onSpeechEnd ?? (() => {});
   }
@@ -38,6 +44,7 @@ export class SimpleVAD {
     source.connect(this.analyser);
     this.mimeType = this.getSupportedMimeType();
     this.active = true;
+    this.startContinuousRecording();
     this.monitor();
   }
 
@@ -57,11 +64,8 @@ export class SimpleVAD {
     this.frozen = true;
     this.isSpeaking = false;
     this.silenceStart = 0;
-    if (this.recorder?.state === "recording") {
-      try { this.recorder.stop(); } catch {}
-    }
-    this.recorder = null;
-    this.chunks = [];
+    this.speechChunks = [];
+    this.ringBuffer = [];
   }
 
   unfreeze() {
@@ -80,33 +84,43 @@ export class SimpleVAD {
     return Math.sqrt(sum / data.length) * 100;
   }
 
+  private startContinuousRecording() {
+    if (!this.stream) return;
+
+    const recorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
+    recorder.ondataavailable = (e) => {
+      if (e.data.size === 0) return;
+
+      if (this.isSpeaking) {
+        this.speechChunks.push(e.data);
+      } else {
+        this.ringBuffer.push(e.data);
+        if (this.ringBuffer.length > this.preRollChunks) {
+          this.ringBuffer.shift();
+        }
+      }
+    };
+    recorder.start(100);
+    this.recorder = recorder;
+  }
+
   private monitor() {
     if (!this.active) return;
-
-    const volume = this.getVolume();
 
     if (this.frozen) {
       this.animationFrame = requestAnimationFrame(() => this.monitor());
       return;
     }
 
+    const volume = this.getVolume();
+
     if (volume > this.silenceThreshold) {
       if (!this.isSpeaking) {
         this.isSpeaking = true;
-        this.chunks = [];
-        try {
-          this.recorder = new MediaRecorder(this.stream!, { mimeType: this.mimeType });
-          this.recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) this.chunks.push(e.data);
-          };
-          this.recorder.start(100);
-        } catch (e) {
-          console.error("[VAD] Failed to start recorder:", e);
-          this.isSpeaking = false;
-        }
-        if (this.isSpeaking) {
-          this.onSpeechStart();
-        }
+        // Grab pre-roll buffer as the start of speech
+        this.speechChunks = [...this.ringBuffer];
+        this.ringBuffer = [];
+        this.onSpeechStart();
       }
       this.silenceStart = 0;
     } else if (this.isSpeaking) {
@@ -116,20 +130,10 @@ export class SimpleVAD {
         this.isSpeaking = false;
         this.silenceStart = 0;
 
-        if (this.recorder?.state === "recording") {
-          const currentRecorder = this.recorder;
-          currentRecorder.onstop = () => {
-            const blob = new Blob(this.chunks, { type: this.mimeType });
-            this.chunks = [];
-            this.recorder = null;
-            if (blob.size > 0) {
-              this.onSpeechEnd(blob);
-            }
-          };
-          currentRecorder.stop();
-        } else {
-          this.recorder = null;
-          this.chunks = [];
+        const blob = new Blob(this.speechChunks, { type: this.mimeType });
+        this.speechChunks = [];
+        if (blob.size > 0) {
+          this.onSpeechEnd(blob);
         }
       }
     }
