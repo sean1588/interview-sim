@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { SimpleVAD } from "@/lib/vad";
+import SimliAvatar, { SimliAvatarHandle } from "@/components/SimliAvatar";
+import { wavBase64ToSimliPcm } from "@/lib/audio";
 
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
@@ -27,6 +29,11 @@ export default function VoiceChat() {
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Avatar: when connected, audio is routed to Simli instead of <audio> tags.
+  const avatarRef = useRef<SimliAvatarHandle | null>(null);
+  const avatarActiveRef = useRef(false);
+  const donePendingRef = useRef(false);
+
   const addLog = useCallback((msg: string) => {
     setLog((prev) => [...prev.slice(-19), `${new Date().toLocaleTimeString()} — ${msg}`]);
   }, []);
@@ -42,7 +49,20 @@ export default function VoiceChat() {
       if (audio.src) URL.revokeObjectURL(audio.src);
     }
     audioQueueRef.current = [];
+    if (avatarActiveRef.current) {
+      avatarRef.current?.clear();
+    }
   }, []);
+
+  // When the avatar goes silent after we've sent the full response, we're done.
+  const handleAvatarSilent = useCallback(() => {
+    if (avatarActiveRef.current && donePendingRef.current) {
+      donePendingRef.current = false;
+      vadRef.current?.unfreeze();
+      setStatus("listening");
+      addLog("Listening...");
+    }
+  }, [addLog]);
 
   const playNext = useCallback(() => {
     if (!playingRef.current) return;
@@ -148,13 +168,23 @@ export default function VoiceChat() {
                   setLatency(elapsed);
                   addLog(`First audio chunk: ${elapsed}ms`);
                 }
-                enqueueAudio(msg.data);
+                if (avatarActiveRef.current) {
+                  setStatus("speaking");
+                  avatarRef.current?.sendAudio(wavBase64ToSimliPcm(msg.data));
+                } else {
+                  enqueueAudio(msg.data);
+                }
               } else if (msg.type === "done") {
                 setMessages((prev) => [
                   ...prev,
                   { role: "assistant", text: msg.fullResponse },
                 ]);
                 addLog(`AI: "${msg.fullResponse.slice(0, 80)}${msg.fullResponse.length > 80 ? "..." : ""}"`);
+                if (avatarActiveRef.current) {
+                  // Avatar will keep talking through buffered audio; the
+                  // onSilent event returns us to listening.
+                  donePendingRef.current = true;
+                }
               }
             } catch {
               // skip malformed lines
@@ -197,6 +227,13 @@ export default function VoiceChat() {
       setMessages([]);
       setStatus("listening");
       addLog("Microphone active — start talking!");
+
+      // Try to bring the avatar online. Falls back to audio-only if the
+      // Simli key isn't configured or the connection fails.
+      addLog("Connecting avatar...");
+      const ok = await avatarRef.current?.init();
+      avatarActiveRef.current = !!ok;
+      addLog(ok ? "Avatar connected." : "Avatar offline — audio only.");
     } catch (e) {
       addLog(`Mic error: ${e instanceof Error ? e.message : "unknown"}`);
     }
@@ -207,6 +244,9 @@ export default function VoiceChat() {
     vadRef.current = null;
     stopPlayback();
     abortRef.current?.abort();
+    avatarRef.current?.destroy();
+    avatarActiveRef.current = false;
+    donePendingRef.current = false;
     setStatus("idle");
     addLog("Stopped.");
   }, [addLog, stopPlayback]);
@@ -215,6 +255,7 @@ export default function VoiceChat() {
     return () => {
       vadRef.current?.stop();
       stopPlayback();
+      avatarRef.current?.destroy();
     };
   }, [stopPlayback]);
 
@@ -233,8 +274,16 @@ export default function VoiceChat() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Voice Loop Spike</h1>
           <p className="text-gray-400">
-            Streaming: mic → STT → LLM → TTS (sentence by sentence)
+            Streaming: mic → STT → LLM → TTS → avatar
           </p>
+        </div>
+
+        <div className="flex justify-center">
+          <SimliAvatar
+            ref={avatarRef}
+            onSpeaking={() => setStatus("speaking")}
+            onSilent={handleAvatarSilent}
+          />
         </div>
 
         <div className="flex flex-col items-center space-y-4">
