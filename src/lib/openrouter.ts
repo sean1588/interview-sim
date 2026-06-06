@@ -8,17 +8,36 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   const arrayBuffer = await audioBlob.arrayBuffer();
   const base64Audio = Buffer.from(arrayBuffer).toString("base64");
 
-  const result = await openrouter.stt.createTranscription({
-    sttRequest: {
-      model: "openai/whisper-large-v3",
-      inputAudio: {
-        data: base64Audio,
-        format: "webm",
-      },
+  console.log(
+    `[STT] Sending ${audioBlob.size} bytes, type=${audioBlob.type}, base64 len=${base64Audio.length}`
+  );
+
+  const body = {
+    model: "openai/whisper-1",
+    input_audio: {
+      data: base64Audio,
+      format: "webm",
     },
+  };
+
+  const res = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 
-  return result.text || "";
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error(`[STT] Error response: ${errBody}`);
+    throw new Error(`STT failed (${res.status}): ${errBody}`);
+  }
+
+  const data = await res.json();
+  console.log(`[STT] Transcription: "${data.text}"`);
+  return data.text || "";
 }
 
 export async function chatStream(
