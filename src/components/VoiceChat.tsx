@@ -13,8 +13,7 @@ export default function VoiceChat() {
   const [latency, setLatency] = useState<number | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const playbackCtxRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const addLog = useCallback((msg: string) => {
@@ -22,9 +21,11 @@ export default function VoiceChat() {
   }, []);
 
   const stopPlayback = useCallback(() => {
-    if (sourceRef.current) {
-      try { sourceRef.current.stop(); } catch {}
-      sourceRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load();
+      audioRef.current = null;
     }
   }, []);
 
@@ -67,34 +68,25 @@ export default function VoiceChat() {
         addLog(`Round-trip: ${elapsed}ms | You: "${userText}"`);
         addLog(`AI: "${aiText.slice(0, 80)}${aiText.length > 80 ? "..." : ""}"`);
 
-        const arrayBuffer = await res.arrayBuffer();
-        const pcmData = new Int16Array(arrayBuffer);
-        const sampleRate = 24000;
-
-        if (!playbackCtxRef.current || playbackCtxRef.current.state === "closed") {
-          playbackCtxRef.current = new AudioContext({ sampleRate });
-        }
-        const ctx = playbackCtxRef.current;
-        if (ctx.state === "suspended") await ctx.resume();
-
-        const audioBuffer = ctx.createBuffer(1, pcmData.length, sampleRate);
-        const channelData = audioBuffer.getChannelData(0);
-        for (let i = 0; i < pcmData.length; i++) {
-          channelData[i] = pcmData[i] / 32768;
-        }
-
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(ctx.destination);
-        sourceRef.current = source;
+        const audioBlob = await res.blob();
+        const url = URL.createObjectURL(audioBlob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
 
         setStatus("speaking");
-        source.onended = () => {
-          sourceRef.current = null;
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
           setStatus("listening");
           addLog("Listening...");
         };
-        source.start();
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          audioRef.current = null;
+          addLog("Audio playback error");
+          setStatus("listening");
+        };
+        await audio.play();
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
           addLog("Interrupted — listening again");
@@ -138,10 +130,6 @@ export default function VoiceChat() {
     vadRef.current = null;
     stopPlayback();
     abortRef.current?.abort();
-    if (playbackCtxRef.current && playbackCtxRef.current.state !== "closed") {
-      playbackCtxRef.current.close();
-      playbackCtxRef.current = null;
-    }
     setStatus("idle");
     addLog("Stopped.");
   }, [addLog, stopPlayback]);
@@ -150,9 +138,6 @@ export default function VoiceChat() {
     return () => {
       vadRef.current?.stop();
       stopPlayback();
-      if (playbackCtxRef.current && playbackCtxRef.current.state !== "closed") {
-        playbackCtxRef.current.close();
-      }
     };
   }, [stopPlayback]);
 
@@ -173,7 +158,6 @@ export default function VoiceChat() {
           <p className="text-gray-400">Testing: mic → STT → LLM → TTS → speaker</p>
         </div>
 
-        {/* Status indicator */}
         <div className="flex flex-col items-center space-y-4">
           <div className="relative">
             <div
@@ -217,7 +201,6 @@ export default function VoiceChat() {
           </button>
         </div>
 
-        {/* Conversation display */}
         {(transcript || response) && (
           <div className="space-y-3 bg-gray-900 rounded-xl p-6">
             {transcript && (
@@ -235,7 +218,6 @@ export default function VoiceChat() {
           </div>
         )}
 
-        {/* Debug log */}
         <div className="bg-gray-900/50 rounded-xl p-4 font-mono text-xs text-gray-500 max-h-48 overflow-y-auto">
           {log.length === 0 ? (
             <p>Press Start to begin...</p>
