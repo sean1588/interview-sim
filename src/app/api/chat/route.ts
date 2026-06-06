@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     return new NextResponse(new Uint8Array(audioBuffer), {
       headers: {
-        "Content-Type": "audio/mpeg",
+        "Content-Type": "audio/pcm",
         "X-Transcript": encodeURIComponent(transcript),
         "X-Response": encodeURIComponent(fullResponse),
       },

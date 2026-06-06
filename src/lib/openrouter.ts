@@ -69,7 +69,7 @@ export async function textToSpeech(text: string): Promise<ArrayBuffer> {
       model: "google/gemini-3.1-flash-tts-preview",
       input: text,
       voice: "Kore",
-      response_format: "mp3",
+      response_format: "pcm",
     }),
   });
 

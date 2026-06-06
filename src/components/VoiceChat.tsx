@@ -68,18 +68,28 @@ export default function VoiceChat() {
         addLog(`Round-trip: ${elapsed}ms | You: "${userText}"`);
         addLog(`AI: "${aiText.slice(0, 80)}${aiText.length > 80 ? "..." : ""}"`);
 
-        const audioBlob = await res.blob();
-        const url = URL.createObjectURL(audioBlob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
+        const arrayBuffer = await res.arrayBuffer();
+        const pcmData = new Int16Array(arrayBuffer);
+        const sampleRate = 24000;
+        const audioContext = new AudioContext({ sampleRate });
+        const audioBuffer = audioContext.createBuffer(1, pcmData.length, sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+        for (let i = 0; i < pcmData.length; i++) {
+          channelData[i] = pcmData[i] / 32768;
+        }
+
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
 
         setStatus("speaking");
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
+        source.onended = () => {
+          audioContext.close();
           setStatus("listening");
           addLog("Listening...");
         };
-        audio.play();
+        audioRef.current = { pause: () => { source.stop(); audioContext.close(); }, currentTime: 0 } as unknown as HTMLAudioElement;
+        source.start();
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
           addLog("Interrupted — listening again");
