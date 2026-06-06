@@ -6,6 +6,15 @@ import { SimpleVAD } from "@/lib/vad";
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
 
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 export default function VoiceChat() {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -13,7 +22,8 @@ export default function VoiceChat() {
   const [latency, setLatency] = useState<number | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioQueueRef = useRef<HTMLAudioElement[]>([]);
+  const playingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -26,13 +36,58 @@ export default function VoiceChat() {
   }, [messages]);
 
   const stopPlayback = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.removeAttribute("src");
-      audioRef.current.load();
-      audioRef.current = null;
+    playingRef.current = false;
+    for (const audio of audioQueueRef.current) {
+      audio.pause();
+      if (audio.src) URL.revokeObjectURL(audio.src);
     }
+    audioQueueRef.current = [];
   }, []);
+
+  const playNext = useCallback(() => {
+    if (!playingRef.current) return;
+    const queue = audioQueueRef.current;
+    if (queue.length === 0) {
+      playingRef.current = false;
+      vadRef.current?.unfreeze();
+      setStatus("listening");
+      addLog("Listening...");
+      return;
+    }
+
+    const audio = queue[0];
+    audio.onended = () => {
+      if (audio.src) URL.revokeObjectURL(audio.src);
+      queue.shift();
+      playNext();
+    };
+    audio.onerror = () => {
+      if (audio.src) URL.revokeObjectURL(audio.src);
+      queue.shift();
+      playNext();
+    };
+    audio.play().catch(() => {
+      queue.shift();
+      playNext();
+    });
+  }, [addLog]);
+
+  const enqueueAudio = useCallback(
+    (b64: string) => {
+      const buf = base64ToArrayBuffer(b64);
+      const blob = new Blob([buf], { type: "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioQueueRef.current.push(audio);
+
+      if (!playingRef.current) {
+        playingRef.current = true;
+        setStatus("speaking");
+        playNext();
+      }
+    },
+    [playNext]
+  );
 
   const sendAudio = useCallback(
     async (blob: Blob) => {
@@ -62,40 +117,50 @@ export default function VoiceChat() {
           throw new Error(err.error || "Request failed");
         }
 
-        const userText = decodeURIComponent(res.headers.get("X-Transcript") || "");
-        const aiText = decodeURIComponent(res.headers.get("X-Response") || "");
-        const elapsed = Date.now() - startTime;
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let firstAudioReceived = false;
+        let responseText = "";
 
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: userText },
-          { role: "assistant", text: aiText },
-        ]);
-        setLatency(elapsed);
-        addLog(`Round-trip: ${elapsed}ms | You: "${userText}"`);
-        addLog(`AI: "${aiText.slice(0, 80)}${aiText.length > 80 ? "..." : ""}"`);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const audioBlob = await res.blob();
-        const url = URL.createObjectURL(audioBlob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
 
-        setStatus("speaking");
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-          vadRef.current?.unfreeze();
-          setStatus("listening");
-          addLog("Listening...");
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-          vadRef.current?.unfreeze();
-          addLog("Audio playback error");
-          setStatus("listening");
-        };
-        await audio.play();
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const msg = JSON.parse(line);
+
+              if (msg.type === "transcript") {
+                setMessages((prev) => [...prev, { role: "user", text: msg.text }]);
+                addLog(`You: "${msg.text}"`);
+              } else if (msg.type === "text") {
+                responseText += (responseText ? " " : "") + msg.text;
+              } else if (msg.type === "audio") {
+                if (!firstAudioReceived) {
+                  firstAudioReceived = true;
+                  const elapsed = Date.now() - startTime;
+                  setLatency(elapsed);
+                  addLog(`First audio chunk: ${elapsed}ms`);
+                }
+                enqueueAudio(msg.data);
+              } else if (msg.type === "done") {
+                setMessages((prev) => [
+                  ...prev,
+                  { role: "assistant", text: msg.fullResponse },
+                ]);
+                addLog(`AI: "${msg.fullResponse.slice(0, 80)}${msg.fullResponse.length > 80 ? "..." : ""}"`);
+              }
+            } catch {
+              // skip malformed lines
+            }
+          }
+        }
       } catch (e) {
         vadRef.current?.unfreeze();
         if (e instanceof DOMException && e.name === "AbortError") {
@@ -107,7 +172,7 @@ export default function VoiceChat() {
         setStatus("listening");
       }
     },
-    [addLog, stopPlayback]
+    [addLog, stopPlayback, enqueueAudio]
   );
 
   const startConversation = useCallback(async () => {
@@ -116,6 +181,7 @@ export default function VoiceChat() {
     const vad = new SimpleVAD({
       silenceThreshold: 15,
       silenceDuration: 1200,
+      preRollMs: 400,
       onSpeechStart: () => {
         stopPlayback();
         addLog("Speech detected...");
@@ -166,7 +232,9 @@ export default function VoiceChat() {
       <div className="max-w-2xl w-full space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Voice Loop Spike</h1>
-          <p className="text-gray-400">Testing: mic → STT → LLM → TTS → speaker</p>
+          <p className="text-gray-400">
+            Streaming: mic → STT → LLM → TTS (sentence by sentence)
+          </p>
         </div>
 
         <div className="flex flex-col items-center space-y-4">
@@ -196,7 +264,7 @@ export default function VoiceChat() {
             </button>
             {latency !== null && (
               <span className="text-xs text-gray-500">
-                Last:{" "}
+                First audio:{" "}
                 <span
                   className={`font-mono font-bold ${
                     latency < 2000
@@ -213,7 +281,6 @@ export default function VoiceChat() {
           </div>
         </div>
 
-        {/* Conversation history */}
         {messages.length > 0 && (
           <div className="bg-gray-900 rounded-xl p-4 max-h-96 overflow-y-auto space-y-3">
             {messages.map((msg, i) => (
@@ -236,7 +303,6 @@ export default function VoiceChat() {
           </div>
         )}
 
-        {/* Debug log */}
         <div className="bg-gray-900/50 rounded-xl p-4 font-mono text-xs text-gray-500 max-h-36 overflow-y-auto">
           {log.length === 0 ? (
             <p>Press Start to begin...</p>

@@ -6,22 +6,20 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
     `[STT] Sending ${audioBlob.size} bytes, type=${audioBlob.type}, base64 len=${base64Audio.length}`
   );
 
-  const body = {
-    model: "openai/gpt-4o-mini-transcribe",
-    language: "en",
-    input_audio: {
-      data: base64Audio,
-      format: "webm",
-    },
-  };
-
   const res = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      model: "openai/gpt-4o-mini-transcribe",
+      language: "en",
+      input_audio: {
+        data: base64Audio,
+        format: "webm",
+      },
+    }),
   });
 
   if (!res.ok) {
@@ -59,7 +57,7 @@ export async function chatStream(
   return res.body!;
 }
 
-export async function textToSpeech(text: string): Promise<Buffer> {
+export async function textToSpeechPcm(text: string): Promise<Buffer> {
   const res = await fetch("https://openrouter.ai/api/v1/audio/speech", {
     method: "POST",
     headers: {
@@ -80,15 +78,14 @@ export async function textToSpeech(text: string): Promise<Buffer> {
     throw new Error(`TTS failed (${res.status}): ${errBody}`);
   }
 
-  const pcm = Buffer.from(await res.arrayBuffer());
-  return pcmToWav(pcm, 24000, 1, 16);
+  return Buffer.from(await res.arrayBuffer());
 }
 
-function pcmToWav(
+export function pcmToWav(
   pcm: Buffer,
-  sampleRate: number,
-  channels: number,
-  bitsPerSample: number
+  sampleRate: number = 24000,
+  channels: number = 1,
+  bitsPerSample: number = 16
 ): Buffer {
   const byteRate = (sampleRate * channels * bitsPerSample) / 8;
   const blockAlign = (channels * bitsPerSample) / 8;
@@ -113,19 +110,28 @@ function pcmToWav(
 
 export function parseSseStream(
   stream: ReadableStream<Uint8Array>,
-  onToken: (token: string) => void
+  onSentence: (sentence: string) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let fullText = "";
+    let currentSentence = "";
+
+    function flush() {
+      if (currentSentence.trim()) {
+        onSentence(currentSentence.trim());
+        currentSentence = "";
+      }
+    }
 
     function read() {
       reader
         .read()
         .then(({ done, value }) => {
           if (done) {
+            flush();
             resolve(fullText);
             return;
           }
@@ -138,6 +144,7 @@ export function parseSseStream(
             if (!line.startsWith("data: ")) continue;
             const payload = line.slice(6).trim();
             if (payload === "[DONE]") {
+              flush();
               resolve(fullText);
               return;
             }
@@ -146,7 +153,10 @@ export function parseSseStream(
               const token = parsed.choices?.[0]?.delta?.content;
               if (token) {
                 fullText += token;
-                onToken(token);
+                currentSentence += token;
+                if (/[.!?]\s*$/.test(currentSentence) || currentSentence.length > 200) {
+                  flush();
+                }
               }
             } catch {
               // skip malformed chunks
