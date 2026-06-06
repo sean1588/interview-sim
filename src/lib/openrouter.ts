@@ -7,7 +7,7 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   );
 
   const body = {
-    model: "openai/whisper-large-v3",
+    model: "openai/gpt-4o-mini-transcribe",
     language: "en",
     input_audio: {
       data: base64Audio,
