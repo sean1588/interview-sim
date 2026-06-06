@@ -1,42 +1,35 @@
-const BASE_URL = "https://openrouter.ai/api/v1";
+import { OpenRouter } from "@openrouter/sdk";
 
-function headers() {
-  return {
-    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-  };
-}
+const openrouter = new OpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY!,
+});
 
 export async function transcribe(audioBlob: Blob): Promise<string> {
   const arrayBuffer = await audioBlob.arrayBuffer();
   const base64Audio = Buffer.from(arrayBuffer).toString("base64");
 
-  const res = await fetch(`${BASE_URL}/audio/transcriptions`, {
-    method: "POST",
-    headers: { ...headers(), "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const result = await openrouter.stt.createTranscription({
+    sttRequest: {
       model: "openai/whisper-large-v3",
-      input_audio: {
+      inputAudio: {
         data: base64Audio,
         format: "webm",
       },
-    }),
+    },
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`STT failed (${res.status}): ${body}`);
-  }
-
-  const data = await res.json();
-  return data.text || "";
+  return result.text || "";
 }
 
 export async function chatStream(
   messages: { role: string; content: string }[]
 ): Promise<ReadableStream<Uint8Array>> {
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: { ...headers(), "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       model: "anthropic/claude-sonnet-4-6",
       messages,
@@ -52,24 +45,33 @@ export async function chatStream(
   return res.body!;
 }
 
-export async function textToSpeech(text: string): Promise<ArrayBuffer> {
-  const res = await fetch(`${BASE_URL}/audio/speech`, {
-    method: "POST",
-    headers: { ...headers(), "Content-Type": "application/json" },
-    body: JSON.stringify({
+export async function textToSpeech(text: string): Promise<Buffer> {
+  const stream = await openrouter.tts.createSpeech({
+    speechRequest: {
       model: "openai/gpt-4o-mini-tts-2025-12-15",
       input: text,
       voice: "nova",
-      response_format: "mp3",
-    }),
+      responseFormat: "mp3",
+    },
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`TTS failed (${res.status}): ${body}`);
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
   }
 
-  return res.arrayBuffer();
+  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+  const buffer = Buffer.alloc(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return buffer;
 }
 
 export function parseSseStream(
