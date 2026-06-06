@@ -47,10 +47,13 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
   const avatarRef = useRef<SimliAvatarHandle | null>(null);
   const avatarActiveRef = useRef(false);
   const donePendingRef = useRef(false);
+  const reconnectingRef = useRef(false);
 
   // Keep the latest getContext in a ref so sendAudio always reads fresh editor state.
   const getContextRef = useRef(getContext);
-  getContextRef.current = getContext;
+  useEffect(() => {
+    getContextRef.current = getContext;
+  });
 
   const addLog = useCallback((msg: string) => {
     setLog((prev) => [...prev.slice(-19), `${new Date().toLocaleTimeString()} — ${msg}`]);
@@ -80,6 +83,37 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
       setStatus("listening");
       addLog("Listening...");
     }
+  }, [addLog]);
+
+  // The Simli connection died (e.g. WS closed). Downgrade to voice-only so the
+  // conversation keeps flowing, then try to bring the avatar back once.
+  const handleAvatarDisconnected = useCallback(() => {
+    avatarActiveRef.current = false;
+
+    // If we were waiting on the avatar's onSilent to finish a turn, that event
+    // will never come now — recover so we don't get stuck frozen.
+    if (donePendingRef.current) {
+      donePendingRef.current = false;
+      if (!playingRef.current) {
+        vadRef.current?.unfreeze();
+        setStatus("listening");
+      }
+    }
+
+    if (reconnectingRef.current) return;
+    reconnectingRef.current = true;
+    addLog("Avatar connection dropped — voice only. Reconnecting…");
+    setTimeout(async () => {
+      // Bail if the conversation was stopped while we were waiting.
+      if (!vadRef.current) {
+        reconnectingRef.current = false;
+        return;
+      }
+      const ok = await avatarRef.current?.init();
+      reconnectingRef.current = false;
+      avatarActiveRef.current = !!ok;
+      addLog(ok ? "Avatar reconnected." : "Avatar offline — voice only.");
+    }, 1500);
   }, [addLog]);
 
   const playNext = useCallback(() => {
@@ -197,9 +231,14 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
                   setLatency(elapsed);
                   addLog(`First audio chunk: ${elapsed}ms`);
                 }
-                if (avatarActiveRef.current) {
-                  setStatus("speaking");
+                // Route to the avatar if it's live; if the send fails (dead
+                // socket) fall back to plain <audio> for this chunk so the
+                // response is still heard.
+                const sentToAvatar =
+                  avatarActiveRef.current &&
                   avatarRef.current?.sendAudio(wavBase64ToSimliPcm(msg.data));
+                if (sentToAvatar) {
+                  setStatus("speaking");
                 } else {
                   enqueueAudio(msg.data);
                 }
@@ -213,7 +252,14 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
                   // Avatar will keep talking through buffered audio; the
                   // onSilent event returns us to listening.
                   donePendingRef.current = true;
+                } else if (!playingRef.current) {
+                  // No avatar and nothing queued in the <audio> fallback —
+                  // return to listening directly so we don't stay frozen.
+                  vadRef.current?.unfreeze();
+                  setStatus("listening");
+                  addLog("Listening...");
                 }
+                // else: the <audio> queue's completion handler resumes listening.
               }
             } catch {
               // skip malformed lines
@@ -276,6 +322,7 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
     avatarRef.current?.destroy();
     avatarActiveRef.current = false;
     donePendingRef.current = false;
+    reconnectingRef.current = false;
     setStatus("idle");
     addLog("Stopped.");
   }, [addLog, stopPlayback]);
@@ -305,6 +352,7 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
             ref={avatarRef}
             onSpeaking={() => setStatus("speaking")}
             onSilent={handleAvatarSilent}
+            onDisconnected={handleAvatarDisconnected}
           />
         </div>
 

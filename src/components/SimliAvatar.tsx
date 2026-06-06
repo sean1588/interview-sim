@@ -2,6 +2,7 @@
 
 import {
   forwardRef,
+  useCallback,
   useImperativeHandle,
   useRef,
   useState,
@@ -10,8 +11,8 @@ import {
 export interface SimliAvatarHandle {
   /** Connect to Simli. Resolves true if the avatar is live, false otherwise. */
   init: () => Promise<boolean>;
-  /** Send PCM16 mono @ 16kHz audio for the avatar to speak/lip-sync. */
-  sendAudio: (pcm: Uint8Array) => void;
+  /** Send PCM16 mono @ 16kHz audio. Returns false if the connection is dead. */
+  sendAudio: (pcm: Uint8Array) => boolean;
   /** Stop the avatar mid-speech (for barge-in). */
   clear: () => void;
   /** Tear down the connection. */
@@ -21,18 +22,39 @@ export interface SimliAvatarHandle {
 interface SimliAvatarProps {
   onSpeaking?: () => void;
   onSilent?: () => void;
+  /** Fired when the live connection drops unexpectedly (e.g. WS closed). */
+  onDisconnected?: () => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SimliClientInstance = any;
 
 const SimliAvatar = forwardRef<SimliAvatarHandle, SimliAvatarProps>(
-  function SimliAvatar({ onSpeaking, onSilent }, ref) {
+  function SimliAvatar({ onSpeaking, onSilent, onDisconnected }, ref) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const clientRef = useRef<SimliClientInstance | null>(null);
     const [connected, setConnected] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Tear down a dead connection and notify the parent so it can downgrade to
+    // voice-only / reconnect. Called when a send fails (WS closed) so the error
+    // never escapes as an unhandled rejection.
+    const dropConnection = useCallback(
+      (reason: string) => {
+        if (!clientRef.current) return;
+        console.warn("[Simli] connection dropped:", reason);
+        try {
+          clientRef.current.stop?.();
+        } catch {
+          // ignore — already dead
+        }
+        clientRef.current = null;
+        setConnected(false);
+        onDisconnected?.();
+      },
+      [onDisconnected]
+    );
 
     useImperativeHandle(ref, () => ({
       async init() {
@@ -73,17 +95,29 @@ const SimliAvatar = forwardRef<SimliAvatarHandle, SimliAvatarProps>(
         }
       },
 
-      sendAudio(pcm: Uint8Array) {
-        if (!clientRef.current) return;
+      sendAudio(pcm: Uint8Array): boolean {
+        const client = clientRef.current;
+        if (!client) return false;
         // Chunk to keep individual messages small.
         const CHUNK = 6000; // bytes (3000 samples)
-        for (let i = 0; i < pcm.length; i += CHUNK) {
-          clientRef.current.sendAudioData(pcm.subarray(i, i + CHUNK));
+        try {
+          for (let i = 0; i < pcm.length; i += CHUNK) {
+            client.sendAudioData(pcm.subarray(i, i + CHUNK));
+          }
+          return true;
+        } catch (e) {
+          // WS closed (e.g. "Invalid State, WS Connection 3") — downgrade.
+          dropConnection(e instanceof Error ? e.message : String(e));
+          return false;
         }
       },
 
       clear() {
-        clientRef.current?.ClearBuffer?.();
+        try {
+          clientRef.current?.ClearBuffer?.();
+        } catch (e) {
+          dropConnection(e instanceof Error ? e.message : String(e));
+        }
       },
 
       destroy() {

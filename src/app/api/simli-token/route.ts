@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
         faceId,
         handleSilence: true,
         maxSessionLength: 3600,
-        maxIdleTime: 300,
+        // Interview candidates think silently for minutes at a time; keep the
+        // session alive through long pauses (matches maxSessionLength) so the
+        // WebSocket doesn't close out from idleness mid-problem.
+        maxIdleTime: 3600,
         model: "fasttalk",
       }),
     });
