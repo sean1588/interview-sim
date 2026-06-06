@@ -36,16 +36,18 @@ realtime speech-to-speech API. Keeps model flexibility + unified billing.
 
 1. ~~**Code editor experience**~~ ✅ DONE — split-screen shell, Monaco editor,
    in-browser code execution, live editor state fed to the interviewer LLM.
-2. **Interview orchestration** — structured flow (intro → problem → hints →
-   review → assessment), per-session state, scoring/feedback summary. The
-   interviewer persona exists but the flow is freeform; no scoring yet.
-3. **Per-session state** — `conversationHistory` in `/api/chat` is still
-   module-global. Must become per-session before multi-user / real product.
-4. **Friendly 3D character** — swap default realistic Simli face for a custom
+2. ~~**Interview orchestration**~~ ✅ DONE (v1) — per-session state, interviewer
+   greets + presents the problem first (kickoff), phase-aware prompt, and an
+   "End Interview" button that produces a structured scorecard. Still freeform
+   within the interview (no hard stage gates) — could add explicit stage
+   transitions / a timer later.
+3. **Friendly 3D character** — swap default realistic Simli face for a custom
    character via `SIMLI_FACE_ID` (no code change needed).
-5. **Behavioral mode.**
-6. **TypeScript execution** — currently editor-runs only Python + JavaScript
+4. **Behavioral mode.**
+5. **TypeScript execution** — currently editor-runs only Python + JavaScript
    (TS needs an in-browser transpile step; deferred).
+6. **Productionize session store** — `src/lib/session-store.ts` is in-memory
+   (per server instance). Swap for Redis/DB before multi-instance deploy.
 7. **Deployment** — AWS via Pulumi (ECS Fargate + ALB + ECR + Secrets Manager).
    Scoped at ~$35–70/mo. Deferred until there's a real product to host.
 
@@ -84,10 +86,20 @@ Browser (mic + Simli avatar)
   load), JS via sandboxed Web Worker (5s timeout). TS deferred.
 - `src/lib/problems.ts` — small problem bank (Two Sum, Valid Parentheses, Merge
   Intervals) with per-language starter code.
-- `src/app/api/chat/route.ts` — now an **interviewer**: system prompt is a
+- `src/app/api/chat/route.ts` — the **interviewer**: system prompt is a
   technical interviewer with the problem embedded; the candidate's code + last
   run output are appended (in brackets) to each user turn so the model "sees"
-  the editor. Told not to read the bracketed context aloud.
+  the editor. Now session-scoped (via `sessionId`) and supports a `kickoff`
+  turn (no audio) where the interviewer greets and presents the problem first.
+- `src/lib/session-store.ts` — in-memory per-session interview state
+  (history + problemId), keyed by `sessionId`, with TTL eviction. Replaced the
+  old module-global `conversationHistory`. `resetSession` runs on kickoff.
+- `src/app/api/assess/route.ts` — non-streaming endpoint that builds a
+  structured JSON scorecard (recommendation, per-axis scores, strengths,
+  improvements, summary) from the session transcript + final code.
+- `src/components/Scorecard.tsx` — modal that renders the assessment.
+- The interview opens automatically: `VoiceChat.runTurn({ kickoff: true })`
+  fires after the avatar connects so the interviewer speaks first.
 
 ### Voice spike core
 - `src/lib/vad.ts` — raw-PCM VAD via ScriptProcessorNode. Ring buffer keeps

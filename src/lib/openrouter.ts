@@ -57,6 +57,35 @@ export async function chatStream(
   return res.body!;
 }
 
+/** Non-streaming chat completion — used for the structured assessment. */
+export async function chatComplete(
+  messages: { role: string; content: string }[],
+  opts?: { jsonMode?: boolean; temperature?: number }
+): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "anthropic/claude-sonnet-4-6",
+      messages,
+      stream: false,
+      temperature: opts?.temperature ?? 0.3,
+      ...(opts?.jsonMode ? { response_format: { type: "json_object" } } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`LLM failed (${res.status}): ${body}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
 export async function textToSpeechPcm(text: string): Promise<Buffer> {
   const res = await fetch("https://openrouter.ai/api/v1/audio/speech", {
     method: "POST",

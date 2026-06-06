@@ -12,12 +12,15 @@ type Message = { role: "user" | "assistant"; text: string };
 export interface InterviewContext {
   code: string;
   language: string;
+  problemId: string;
   problemTitle: string;
   problemPrompt: string;
   lastRun?: string;
 }
 
 interface VoiceChatProps {
+  /** Stable id tying all turns to one server-side interview session. */
+  sessionId: string;
   /** Pulled fresh on each turn so the interviewer sees the candidate's latest code. */
   getContext?: () => InterviewContext;
 }
@@ -31,7 +34,7 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
+export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const [log, setLog] = useState<string[]>([]);
@@ -161,22 +164,28 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
     [playNext]
   );
 
-  const sendAudio = useCallback(
-    async (blob: Blob) => {
+  const runTurn = useCallback(
+    async (opts: { audio?: Blob; kickoff?: boolean }) => {
       stopPlayback();
       abortRef.current?.abort();
 
       vadRef.current?.freeze();
       setStatus("processing");
       const startTime = Date.now();
-      addLog(`Sending ${(blob.size / 1024).toFixed(1)}KB of audio...`);
+      addLog(
+        opts.kickoff
+          ? "Starting interview..."
+          : `Sending ${((opts.audio?.size ?? 0) / 1024).toFixed(1)}KB of audio...`
+      );
 
       const controller = new AbortController();
       abortRef.current = controller;
 
       try {
         const form = new FormData();
-        form.append("audio", blob, "audio.wav");
+        form.append("sessionId", sessionId);
+        if (opts.audio) form.append("audio", opts.audio, "audio.wav");
+        if (opts.kickoff) form.append("kickoff", "true");
 
         // Attach the live editor context so the interviewer can see the
         // candidate's current code and latest run output.
@@ -184,6 +193,7 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
         if (ctx) {
           form.append("code", ctx.code);
           form.append("language", ctx.language);
+          form.append("problemId", ctx.problemId);
           form.append("problemTitle", ctx.problemTitle);
           form.append("problemPrompt", ctx.problemPrompt);
           if (ctx.lastRun) form.append("lastRun", ctx.lastRun);
@@ -277,7 +287,12 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
         setStatus("listening");
       }
     },
-    [addLog, stopPlayback, enqueueAudio]
+    [addLog, stopPlayback, enqueueAudio, sessionId]
+  );
+
+  const sendAudio = useCallback(
+    (blob: Blob) => runTurn({ audio: blob }),
+    [runTurn]
   );
 
   const startConversation = useCallback(async () => {
@@ -309,10 +324,13 @@ export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
       const ok = await avatarRef.current?.init();
       avatarActiveRef.current = !!ok;
       addLog(ok ? "Avatar connected." : "Avatar offline — audio only.");
+
+      // The interviewer opens: greet the candidate and present the problem.
+      runTurn({ kickoff: true });
     } catch (e) {
       addLog(`Mic error: ${e instanceof Error ? e.message : "unknown"}`);
     }
-  }, [addLog, sendAudio, stopPlayback]);
+  }, [addLog, sendAudio, stopPlayback, runTurn]);
 
   const stopConversation = useCallback(() => {
     vadRef.current?.stop();
