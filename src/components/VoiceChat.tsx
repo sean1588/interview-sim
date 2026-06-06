@@ -179,7 +179,7 @@ export default function VoiceChat() {
     if (vadRef.current) return;
 
     const vad = new SimpleVAD({
-      silenceThreshold: 15,
+      silenceThreshold: 1.5,
       silenceDuration: 1200,
       preRollMs: 400,
       onSpeechStart: () => {
