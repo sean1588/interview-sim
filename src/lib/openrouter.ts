@@ -1,9 +1,3 @@
-import { OpenRouter } from "@openrouter/sdk";
-
-const openrouter = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY!,
-});
-
 export async function transcribe(audioBlob: Blob): Promise<string> {
   const arrayBuffer = await audioBlob.arrayBuffer();
   const base64Audio = Buffer.from(arrayBuffer).toString("base64");
@@ -64,33 +58,28 @@ export async function chatStream(
   return res.body!;
 }
 
-export async function textToSpeech(text: string): Promise<Buffer> {
-  const stream = await openrouter.tts.createSpeech({
-    speechRequest: {
-      model: "openai/gpt-4o-mini-tts-2025-12-15",
-      input: text,
-      voice: "nova",
-      responseFormat: "mp3",
+export async function textToSpeech(text: string): Promise<ArrayBuffer> {
+  const res = await fetch("https://openrouter.ai/api/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      model: "google/gemini-3.1-flash-tts-preview",
+      input: text,
+      voice: "Kore",
+      response_format: "mp3",
+    }),
   });
 
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error(`[TTS] Error response: ${errBody}`);
+    throw new Error(`TTS failed (${res.status}): ${errBody}`);
   }
 
-  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-  const buffer = Buffer.alloc(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return buffer;
+  return res.arrayBuffer();
 }
 
 export function parseSseStream(
