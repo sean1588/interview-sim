@@ -6,54 +6,75 @@ export interface VADOptions {
   onSpeechEnd?: (audio: Blob) => void;
 }
 
+/**
+ * Voice Activity Detection that captures raw PCM via Web Audio.
+ *
+ * Unlike MediaRecorder, this gives us a clean ring buffer of audio samples
+ * so we can include a pre-roll (audio from just before speech was detected)
+ * without worrying about container headers. We encode the final utterance
+ * to a WAV blob ourselves.
+ */
 export class SimpleVAD {
   private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
   private stream: MediaStream | null = null;
-  private isSpeaking = false;
-  private silenceStart = 0;
-  private animationFrame = 0;
+  private processor: ScriptProcessorNode | null = null;
+  private sourceNode: MediaStreamAudioSourceNode | null = null;
+
   private silenceThreshold: number;
   private silenceDuration: number;
-  private preRollChunks: number;
+  private preRollSamples: number;
   private onSpeechStart: () => void;
   private onSpeechEnd: (audio: Blob) => void;
+
   private active = false;
   private frozen = false;
-  private mimeType = "audio/webm";
+  private isSpeaking = false;
+  private silenceStart = 0;
+  private sampleRate = 48000;
 
-  // Always-on recorder for pre-roll buffer
-  private recorder: MediaRecorder | null = null;
-  private ringBuffer: Blob[] = [];
-  private speechChunks: Blob[] = [];
+  private preRoll: Float32Array[] = [];
+  private preRollLength = 0;
+  private speechSamples: Float32Array[] = [];
 
   constructor(options: VADOptions = {}) {
-    this.silenceThreshold = options.silenceThreshold ?? 15;
+    // Threshold is on RMS * 100 scale
+    this.silenceThreshold = options.silenceThreshold ?? 1.5;
     this.silenceDuration = options.silenceDuration ?? 1200;
-    this.preRollChunks = Math.ceil((options.preRollMs ?? 400) / 100);
     this.onSpeechStart = options.onSpeechStart ?? (() => {});
     this.onSpeechEnd = options.onSpeechEnd ?? (() => {});
+    // preRollSamples computed once we know the sample rate, in start()
+    this._preRollMs = options.preRollMs ?? 400;
+    this.preRollSamples = 0;
   }
+
+  private _preRollMs: number;
 
   async start() {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.audioContext = new AudioContext();
-    const source = this.audioContext.createMediaStreamSource(this.stream);
-    this.analyser = this.audioContext.createAnalyser();
-    this.analyser.fftSize = 512;
-    source.connect(this.analyser);
-    this.mimeType = this.getSupportedMimeType();
+    this.sampleRate = this.audioContext.sampleRate;
+    this.preRollSamples = Math.floor((this._preRollMs / 1000) * this.sampleRate);
+
+    this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
+    this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+    this.processor.onaudioprocess = (e) => this.process(e);
+
+    // Connect through a muted gain node so the processor runs but mic audio
+    // is NOT routed to the speakers (which would cause feedback).
+    const mute = this.audioContext.createGain();
+    mute.gain.value = 0;
+    this.sourceNode.connect(this.processor);
+    this.processor.connect(mute);
+    mute.connect(this.audioContext.destination);
+
     this.active = true;
-    this.startContinuousRecording();
-    this.monitor();
   }
 
   stop() {
     this.active = false;
-    cancelAnimationFrame(this.animationFrame);
-    if (this.recorder?.state === "recording") {
-      try { this.recorder.stop(); } catch {}
-    }
+    this.processor?.disconnect();
+    this.sourceNode?.disconnect();
     this.stream?.getTracks().forEach((t) => t.stop());
     if (this.audioContext?.state !== "closed") {
       this.audioContext?.close();
@@ -64,88 +85,105 @@ export class SimpleVAD {
     this.frozen = true;
     this.isSpeaking = false;
     this.silenceStart = 0;
-    this.speechChunks = [];
-    this.ringBuffer = [];
+    this.speechSamples = [];
+    this.preRoll = [];
+    this.preRollLength = 0;
   }
 
   unfreeze() {
     this.frozen = false;
   }
 
-  getVolume(): number {
-    if (!this.analyser) return 0;
-    const data = new Uint8Array(this.analyser.fftSize);
-    this.analyser.getByteTimeDomainData(data);
+  private process(e: AudioProcessingEvent) {
+    if (!this.active || this.frozen) return;
+
+    const input = e.inputBuffer.getChannelData(0);
+    // Copy — the underlying buffer is reused by the browser
+    const samples = new Float32Array(input);
+
+    // RMS volume
     let sum = 0;
-    for (let i = 0; i < data.length; i++) {
-      const val = (data[i] - 128) / 128;
-      sum += val * val;
-    }
-    return Math.sqrt(sum / data.length) * 100;
-  }
-
-  private startContinuousRecording() {
-    if (!this.stream) return;
-
-    const recorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
-    recorder.ondataavailable = (e) => {
-      if (e.data.size === 0) return;
-
-      if (this.isSpeaking) {
-        this.speechChunks.push(e.data);
-      } else {
-        this.ringBuffer.push(e.data);
-        if (this.ringBuffer.length > this.preRollChunks) {
-          this.ringBuffer.shift();
-        }
-      }
-    };
-    recorder.start(100);
-    this.recorder = recorder;
-  }
-
-  private monitor() {
-    if (!this.active) return;
-
-    if (this.frozen) {
-      this.animationFrame = requestAnimationFrame(() => this.monitor());
-      return;
-    }
-
-    const volume = this.getVolume();
+    for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+    const volume = Math.sqrt(sum / samples.length) * 100;
 
     if (volume > this.silenceThreshold) {
       if (!this.isSpeaking) {
         this.isSpeaking = true;
-        // Grab pre-roll buffer as the start of speech
-        this.speechChunks = [...this.ringBuffer];
-        this.ringBuffer = [];
+        // Seed the utterance with the pre-roll buffer
+        this.speechSamples = [...this.preRoll];
+        this.preRoll = [];
+        this.preRollLength = 0;
         this.onSpeechStart();
       }
+      this.speechSamples.push(samples);
       this.silenceStart = 0;
     } else if (this.isSpeaking) {
+      this.speechSamples.push(samples);
       if (this.silenceStart === 0) {
         this.silenceStart = Date.now();
       } else if (Date.now() - this.silenceStart > this.silenceDuration) {
         this.isSpeaking = false;
         this.silenceStart = 0;
-
-        const blob = new Blob(this.speechChunks, { type: this.mimeType });
-        this.speechChunks = [];
-        if (blob.size > 0) {
-          this.onSpeechEnd(blob);
-        }
+        this.emitUtterance();
+      }
+    } else {
+      // Not speaking — keep a rolling pre-roll buffer
+      this.preRoll.push(samples);
+      this.preRollLength += samples.length;
+      while (this.preRollLength > this.preRollSamples && this.preRoll.length > 1) {
+        const removed = this.preRoll.shift()!;
+        this.preRollLength -= removed.length;
       }
     }
-
-    this.animationFrame = requestAnimationFrame(() => this.monitor());
   }
 
-  private getSupportedMimeType(): string {
-    const types = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
-    for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) return type;
+  private emitUtterance() {
+    const total = this.speechSamples.reduce((n, c) => n + c.length, 0);
+    const merged = new Float32Array(total);
+    let offset = 0;
+    for (const chunk of this.speechSamples) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
     }
-    return "audio/webm";
+    this.speechSamples = [];
+
+    const wav = this.encodeWav(merged, this.sampleRate);
+    if (wav.size > 0) {
+      this.onSpeechEnd(wav);
+    }
+  }
+
+  private encodeWav(samples: Float32Array, sampleRate: number): Blob {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    const writeStr = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+
+    return new Blob([buffer], { type: "audio/wav" });
   }
 }

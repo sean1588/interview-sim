@@ -17,7 +17,7 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
       language: "en",
       input_audio: {
         data: base64Audio,
-        format: "webm",
+        format: "wav",
       },
     }),
   });

@@ -104,7 +104,7 @@ export default function VoiceChat() {
 
       try {
         const form = new FormData();
-        form.append("audio", blob, "audio.webm");
+        form.append("audio", blob, "audio.wav");
 
         const res = await fetch("/api/chat", {
           method: "POST",
