@@ -8,6 +8,20 @@ import { wavBase64ToSimliPcm } from "@/lib/audio";
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
 
+/** Live interview context the editor provides on every turn. */
+export interface InterviewContext {
+  code: string;
+  language: string;
+  problemTitle: string;
+  problemPrompt: string;
+  lastRun?: string;
+}
+
+interface VoiceChatProps {
+  /** Pulled fresh on each turn so the interviewer sees the candidate's latest code. */
+  getContext?: () => InterviewContext;
+}
+
 function base64ToArrayBuffer(b64: string): ArrayBuffer {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
@@ -17,7 +31,7 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export default function VoiceChat() {
+export default function VoiceChat({ getContext }: VoiceChatProps = {}) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const [log, setLog] = useState<string[]>([]);
@@ -33,6 +47,10 @@ export default function VoiceChat() {
   const avatarRef = useRef<SimliAvatarHandle | null>(null);
   const avatarActiveRef = useRef(false);
   const donePendingRef = useRef(false);
+
+  // Keep the latest getContext in a ref so sendAudio always reads fresh editor state.
+  const getContextRef = useRef(getContext);
+  getContextRef.current = getContext;
 
   const addLog = useCallback((msg: string) => {
     setLog((prev) => [...prev.slice(-19), `${new Date().toLocaleTimeString()} — ${msg}`]);
@@ -125,6 +143,17 @@ export default function VoiceChat() {
       try {
         const form = new FormData();
         form.append("audio", blob, "audio.wav");
+
+        // Attach the live editor context so the interviewer can see the
+        // candidate's current code and latest run output.
+        const ctx = getContextRef.current?.();
+        if (ctx) {
+          form.append("code", ctx.code);
+          form.append("language", ctx.language);
+          form.append("problemTitle", ctx.problemTitle);
+          form.append("problemPrompt", ctx.problemPrompt);
+          if (ctx.lastRun) form.append("lastRun", ctx.lastRun);
+        }
 
         const res = await fetch("/api/chat", {
           method: "POST",
@@ -269,15 +298,8 @@ export default function VoiceChat() {
   const { color, label, pulse } = statusConfig[status];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center p-8">
-      <div className="max-w-2xl w-full space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Voice Loop Spike</h1>
-          <p className="text-gray-400">
-            Streaming: mic → STT → LLM → TTS → avatar
-          </p>
-        </div>
-
+    <div className="h-full w-full overflow-y-auto bg-gray-950 text-white flex flex-col items-center p-6">
+      <div className="max-w-md w-full space-y-5">
         <div className="flex justify-center">
           <SimliAvatar
             ref={avatarRef}

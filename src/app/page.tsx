@@ -1,5 +1,5 @@
-import VoiceChat from "@/components/VoiceChat";
+import InterviewSim from "@/components/InterviewSim";
 
 export default function Home() {
-  return <VoiceChat />;
+  return <InterviewSim />;
 }

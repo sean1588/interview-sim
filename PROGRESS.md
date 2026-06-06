@@ -34,24 +34,29 @@ realtime speech-to-speech API. Keeps model flexibility + unified billing.
 
 ## Next steps (no big unknowns left — "just engineering")
 
-1. **Code editor experience** — Monaco/CodeMirror pane, code execution
-   (Judge0/Piston/e2b), feed editor state to the interviewer LLM in real time.
-2. **Interview orchestration** — problem bank, flow (intro → problem → hints →
-   review → assessment), structured scoring.
-3. **Friendly 3D character** — swap default realistic Simli face for a custom
+1. ~~**Code editor experience**~~ ✅ DONE — split-screen shell, Monaco editor,
+   in-browser code execution, live editor state fed to the interviewer LLM.
+2. **Interview orchestration** — structured flow (intro → problem → hints →
+   review → assessment), per-session state, scoring/feedback summary. The
+   interviewer persona exists but the flow is freeform; no scoring yet.
+3. **Per-session state** — `conversationHistory` in `/api/chat` is still
+   module-global. Must become per-session before multi-user / real product.
+4. **Friendly 3D character** — swap default realistic Simli face for a custom
    character via `SIMLI_FACE_ID` (no code change needed).
-4. **Behavioral mode.**
-5. **Deployment** — AWS via Pulumi (ECS Fargate + ALB + ECR + Secrets Manager).
+5. **Behavioral mode.**
+6. **TypeScript execution** — currently editor-runs only Python + JavaScript
+   (TS needs an in-browser transpile step; deferred).
+7. **Deployment** — AWS via Pulumi (ECS Fargate + ALB + ECR + Secrets Manager).
    Scoped at ~$35–70/mo. Deferred until there's a real product to host.
-
-User's last open question to answer on resume: tackle the **code editor / core
-product** next, or polish character/voice side first? (Leaning code editor.)
 
 ## Tech stack
 
 - Next.js 16 (App Router, TypeScript, Turbopack), Tailwind CSS
 - Web Audio API for mic capture + custom VAD
 - `simli-client` (WebRTC) for the avatar
+- `@monaco-editor/react` for the coding pane, `react-markdown` for problem text
+- **Pyodide** (CPython in WASM, lazy-loaded from CDN) for in-browser Python;
+  Web Worker for in-browser JavaScript — NO execution backend (see learnings)
 - NDJSON over chunked HTTP for streaming the pipeline back to the browser
 
 ## Architecture
@@ -67,6 +72,24 @@ Browser (mic + Simli avatar)
 
 ## Key files
 
+### Interview / editor experience (added after spike)
+- `src/components/InterviewSim.tsx` — split-screen shell + page. Owns problem,
+  language, per-(problem,language) code buffers, and last run output. Renders
+  `VoiceChat` (left) and problem statement + `CodeEditor` (right). Passes a
+  `getContext()` to VoiceChat so each voice turn carries the candidate's live
+  code + last run output to the interviewer.
+- `src/components/CodeEditor.tsx` — Monaco editor + language picker + Run +
+  output console. Run goes through `src/lib/runner.ts` (in-browser, no backend).
+- `src/lib/runner.ts` — in-browser execution. Python via Pyodide (lazy CDN
+  load), JS via sandboxed Web Worker (5s timeout). TS deferred.
+- `src/lib/problems.ts` — small problem bank (Two Sum, Valid Parentheses, Merge
+  Intervals) with per-language starter code.
+- `src/app/api/chat/route.ts` — now an **interviewer**: system prompt is a
+  technical interviewer with the problem embedded; the candidate's code + last
+  run output are appended (in brackets) to each user turn so the model "sees"
+  the editor. Told not to read the bracketed context aloud.
+
+### Voice spike core
 - `src/lib/vad.ts` — raw-PCM VAD via ScriptProcessorNode. Ring buffer keeps
   ~400ms pre-roll so the first syllable isn't clipped. Emits a WAV Blob.
   `freeze()`/`unfreeze()` pause it during processing/playback (echo prevention).
@@ -101,6 +124,16 @@ OpenRouter audio API quirks:
   **`Aoede`** (warm female) — current choice. Others: Zephyr, Leda (female);
   Puck, Charon (male).
 - LLM = `anthropic/claude-sonnet-4-6` (streaming via SSE).
+
+Code execution:
+- **Piston public API (emkc.org) is whitelist-only as of 2026-02-15** — it now
+  returns a "whitelist only" message instead of running code. Do NOT rely on it.
+- So we execute **in the browser** instead: Pyodide (jsdelivr CDN reachable) for
+  Python, a Web Worker for JavaScript. This keeps us backend-free (fits "no
+  backend until we prove concept"), no API key, no per-run cost. First Python
+  run downloads ~10MB of WASM (one-time per session). JS runs instantly.
+- Judge0 CE public (`ce.judge0.com`) is reachable too if we ever want a
+  server-side multi-language sandbox, but RapidAPI Judge0 needs a key.
 
 VAD / audio:
 - Must capture **raw PCM** (not MediaRecorder webm) to support a pre-roll buffer
