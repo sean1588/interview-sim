@@ -8,7 +8,6 @@ export interface VADOptions {
 export class SimpleVAD {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
   private chunks: Blob[] = [];
   private isSpeaking = false;
@@ -19,6 +18,8 @@ export class SimpleVAD {
   private onSpeechStart: () => void;
   private onSpeechEnd: (audio: Blob) => void;
   private active = false;
+  private mimeType = "audio/webm";
+  private recording = false;
 
   constructor(options: VADOptions = {}) {
     this.silenceThreshold = options.silenceThreshold ?? 15;
@@ -34,14 +35,7 @@ export class SimpleVAD {
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 512;
     source.connect(this.analyser);
-
-    this.mediaRecorder = new MediaRecorder(this.stream, {
-      mimeType: this.getSupportedMimeType(),
-    });
-    this.mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) this.chunks.push(e.data);
-    };
-
+    this.mimeType = this.getSupportedMimeType();
     this.active = true;
     this.monitor();
   }
@@ -49,9 +43,10 @@ export class SimpleVAD {
   stop() {
     this.active = false;
     cancelAnimationFrame(this.animationFrame);
-    this.mediaRecorder?.stop();
     this.stream?.getTracks().forEach((t) => t.stop());
-    this.audioContext?.close();
+    if (this.audioContext?.state !== "closed") {
+      this.audioContext?.close();
+    }
   }
 
   getVolume(): number {
@@ -66,6 +61,37 @@ export class SimpleVAD {
     return Math.sqrt(sum / data.length) * 100;
   }
 
+  private startRecording() {
+    if (this.recording || !this.stream) return;
+    this.chunks = [];
+    const recorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) this.chunks.push(e.data);
+    };
+    recorder.onstop = () => {
+      this.recording = false;
+      const blob = new Blob(this.chunks, { type: this.mimeType });
+      this.chunks = [];
+      if (blob.size > 0) {
+        this.onSpeechEnd(blob);
+      }
+    };
+    recorder.start(100);
+    this.recording = true;
+    this._recorder = recorder;
+  }
+
+  private stopRecording() {
+    if (!this.recording || !this._recorder) return;
+    try {
+      this._recorder.stop();
+    } catch {
+      this.recording = false;
+    }
+  }
+
+  private _recorder: MediaRecorder | null = null;
+
   private monitor() {
     if (!this.active) return;
 
@@ -74,8 +100,7 @@ export class SimpleVAD {
     if (volume > this.silenceThreshold) {
       if (!this.isSpeaking) {
         this.isSpeaking = true;
-        this.chunks = [];
-        this.mediaRecorder?.start(100);
+        this.startRecording();
         this.onSpeechStart();
       }
       this.silenceStart = 0;
@@ -84,21 +109,8 @@ export class SimpleVAD {
         this.silenceStart = Date.now();
       } else if (Date.now() - this.silenceStart > this.silenceDuration) {
         this.isSpeaking = false;
-        this.mediaRecorder?.stop();
+        this.stopRecording();
         this.silenceStart = 0;
-
-        setTimeout(() => {
-          const blob = new Blob(this.chunks, {
-            type: this.getSupportedMimeType(),
-          });
-          this.chunks = [];
-          if (blob.size > 0) {
-            this.onSpeechEnd(blob);
-          }
-          if (this.active && this.mediaRecorder?.state === "inactive") {
-            // ready for next utterance
-          }
-        }, 50);
       }
     }
 

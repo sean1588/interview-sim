@@ -13,7 +13,8 @@ export default function VoiceChat() {
   const [latency, setLatency] = useState<number | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const playbackCtxRef = useRef<AudioContext | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const addLog = useCallback((msg: string) => {
@@ -21,18 +22,16 @@ export default function VoiceChat() {
   }, []);
 
   const stopPlayback = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
+    if (sourceRef.current) {
+      try { sourceRef.current.stop(); } catch {}
+      sourceRef.current = null;
     }
-    abortRef.current?.abort();
-    abortRef.current = null;
   }, []);
 
   const sendAudio = useCallback(
     async (blob: Blob) => {
       stopPlayback();
+      abortRef.current?.abort();
 
       setStatus("processing");
       setTranscript("");
@@ -71,24 +70,30 @@ export default function VoiceChat() {
         const arrayBuffer = await res.arrayBuffer();
         const pcmData = new Int16Array(arrayBuffer);
         const sampleRate = 24000;
-        const audioContext = new AudioContext({ sampleRate });
-        const audioBuffer = audioContext.createBuffer(1, pcmData.length, sampleRate);
+
+        if (!playbackCtxRef.current || playbackCtxRef.current.state === "closed") {
+          playbackCtxRef.current = new AudioContext({ sampleRate });
+        }
+        const ctx = playbackCtxRef.current;
+        if (ctx.state === "suspended") await ctx.resume();
+
+        const audioBuffer = ctx.createBuffer(1, pcmData.length, sampleRate);
         const channelData = audioBuffer.getChannelData(0);
         for (let i = 0; i < pcmData.length; i++) {
           channelData[i] = pcmData[i] / 32768;
         }
 
-        const source = audioContext.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
+        source.connect(ctx.destination);
+        sourceRef.current = source;
 
         setStatus("speaking");
         source.onended = () => {
-          if (audioContext.state !== "closed") audioContext.close();
+          sourceRef.current = null;
           setStatus("listening");
           addLog("Listening...");
         };
-        audioRef.current = { pause: () => { try { source.stop(); } catch {} if (audioContext.state !== "closed") audioContext.close(); }, currentTime: 0 } as unknown as HTMLAudioElement;
         source.start();
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
@@ -111,7 +116,6 @@ export default function VoiceChat() {
       silenceDuration: 1200,
       onSpeechStart: () => {
         stopPlayback();
-        setStatus("listening");
         addLog("Speech detected...");
       },
       onSpeechEnd: (audio: Blob) => {
@@ -133,6 +137,11 @@ export default function VoiceChat() {
     vadRef.current?.stop();
     vadRef.current = null;
     stopPlayback();
+    abortRef.current?.abort();
+    if (playbackCtxRef.current && playbackCtxRef.current.state !== "closed") {
+      playbackCtxRef.current.close();
+      playbackCtxRef.current = null;
+    }
     setStatus("idle");
     addLog("Stopped.");
   }, [addLog, stopPlayback]);
@@ -141,6 +150,9 @@ export default function VoiceChat() {
     return () => {
       vadRef.current?.stop();
       stopPlayback();
+      if (playbackCtxRef.current && playbackCtxRef.current.state !== "closed") {
+        playbackCtxRef.current.close();
+      }
     };
   }, [stopPlayback]);
 
