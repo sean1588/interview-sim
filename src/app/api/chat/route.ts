@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const audioBuffer = await textToSpeech(fullResponse);
 
-    return new NextResponse(audioBuffer, {
+    return new NextResponse(new Uint8Array(audioBuffer), {
       headers: {
         "Content-Type": "audio/mpeg",
         "X-Transcript": encodeURIComponent(transcript),
