@@ -100,6 +100,9 @@ Browser (mic + Simli avatar)
 - `src/components/Scorecard.tsx` — modal that renders the assessment.
 - The interview opens automatically: `VoiceChat.runTurn({ kickoff: true })`
   fires after the avatar connects so the interviewer speaks first.
+- **Avatar on/off toggle** in `VoiceChat`: off = voice-only mode (no Simli
+  session — saves credits, uses `<audio>` playback). Toggles live mid-session;
+  auto-reconnect is suppressed while off.
 
 ### Voice spike core
 - `src/lib/vad.ts` — raw-PCM VAD via ScriptProcessorNode. Ring buffer keeps

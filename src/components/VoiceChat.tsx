@@ -39,6 +39,9 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [log, setLog] = useState<string[]>([]);
   const [latency, setLatency] = useState<number | null>(null);
+  // Avatar on = animated Simli character; off = voice-only (no Simli session,
+  // saves credits). Plain <audio> playback is used whenever the avatar is off.
+  const [avatarEnabled, setAvatarEnabled] = useState(true);
 
   const vadRef = useRef<SimpleVAD | null>(null);
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
@@ -51,6 +54,10 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
   const avatarActiveRef = useRef(false);
   const donePendingRef = useRef(false);
   const reconnectingRef = useRef(false);
+  const avatarEnabledRef = useRef(avatarEnabled);
+  useEffect(() => {
+    avatarEnabledRef.current = avatarEnabled;
+  }, [avatarEnabled]);
 
   // Keep the latest getContext in a ref so sendAudio always reads fresh editor state.
   const getContextRef = useRef(getContext);
@@ -103,12 +110,17 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
       }
     }
 
+    // Don't reconnect if the user has turned the avatar off.
+    if (!avatarEnabledRef.current) {
+      addLog("Avatar off — voice only.");
+      return;
+    }
     if (reconnectingRef.current) return;
     reconnectingRef.current = true;
     addLog("Avatar connection dropped — voice only. Reconnecting…");
     setTimeout(async () => {
-      // Bail if the conversation was stopped while we were waiting.
-      if (!vadRef.current) {
+      // Bail if the conversation was stopped or the avatar disabled meanwhile.
+      if (!vadRef.current || !avatarEnabledRef.current) {
         reconnectingRef.current = false;
         return;
       }
@@ -117,6 +129,36 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
       avatarActiveRef.current = !!ok;
       addLog(ok ? "Avatar reconnected." : "Avatar offline — voice only.");
     }, 1500);
+  }, [addLog]);
+
+  // Toggle the animated avatar on/off. Takes effect live if a conversation is
+  // running; otherwise it just sets the preference for the next start.
+  const toggleAvatar = useCallback(async () => {
+    const next = !avatarEnabledRef.current;
+    avatarEnabledRef.current = next;
+    setAvatarEnabled(next);
+
+    if (!vadRef.current) return; // not in a conversation; preference saved
+
+    if (next) {
+      addLog("Enabling avatar…");
+      const ok = await avatarRef.current?.init();
+      avatarActiveRef.current = !!ok;
+      addLog(ok ? "Avatar connected." : "Avatar offline — voice only.");
+    } else {
+      addLog("Avatar off — voice only.");
+      reconnectingRef.current = false;
+      avatarActiveRef.current = false;
+      avatarRef.current?.destroy();
+      // If we were waiting on the avatar to finish a turn, recover.
+      if (donePendingRef.current) {
+        donePendingRef.current = false;
+        if (!playingRef.current) {
+          vadRef.current?.unfreeze();
+          setStatus("listening");
+        }
+      }
+    }
   }, [addLog]);
 
   const playNext = useCallback(() => {
@@ -318,12 +360,17 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
       setStatus("listening");
       addLog("Microphone active — start talking!");
 
-      // Try to bring the avatar online. Falls back to audio-only if the
-      // Simli key isn't configured or the connection fails.
-      addLog("Connecting avatar...");
-      const ok = await avatarRef.current?.init();
-      avatarActiveRef.current = !!ok;
-      addLog(ok ? "Avatar connected." : "Avatar offline — audio only.");
+      // Bring the avatar online only if enabled. Voice-only mode skips the
+      // Simli session entirely (saves credits) and uses <audio> playback.
+      if (avatarEnabledRef.current) {
+        addLog("Connecting avatar...");
+        const ok = await avatarRef.current?.init();
+        avatarActiveRef.current = !!ok;
+        addLog(ok ? "Avatar connected." : "Avatar offline — audio only.");
+      } else {
+        avatarActiveRef.current = false;
+        addLog("Voice-only mode (avatar off).");
+      }
 
       // The interviewer opens: greet the candidate and present the problem.
       runTurn({ kickoff: true });
@@ -366,12 +413,45 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
     <div className="h-full w-full overflow-y-auto bg-gray-950 text-white flex flex-col items-center p-6">
       <div className="max-w-md w-full space-y-5">
         <div className="flex justify-center">
-          <SimliAvatar
-            ref={avatarRef}
-            onSpeaking={() => setStatus("speaking")}
-            onSilent={handleAvatarSilent}
-            onDisconnected={handleAvatarDisconnected}
-          />
+          {/* Keep SimliAvatar mounted (so the ref survives toggling) but hide
+              it in voice-only mode and show a compact badge instead. */}
+          <div className={avatarEnabled ? "" : "hidden"}>
+            <SimliAvatar
+              ref={avatarRef}
+              onSpeaking={() => setStatus("speaking")}
+              onSilent={handleAvatarSilent}
+              onDisconnected={handleAvatarDisconnected}
+            />
+          </div>
+          {!avatarEnabled && (
+            <div className="w-64 h-64 rounded-2xl bg-gray-800/60 border border-gray-700 flex flex-col items-center justify-center gap-2 text-gray-400">
+              <span className="text-4xl">🎙️</span>
+              <span className="text-sm">Voice-only mode</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-center">
+          <button
+            role="switch"
+            aria-checked={avatarEnabled}
+            onClick={toggleAvatar}
+            className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+          >
+            <span>Avatar</span>
+            <span
+              className={`relative w-10 h-5 rounded-full transition-colors ${
+                avatarEnabled ? "bg-green-600" : "bg-gray-600"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                  avatarEnabled ? "translate-x-5" : ""
+                }`}
+              />
+            </span>
+            <span className="w-7 text-left">{avatarEnabled ? "On" : "Off"}</span>
+          </button>
         </div>
 
         <div className="flex flex-col items-center space-y-4">
