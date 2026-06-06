@@ -8,18 +8,32 @@ function headers() {
 
 export async function transcribe(audioBlob: Blob): Promise<string> {
   const arrayBuffer = await audioBlob.arrayBuffer();
-  const file = new File([arrayBuffer], "audio.webm", {
-    type: "audio/webm",
-  });
+  const base64Audio = Buffer.from(arrayBuffer).toString("base64");
 
-  const form = new FormData();
-  form.append("file", file);
-  form.append("model", "openai/whisper-large-v3");
-
-  const res = await fetch(`${BASE_URL}/audio/transcriptions`, {
+  const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` },
-    body: form,
+    headers: { ...headers(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-flash-1.5",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Transcribe this audio exactly. Return only the transcription, nothing else.",
+            },
+            {
+              type: "input_audio",
+              input_audio: {
+                data: base64Audio,
+                format: "webm",
+              },
+            },
+          ],
+        },
+      ],
+    }),
   });
 
   if (!res.ok) {
@@ -28,7 +42,7 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   }
 
   const data = await res.json();
-  return data.text;
+  return data.choices?.[0]?.message?.content?.trim() || "";
 }
 
 export async function chatStream(
@@ -57,7 +71,7 @@ export async function textToSpeech(text: string): Promise<ArrayBuffer> {
     method: "POST",
     headers: { ...headers(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "openai/tts-1",
+      model: "openai/gpt-4o-mini-tts-2025-12-15",
       input: text,
       voice: "nova",
       response_format: "mp3",
