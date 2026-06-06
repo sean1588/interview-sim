@@ -69,7 +69,7 @@ export async function textToSpeech(text: string): Promise<Buffer> {
     body: JSON.stringify({
       model: "google/gemini-3.1-flash-tts-preview",
       input: text,
-      voice: "Kore",
+      voice: "Puck",
       response_format: "pcm",
     }),
   });
