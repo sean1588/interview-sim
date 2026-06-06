@@ -84,11 +84,11 @@ export default function VoiceChat() {
 
         setStatus("speaking");
         source.onended = () => {
-          audioContext.close();
+          if (audioContext.state !== "closed") audioContext.close();
           setStatus("listening");
           addLog("Listening...");
         };
-        audioRef.current = { pause: () => { source.stop(); audioContext.close(); }, currentTime: 0 } as unknown as HTMLAudioElement;
+        audioRef.current = { pause: () => { try { source.stop(); } catch {} if (audioContext.state !== "closed") audioContext.close(); }, currentTime: 0 } as unknown as HTMLAudioElement;
         source.start();
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
