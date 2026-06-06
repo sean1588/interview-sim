@@ -10,29 +10,15 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   const arrayBuffer = await audioBlob.arrayBuffer();
   const base64Audio = Buffer.from(arrayBuffer).toString("base64");
 
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
+  const res = await fetch(`${BASE_URL}/audio/transcriptions`, {
     method: "POST",
     headers: { ...headers(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-flash-1.5",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Transcribe this audio exactly. Return only the transcription, nothing else.",
-            },
-            {
-              type: "input_audio",
-              input_audio: {
-                data: base64Audio,
-                format: "webm",
-              },
-            },
-          ],
-        },
-      ],
+      model: "openai/whisper-large-v3",
+      input_audio: {
+        data: base64Audio,
+        format: "webm",
+      },
     }),
   });
 
@@ -42,7 +28,7 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content?.trim() || "";
+  return data.text || "";
 }
 
 export async function chatStream(
