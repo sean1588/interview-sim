@@ -34,6 +34,7 @@ export default function VoiceChat() {
       stopPlayback();
       abortRef.current?.abort();
 
+      vadRef.current?.freeze();
       setStatus("processing");
       setTranscript("");
       setResponse("");
@@ -77,17 +78,20 @@ export default function VoiceChat() {
         audio.onended = () => {
           URL.revokeObjectURL(url);
           audioRef.current = null;
+          vadRef.current?.unfreeze();
           setStatus("listening");
           addLog("Listening...");
         };
         audio.onerror = () => {
           URL.revokeObjectURL(url);
           audioRef.current = null;
+          vadRef.current?.unfreeze();
           addLog("Audio playback error");
           setStatus("listening");
         };
         await audio.play();
       } catch (e) {
+        vadRef.current?.unfreeze();
         if (e instanceof DOMException && e.name === "AbortError") {
           addLog("Interrupted — listening again");
           setStatus("listening");

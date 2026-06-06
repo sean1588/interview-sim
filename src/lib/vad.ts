@@ -9,7 +9,6 @@ export class SimpleVAD {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private stream: MediaStream | null = null;
-  private chunks: Blob[] = [];
   private isSpeaking = false;
   private silenceStart = 0;
   private animationFrame = 0;
@@ -19,7 +18,9 @@ export class SimpleVAD {
   private onSpeechEnd: (audio: Blob) => void;
   private active = false;
   private mimeType = "audio/webm";
-  private recording = false;
+  private recorder: MediaRecorder | null = null;
+  private chunks: Blob[] = [];
+  private frozen = false;
 
   constructor(options: VADOptions = {}) {
     this.silenceThreshold = options.silenceThreshold ?? 15;
@@ -43,10 +44,28 @@ export class SimpleVAD {
   stop() {
     this.active = false;
     cancelAnimationFrame(this.animationFrame);
+    if (this.recorder?.state === "recording") {
+      try { this.recorder.stop(); } catch {}
+    }
     this.stream?.getTracks().forEach((t) => t.stop());
     if (this.audioContext?.state !== "closed") {
       this.audioContext?.close();
     }
+  }
+
+  freeze() {
+    this.frozen = true;
+    this.isSpeaking = false;
+    this.silenceStart = 0;
+    if (this.recorder?.state === "recording") {
+      try { this.recorder.stop(); } catch {}
+    }
+    this.recorder = null;
+    this.chunks = [];
+  }
+
+  unfreeze() {
+    this.frozen = false;
   }
 
   getVolume(): number {
@@ -61,47 +80,33 @@ export class SimpleVAD {
     return Math.sqrt(sum / data.length) * 100;
   }
 
-  private startRecording() {
-    if (this.recording || !this.stream) return;
-    this.chunks = [];
-    const recorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) this.chunks.push(e.data);
-    };
-    recorder.onstop = () => {
-      this.recording = false;
-      const blob = new Blob(this.chunks, { type: this.mimeType });
-      this.chunks = [];
-      if (blob.size > 0) {
-        this.onSpeechEnd(blob);
-      }
-    };
-    recorder.start(100);
-    this.recording = true;
-    this._recorder = recorder;
-  }
-
-  private stopRecording() {
-    if (!this.recording || !this._recorder) return;
-    try {
-      this._recorder.stop();
-    } catch {
-      this.recording = false;
-    }
-  }
-
-  private _recorder: MediaRecorder | null = null;
-
   private monitor() {
     if (!this.active) return;
 
     const volume = this.getVolume();
 
+    if (this.frozen) {
+      this.animationFrame = requestAnimationFrame(() => this.monitor());
+      return;
+    }
+
     if (volume > this.silenceThreshold) {
       if (!this.isSpeaking) {
         this.isSpeaking = true;
-        this.startRecording();
-        this.onSpeechStart();
+        this.chunks = [];
+        try {
+          this.recorder = new MediaRecorder(this.stream!, { mimeType: this.mimeType });
+          this.recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) this.chunks.push(e.data);
+          };
+          this.recorder.start(100);
+        } catch (e) {
+          console.error("[VAD] Failed to start recorder:", e);
+          this.isSpeaking = false;
+        }
+        if (this.isSpeaking) {
+          this.onSpeechStart();
+        }
       }
       this.silenceStart = 0;
     } else if (this.isSpeaking) {
@@ -109,8 +114,23 @@ export class SimpleVAD {
         this.silenceStart = Date.now();
       } else if (Date.now() - this.silenceStart > this.silenceDuration) {
         this.isSpeaking = false;
-        this.stopRecording();
         this.silenceStart = 0;
+
+        if (this.recorder?.state === "recording") {
+          const currentRecorder = this.recorder;
+          currentRecorder.onstop = () => {
+            const blob = new Blob(this.chunks, { type: this.mimeType });
+            this.chunks = [];
+            this.recorder = null;
+            if (blob.size > 0) {
+              this.onSpeechEnd(blob);
+            }
+          };
+          currentRecorder.stop();
+        } else {
+          this.recorder = null;
+          this.chunks = [];
+        }
       }
     }
 
