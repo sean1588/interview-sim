@@ -5,8 +5,6 @@ import Editor from "@monaco-editor/react";
 import type { LanguageId } from "@/lib/problems";
 import { runCode, type RunResult } from "@/lib/runner";
 
-export type { RunResult };
-
 interface CodeEditorProps {
   code: string;
   language: LanguageId;

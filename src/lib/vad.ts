@@ -1,3 +1,5 @@
+import { wavHeader, floatToPcm16 } from "@/lib/wav";
+
 export interface VADOptions {
   silenceThreshold?: number;
   silenceDuration?: number;
@@ -22,7 +24,8 @@ export class SimpleVAD {
 
   private silenceThreshold: number;
   private silenceDuration: number;
-  private preRollSamples: number;
+  private preRollMs: number;
+  private preRollSamples = 0;
   private onSpeechStart: () => void;
   private onSpeechEnd: (audio: Blob) => void;
 
@@ -42,18 +45,15 @@ export class SimpleVAD {
     this.silenceDuration = options.silenceDuration ?? 1200;
     this.onSpeechStart = options.onSpeechStart ?? (() => {});
     this.onSpeechEnd = options.onSpeechEnd ?? (() => {});
-    // preRollSamples computed once we know the sample rate, in start()
-    this._preRollMs = options.preRollMs ?? 400;
-    this.preRollSamples = 0;
+    // preRollSamples is computed in start(), once we know the sample rate.
+    this.preRollMs = options.preRollMs ?? 400;
   }
-
-  private _preRollMs: number;
 
   async start() {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.audioContext = new AudioContext();
     this.sampleRate = this.audioContext.sampleRate;
-    this.preRollSamples = Math.floor((this._preRollMs / 1000) * this.sampleRate);
+    this.preRollSamples = Math.floor((this.preRollMs / 1000) * this.sampleRate);
 
     this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
     this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
@@ -76,8 +76,9 @@ export class SimpleVAD {
     this.processor?.disconnect();
     this.sourceNode?.disconnect();
     this.stream?.getTracks().forEach((t) => t.stop());
-    if (this.audioContext?.state !== "closed") {
-      this.audioContext?.close();
+    if (this.audioContext && this.audioContext.state !== "closed") {
+      // close() is async and can reject if already closing — swallow it.
+      this.audioContext.close().catch(() => {});
     }
   }
 
@@ -154,36 +155,8 @@ export class SimpleVAD {
   }
 
   private encodeWav(samples: Float32Array, sampleRate: number): Blob {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-
-    const writeStr = (offset: number, str: string) => {
-      for (let i = 0; i < str.length; i++) {
-        view.setUint8(offset + i, str.charCodeAt(i));
-      }
-    };
-
-    writeStr(0, "RIFF");
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeStr(8, "WAVE");
-    writeStr(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, 1, true); // mono
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeStr(36, "data");
-    view.setUint32(40, samples.length * 2, true);
-
-    let offset = 44;
-    for (let i = 0; i < samples.length; i++) {
-      const s = Math.max(-1, Math.min(1, samples[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-      offset += 2;
-    }
-
-    return new Blob([buffer], { type: "audio/wav" });
+    const pcm = floatToPcm16(samples);
+    const header = wavHeader(pcm.length, sampleRate);
+    return new Blob([header, pcm], { type: "audio/wav" });
   }
 }

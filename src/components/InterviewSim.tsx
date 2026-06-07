@@ -3,9 +3,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
-import CodeEditor, { RunResult } from "@/components/CodeEditor";
+import CodeEditor from "@/components/CodeEditor";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
 import { PROBLEMS, getProblem, type LanguageId } from "@/lib/problems";
+import type { RunResult } from "@/lib/runner";
 
 export default function InterviewSim() {
   // Stable id tying every turn + the assessment to one server-side session.
@@ -40,32 +41,30 @@ export default function InterviewSim() {
     [bufKey]
   );
 
+  // Seed the (problem, language) buffer from starter code if we haven't seen it
+  // yet, and reset the last run. Switching either axis funnels through here.
+  const ensureBuffer = useCallback((pid: string, lang: LanguageId) => {
+    const key = `${pid}:${lang}`;
+    setBuffers((prev) =>
+      key in prev ? prev : { ...prev, [key]: getProblem(pid)!.starterCode[lang] }
+    );
+    lastRunRef.current = undefined;
+  }, []);
+
   const handleLanguageChange = useCallback(
     (lang: LanguageId) => {
       setLanguage(lang);
-      const key = `${problemId}:${lang}`;
-      setBuffers((prev) =>
-        key in prev
-          ? prev
-          : { ...prev, [key]: getProblem(problemId)!.starterCode[lang] }
-      );
-      lastRunRef.current = undefined;
+      ensureBuffer(problemId, lang);
     },
-    [problemId]
+    [problemId, ensureBuffer]
   );
 
   const handleProblemChange = useCallback(
     (id: string) => {
       setProblemId(id);
-      const key = `${id}:${language}`;
-      setBuffers((prev) =>
-        key in prev
-          ? prev
-          : { ...prev, [key]: getProblem(id)!.starterCode[language] }
-      );
-      lastRunRef.current = undefined;
+      ensureBuffer(id, language);
     },
-    [language]
+    [language, ensureBuffer]
   );
 
   const handleRun = useCallback((result: RunResult) => {
@@ -76,14 +75,14 @@ export default function InterviewSim() {
   // Pulled fresh by VoiceChat on each turn.
   const getContext = useCallback(
     (): InterviewContext => ({
-      code: buffers[bufKey] ?? problem.starterCode[language],
+      code,
       language,
       problemId: problem.id,
       problemTitle: problem.title,
       problemPrompt: problem.prompt,
       lastRun: lastRunRef.current,
     }),
-    [buffers, bufKey, problem, language]
+    [code, problem, language]
   );
 
   const endInterview = useCallback(async () => {

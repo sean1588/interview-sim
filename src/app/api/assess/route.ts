@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { chatComplete } from "@/lib/openrouter";
+import { stripEditorContext } from "@/lib/editor-context";
+import { stripCodeFences } from "@/lib/llm-json";
 import { getSession } from "@/lib/session-store";
 
 // Produces a structured scorecard for the interview so far. Non-streaming, not
@@ -50,8 +52,7 @@ export async function POST(req: NextRequest) {
     const transcript = session.history
       .map((m) => {
         const who = m.role === "assistant" ? "Interviewer" : "Candidate";
-        const text = m.content.replace(/\n\n\[Editor state[\s\S]*$/, "").trim();
-        return `${who}: ${text}`;
+        return `${who}: ${stripEditorContext(m.content)}`;
       })
       .join("\n");
 
@@ -75,16 +76,9 @@ ${lastRun || "(never run)"}`;
       { jsonMode: true }
     );
 
-    // Be defensive: strip any stray code fences before parsing.
-    const cleaned = content
-      .trim()
-      .replace(/^```(?:json)?/i, "")
-      .replace(/```$/, "")
-      .trim();
-
     let scorecard;
     try {
-      scorecard = JSON.parse(cleaned);
+      scorecard = JSON.parse(stripCodeFences(content));
     } catch {
       console.error("[assess] could not parse model output:", content);
       return Response.json(

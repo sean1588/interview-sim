@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { SimpleVAD } from "@/lib/vad";
 import SimliAvatar, { SimliAvatarHandle } from "@/components/SimliAvatar";
-import { wavBase64ToSimliPcm } from "@/lib/audio";
+import { wavBase64ToSimliPcm, base64ToUint8 } from "@/lib/audio";
 
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
@@ -25,15 +25,6 @@ interface VoiceChatProps {
   getContext?: () => InterviewContext;
 }
 
-function base64ToArrayBuffer(b64: string): ArrayBuffer {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
 export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -52,8 +43,16 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
   // Avatar: when connected, audio is routed to Simli instead of <audio> tags.
   const avatarRef = useRef<SimliAvatarHandle | null>(null);
   const avatarActiveRef = useRef(false);
-  const donePendingRef = useRef(false);
   const reconnectingRef = useRef(false);
+
+  // Turn lifecycle. A turn ends — mic reopens — only once the server has
+  // finished streaming AND playback is done: the <audio> queue is drained and,
+  // if we routed audio to the avatar, it has spoken and fallen silent. These
+  // refs are the inputs to finishTurnIfIdle, the single place that decides.
+  const streamDoneRef = useRef(false); // server sent its "done" for this turn
+  const avatarAudioSentRef = useRef(false); // routed any audio to the avatar
+  const avatarSpokeRef = useRef(false); // avatar has started speaking this turn
+  const avatarSpeakingRef = useRef(false); // avatar is speaking right now
   const avatarEnabledRef = useRef(avatarEnabled);
   useEffect(() => {
     avatarEnabledRef.current = avatarEnabled;
@@ -75,6 +74,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
 
   const stopPlayback = useCallback(() => {
     playingRef.current = false;
+    streamDoneRef.current = false;
     for (const audio of audioQueueRef.current) {
       audio.pause();
       if (audio.src) URL.revokeObjectURL(audio.src);
@@ -85,30 +85,43 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
     }
   }, []);
 
-  // When the avatar goes silent after we've sent the full response, we're done.
-  const handleAvatarSilent = useCallback(() => {
-    if (avatarActiveRef.current && donePendingRef.current) {
-      donePendingRef.current = false;
-      vadRef.current?.unfreeze();
-      setStatus("listening");
-      addLog("Listening...");
+  // The single owner of "is this turn over?". Every event that could end a turn
+  // (server done, <audio> drained, avatar silent/disconnected, avatar toggled
+  // off) calls this; it reads the turn refs and reopens the mic exactly once.
+  const finishTurnIfIdle = useCallback(() => {
+    if (!streamDoneRef.current) return; // server still streaming
+    if (playingRef.current) return; // <audio> fallback still playing
+    // If we sent audio to the avatar, wait for it to actually speak and then
+    // fall silent. Checking a live "speaking" flag (not just the next silent
+    // event) means we can't lose the event if it arrives before "done".
+    if (avatarActiveRef.current && avatarAudioSentRef.current) {
+      if (!avatarSpokeRef.current) return; // hasn't started speaking yet
+      if (avatarSpeakingRef.current) return; // still speaking
     }
+    streamDoneRef.current = false;
+    vadRef.current?.unfreeze();
+    setStatus("listening");
+    addLog("Listening...");
   }, [addLog]);
+
+  const handleAvatarSpeaking = useCallback(() => {
+    avatarSpeakingRef.current = true;
+    avatarSpokeRef.current = true;
+    setStatus("speaking");
+  }, []);
+
+  const handleAvatarSilent = useCallback(() => {
+    avatarSpeakingRef.current = false;
+    finishTurnIfIdle();
+  }, [finishTurnIfIdle]);
 
   // The Simli connection died (e.g. WS closed). Downgrade to voice-only so the
   // conversation keeps flowing, then try to bring the avatar back once.
   const handleAvatarDisconnected = useCallback(() => {
     avatarActiveRef.current = false;
-
-    // If we were waiting on the avatar's onSilent to finish a turn, that event
-    // will never come now — recover so we don't get stuck frozen.
-    if (donePendingRef.current) {
-      donePendingRef.current = false;
-      if (!playingRef.current) {
-        vadRef.current?.unfreeze();
-        setStatus("listening");
-      }
-    }
+    // The avatar's onSilent will never come now — finishTurnIfIdle no longer
+    // waits on it (avatar inactive), so this recovers a frozen turn.
+    finishTurnIfIdle();
 
     // Don't reconnect if the user has turned the avatar off.
     if (!avatarEnabledRef.current) {
@@ -129,7 +142,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
       avatarActiveRef.current = !!ok;
       addLog(ok ? "Avatar reconnected." : "Avatar offline — voice only.");
     }, 1500);
-  }, [addLog]);
+  }, [addLog, finishTurnIfIdle]);
 
   // Toggle the animated avatar on/off. Takes effect live if a conversation is
   // running; otherwise it just sets the preference for the next start.
@@ -150,49 +163,39 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
       reconnectingRef.current = false;
       avatarActiveRef.current = false;
       avatarRef.current?.destroy();
-      // If we were waiting on the avatar to finish a turn, recover.
-      if (donePendingRef.current) {
-        donePendingRef.current = false;
-        if (!playingRef.current) {
-          vadRef.current?.unfreeze();
-          setStatus("listening");
-        }
-      }
+      // We're no longer waiting on the avatar to finish the turn — recover.
+      finishTurnIfIdle();
     }
-  }, [addLog]);
+  }, [addLog, finishTurnIfIdle]);
 
   const playNext = useCallback(() => {
-    if (!playingRef.current) return;
-    const queue = audioQueueRef.current;
-    if (queue.length === 0) {
-      playingRef.current = false;
-      vadRef.current?.unfreeze();
-      setStatus("listening");
-      addLog("Listening...");
-      return;
-    }
+    // Local recursion so the drain loop doesn't reference the memoized callback
+    // from within itself.
+    function step() {
+      if (!playingRef.current) return;
+      const queue = audioQueueRef.current;
+      if (queue.length === 0) {
+        playingRef.current = false;
+        finishTurnIfIdle();
+        return;
+      }
 
-    const audio = queue[0];
-    audio.onended = () => {
-      if (audio.src) URL.revokeObjectURL(audio.src);
-      queue.shift();
-      playNext();
-    };
-    audio.onerror = () => {
-      if (audio.src) URL.revokeObjectURL(audio.src);
-      queue.shift();
-      playNext();
-    };
-    audio.play().catch(() => {
-      queue.shift();
-      playNext();
-    });
-  }, [addLog]);
+      const audio = queue[0];
+      const advance = () => {
+        if (audio.src) URL.revokeObjectURL(audio.src);
+        queue.shift();
+        step();
+      };
+      audio.onended = advance;
+      audio.onerror = advance;
+      audio.play().catch(advance);
+    }
+    step();
+  }, [finishTurnIfIdle]);
 
   const enqueueAudio = useCallback(
     (b64: string) => {
-      const buf = base64ToArrayBuffer(b64);
-      const blob = new Blob([buf], { type: "audio/wav" });
+      const blob = new Blob([base64ToUint8(b64)], { type: "audio/wav" });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioQueueRef.current.push(audio);
@@ -210,6 +213,12 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
     async (opts: { audio?: Blob; kickoff?: boolean }) => {
       stopPlayback();
       abortRef.current?.abort();
+
+      // Fresh turn — reset the lifecycle refs finishTurnIfIdle reads.
+      streamDoneRef.current = false;
+      avatarAudioSentRef.current = false;
+      avatarSpokeRef.current = false;
+      avatarSpeakingRef.current = false;
 
       vadRef.current?.freeze();
       setStatus("processing");
@@ -290,6 +299,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
                   avatarActiveRef.current &&
                   avatarRef.current?.sendAudio(wavBase64ToSimliPcm(msg.data));
                 if (sentToAvatar) {
+                  avatarAudioSentRef.current = true;
                   setStatus("speaking");
                 } else {
                   enqueueAudio(msg.data);
@@ -300,18 +310,10 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
                   { role: "assistant", text: msg.fullResponse },
                 ]);
                 addLog(`AI: "${msg.fullResponse.slice(0, 80)}${msg.fullResponse.length > 80 ? "..." : ""}"`);
-                if (avatarActiveRef.current) {
-                  // Avatar will keep talking through buffered audio; the
-                  // onSilent event returns us to listening.
-                  donePendingRef.current = true;
-                } else if (!playingRef.current) {
-                  // No avatar and nothing queued in the <audio> fallback —
-                  // return to listening directly so we don't stay frozen.
-                  vadRef.current?.unfreeze();
-                  setStatus("listening");
-                  addLog("Listening...");
-                }
-                // else: the <audio> queue's completion handler resumes listening.
+                // The turn ends once playback catches up; finishTurnIfIdle
+                // owns that decision across the avatar and <audio> paths.
+                streamDoneRef.current = true;
+                finishTurnIfIdle();
               }
             } catch {
               // skip malformed lines
@@ -329,7 +331,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
         setStatus("listening");
       }
     },
-    [addLog, stopPlayback, enqueueAudio, sessionId]
+    [addLog, stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId]
   );
 
   const sendAudio = useCallback(
@@ -386,7 +388,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
     abortRef.current?.abort();
     avatarRef.current?.destroy();
     avatarActiveRef.current = false;
-    donePendingRef.current = false;
+    streamDoneRef.current = false;
     reconnectingRef.current = false;
     setStatus("idle");
     addLog("Stopped.");
@@ -418,7 +420,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
           <div className={avatarEnabled ? "" : "hidden"}>
             <SimliAvatar
               ref={avatarRef}
-              onSpeaking={() => setStatus("speaking")}
+              onSpeaking={handleAvatarSpeaking}
               onSilent={handleAvatarSilent}
               onDisconnected={handleAvatarDisconnected}
             />

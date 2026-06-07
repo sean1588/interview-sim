@@ -3,9 +3,10 @@ import {
   transcribe,
   chatStream,
   textToSpeechPcm,
-  pcmToWav,
   parseSseStream,
 } from "@/lib/openrouter";
+import { pcmToWav } from "@/lib/wav";
+import { formatEditorContext } from "@/lib/editor-context";
 import { getSession, resetSession } from "@/lib/session-store";
 
 function interviewerSystemPrompt(opts: {
@@ -41,16 +42,10 @@ export async function POST(req: NextRequest) {
     const kickoff = (formData.get("kickoff") as string | null) === "true";
 
     if (!sessionId) {
-      return new Response(JSON.stringify({ error: "No sessionId provided" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return Response.json({ error: "No sessionId provided" }, { status: 400 });
     }
     if (!audioFile && !kickoff) {
-      return new Response(JSON.stringify({ error: "No audio provided" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return Response.json({ error: "No audio provided" }, { status: 400 });
     }
 
     const code = (formData.get("code") as string | null) ?? "";
@@ -67,10 +62,7 @@ export async function POST(req: NextRequest) {
     } else {
       transcript = await transcribe(audioFile as Blob);
       if (!transcript.trim()) {
-        return new Response(JSON.stringify({ error: "No speech detected" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return Response.json({ error: "No speech detected" }, { status: 400 });
       }
     }
 
@@ -81,14 +73,9 @@ export async function POST(req: NextRequest) {
     } else {
       // Attach the live editor context. The model is told (in the system
       // prompt) not to read the bracketed part aloud.
-      const editorContext =
-        code || lastRun
-          ? `\n\n[Editor state — ${language || "code"}:\n${code || "(empty)"}\n]` +
-            (lastRun ? `\n[Latest run output:\n${lastRun}\n]` : "")
-          : "";
       session.history.push({
         role: "user",
-        content: transcript + editorContext,
+        content: transcript + formatEditorContext({ code, language, lastRun }),
       });
     }
 
@@ -112,8 +99,30 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const ttsQueue: Promise<void>[] = [];
+        // TTS runs concurrently per sentence, but the audio chunks MUST reach
+        // the client in sentence order or the interviewer speaks out of order.
+        // Each finished chunk parks in `ready` keyed by its index; `flushReady`
+        // drains them strictly in sequence from `nextToFlush`. A failed TTS
+        // parks an empty string so the cursor still advances past it.
+        const ttsTasks: Promise<void>[] = [];
+        const ready = new Map<number, string>();
         let sentenceIndex = 0;
+        let nextToFlush = 0;
+
+        const flushReady = () => {
+          while (ready.has(nextToFlush)) {
+            const b64 = ready.get(nextToFlush)!;
+            ready.delete(nextToFlush);
+            if (b64) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({ type: "audio", data: b64 }) + "\n"
+                )
+              );
+            }
+            nextToFlush++;
+          }
+        };
 
         const fullResponse = await parseSseStream(
           llmStream,
@@ -122,31 +131,28 @@ export async function POST(req: NextRequest) {
             // Send the text chunk so client can display it progressively
             controller.enqueue(
               encoder.encode(
-                JSON.stringify({ type: "text", text: sentence, index: idx }) + "\n"
+                JSON.stringify({ type: "text", text: sentence }) + "\n"
               )
             );
 
             // Fire off TTS for this sentence immediately (don't await)
-            const ttsPromise = textToSpeechPcm(sentence)
+            const task = textToSpeechPcm(sentence)
               .then((pcm) => {
-                const wav = pcmToWav(pcm);
-                const b64 = wav.toString("base64");
-                controller.enqueue(
-                  encoder.encode(
-                    JSON.stringify({ type: "audio", data: b64, index: idx }) + "\n"
-                  )
-                );
+                ready.set(idx, Buffer.from(pcmToWav(pcm)).toString("base64"));
+                flushReady();
               })
               .catch((err) => {
                 console.error(`[TTS] Sentence ${idx} failed:`, err);
+                ready.set(idx, "");
+                flushReady();
               });
 
-            ttsQueue.push(ttsPromise);
+            ttsTasks.push(task);
           }
         );
 
         // Wait for all TTS to finish
-        await Promise.all(ttsQueue);
+        await Promise.all(ttsTasks);
 
         session.history.push({ role: "assistant", content: fullResponse });
         // Cap history (system prompt is added per-request, not stored here).
@@ -165,18 +171,16 @@ export async function POST(req: NextRequest) {
 
     return new Response(stream, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Type": "application/x-ndjson; charset=utf-8",
         "Transfer-Encoding": "chunked",
         "Cache-Control": "no-cache",
       },
     });
   } catch (error) {
     console.error("Chat pipeline error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Pipeline failed",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Pipeline failed" },
+      { status: 500 }
     );
   }
 }
