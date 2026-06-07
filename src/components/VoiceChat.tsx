@@ -41,7 +41,7 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
   const [latency, setLatency] = useState<number | null>(null);
   // Avatar on = animated Simli character; off = voice-only (no Simli session,
   // saves credits). Plain <audio> playback is used whenever the avatar is off.
-  const [avatarEnabled, setAvatarEnabled] = useState(true);
+  const [avatarEnabled, setAvatarEnabled] = useState(false);
 
   const vadRef = useRef<SimpleVAD | null>(null);
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
