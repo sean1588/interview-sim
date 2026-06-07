@@ -3,7 +3,7 @@
  * expects raw PCM16 mono at 16kHz.
  */
 
-export function base64ToUint8(b64: string): Uint8Array {
+export function base64ToUint8(b64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -12,10 +12,15 @@ export function base64ToUint8(b64: string): Uint8Array {
 
 /** Parse a WAV blob (our encoder: PCM16 mono, 44-byte header) into samples. */
 export function wavToPcm16(wav: Uint8Array): { samples: Int16Array; sampleRate: number } {
+  const dataOffset = 44;
+  // Nothing but (or less than) a header — no samples. Guard so we never try to
+  // allocate a negative-length Int16Array.
+  if (wav.byteLength <= dataOffset) {
+    return { samples: new Int16Array(0), sampleRate: 24000 };
+  }
   const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
   const sampleRate = view.getUint32(24, true);
-  const dataOffset = 44;
-  const sampleCount = (wav.byteLength - dataOffset) / 2;
+  const sampleCount = Math.floor((wav.byteLength - dataOffset) / 2);
   const samples = new Int16Array(sampleCount);
   for (let i = 0; i < sampleCount; i++) {
     samples[i] = view.getInt16(dataOffset + i * 2, true);

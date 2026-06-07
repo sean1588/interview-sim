@@ -3,7 +3,9 @@
 // transcript. Still in-memory — fine for the local spike; swap for a real store
 // (Redis/DB) when we deploy.
 
-export type ChatMessage = { role: string; content: string };
+import type { ChatMessage } from "./openrouter";
+
+export type { ChatMessage };
 
 export interface SessionState {
   history: ChatMessage[];

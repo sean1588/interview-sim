@@ -13,6 +13,25 @@ export interface RunResult {
   exitCode: number;
 }
 
+/**
+ * Single place that owns how stdout/stderr combine into the console `output`,
+ * so each execution path supplies the two streams and a code, nothing more.
+ */
+function makeResult(parts: {
+  stdout?: string;
+  stderr?: string;
+  exitCode: number;
+}): RunResult {
+  const stdout = parts.stdout ?? "";
+  const stderr = parts.stderr ?? "";
+  return {
+    stdout,
+    stderr,
+    output: [stdout, stderr].filter(Boolean).join("\n"),
+    exitCode: parts.exitCode,
+  };
+}
+
 const PYODIDE_VERSION = "0.26.2";
 const PYODIDE_BASE = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 
@@ -54,16 +73,10 @@ async function runPython(code: string): Promise<RunResult> {
   py.setStderr({ batched: (s: string) => (stderr += s + "\n") });
   try {
     await py.runPythonAsync(code);
-    return {
-      stdout,
-      stderr,
-      output: stdout + (stderr ? `\n${stderr}` : ""),
-      exitCode: stderr ? 1 : 0,
-    };
+    return makeResult({ stdout, stderr, exitCode: stderr ? 1 : 0 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    stderr += msg;
-    return { stdout, stderr, output: stdout + (stdout ? "\n" : "") + msg, exitCode: 1 };
+    return makeResult({ stdout, stderr: stderr + msg, exitCode: 1 });
   }
 }
 
@@ -98,12 +111,12 @@ function runJavaScript(code: string): Promise<RunResult> {
     const timeout = setTimeout(() => {
       worker.terminate();
       URL.revokeObjectURL(url);
-      resolve({
-        stdout: "",
-        stderr: "Execution timed out (5s) — possible infinite loop.",
-        output: "Execution timed out (5s) — possible infinite loop.",
-        exitCode: 1,
-      });
+      resolve(
+        makeResult({
+          stderr: "Execution timed out (5s) — possible infinite loop.",
+          exitCode: 1,
+        })
+      );
     }, 5000);
 
     worker.onmessage = (e) => {
@@ -111,24 +124,17 @@ function runJavaScript(code: string): Promise<RunResult> {
       worker.terminate();
       URL.revokeObjectURL(url);
       const { ok, output, error } = e.data;
-      const out = output || (ok ? "(no output)" : "");
-      resolve({
-        stdout: ok ? output : "",
-        stderr: ok ? "" : error || "",
-        output: error ? `${out}${out ? "\n" : ""}${error}` : out,
-        exitCode: ok ? 0 : 1,
-      });
+      resolve(
+        ok
+          ? makeResult({ stdout: output, exitCode: 0 })
+          : makeResult({ stdout: output, stderr: error || "", exitCode: 1 })
+      );
     };
     worker.onerror = (e) => {
       clearTimeout(timeout);
       worker.terminate();
       URL.revokeObjectURL(url);
-      resolve({
-        stdout: "",
-        stderr: e.message,
-        output: e.message,
-        exitCode: 1,
-      });
+      resolve(makeResult({ stderr: e.message, exitCode: 1 }));
     };
 
     worker.postMessage({ code });
@@ -141,10 +147,8 @@ export async function runCode(
 ): Promise<RunResult> {
   if (language === "python") return runPython(code);
   if (language === "javascript") return runJavaScript(code);
-  return {
-    stdout: "",
+  return makeResult({
     stderr: `Running ${language} isn't supported yet — try Python or JavaScript.`,
-    output: `Running ${language} isn't supported yet — try Python or JavaScript.`,
     exitCode: 1,
-  };
+  });
 }

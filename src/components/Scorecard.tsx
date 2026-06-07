@@ -22,12 +22,18 @@ const SCORE_LABELS: Record<string, string> = {
   complexity: "Complexity Analysis",
 };
 
+// Closed enum from the assessor (see /api/assess) — keyed lookup, so coloring
+// can't break on substring ordering (e.g. "Lean No Hire" containing "hire").
+const REC_COLORS: Record<string, string> = {
+  "strong hire": "bg-green-600",
+  hire: "bg-emerald-600",
+  "lean hire": "bg-emerald-600",
+  "lean no hire": "bg-red-600",
+  "no hire": "bg-red-600",
+};
+
 function recColor(rec: string): string {
-  const r = rec.toLowerCase();
-  if (r.includes("strong hire")) return "bg-green-600";
-  if (r.includes("no hire")) return "bg-red-600";
-  if (r.includes("hire")) return "bg-emerald-600";
-  return "bg-yellow-600";
+  return REC_COLORS[rec.trim().toLowerCase()] ?? "bg-yellow-600";
 }
 
 function Dots({ score }: { score: number }) {
