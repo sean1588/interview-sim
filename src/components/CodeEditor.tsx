@@ -8,20 +8,24 @@ import { runCode, type RunResult } from "@/lib/runner";
 interface CodeEditorProps {
   code: string;
   language: LanguageId;
+  /** Languages the current problem supports — drives the picker. */
+  languages: LanguageId[];
   onCodeChange: (code: string) => void;
   onLanguageChange: (language: LanguageId) => void;
   /** Called with the run result so the parent can forward it to the interviewer. */
   onRun?: (result: RunResult) => void;
 }
 
-const LANGUAGES: { id: LanguageId; label: string }[] = [
-  { id: "python", label: "Python" },
-  { id: "javascript", label: "JavaScript" },
-];
+const LANGUAGE_LABELS: Record<LanguageId, string> = {
+  python: "Python",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+};
 
 export default function CodeEditor({
   code,
   language,
+  languages,
   onCodeChange,
   onLanguageChange,
   onRun,
@@ -59,9 +63,9 @@ export default function CodeEditor({
           onChange={(e) => onLanguageChange(e.target.value as LanguageId)}
           className="bg-gray-800 text-gray-200 text-sm rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-gray-500"
         >
-          {LANGUAGES.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
+          {languages.map((id) => (
+            <option key={id} value={id}>
+              {LANGUAGE_LABELS[id]}
             </option>
           ))}
         </select>
