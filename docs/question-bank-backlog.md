@@ -3,9 +3,9 @@
 Living list of problems to add so the coding bank becomes a *balanced prep
 curriculum*, not just a snapshot of past practice. Check items off as they land.
 
-The current bank (44 problems) has strong **pattern breadth** but uneven
-**topic depth** — it reflects what was practiced, not a designed ladder. The
-priorities below close the systematic gaps.
+The bank now has **71 problems**. The Priority-1 balance pass (trees, linked-list
+fundamentals, a DP ladder) plus a graph boost is **done** — see below. Remaining
+work is Priority 2 (missing categories) and Priority 3 (more depth).
 
 ## Current coverage snapshot
 
@@ -14,47 +14,53 @@ priorities below close the systematic gaps.
 | Arrays / hashing | 11 | Good (a few low-signal warmups) |
 | Strings | 8 | Good |
 | Searching / binary search | 3 | OK |
-| Linked lists | 2 | **Thin — missing fundamentals** |
-| Trees | 1 | **Badly under-covered** |
-| Graphs | 5 | Good |
+| Linked lists | 8 | ✅ Fundamentals added |
+| Trees | 10 | ✅ Now well-covered |
+| Graphs | 10 | ✅ Strong |
 | Heap | 2 | OK |
-| Dynamic programming | 2 | **Thin** |
+| Dynamic programming | 9 | ✅ Real Easy→Hard ladder |
 | Backtracking | 2 | OK |
 | Design | 2 | OK |
 | JS utilities | 6 | Good (JS-only) |
 
-## Priority 1 — critical gaps (do these first)
+## Priority 1 — ✅ DONE
 
-Trees and linked-list fundamentals are among the most common interview topics,
-and DP is a wide category we've barely touched.
+### Trees
+- [x] Maximum Depth of Binary Tree — Easy
+- [x] Invert Binary Tree — Easy
+- [x] Symmetric Tree — Easy
+- [x] Diameter of Binary Tree — Easy
+- [x] Balanced Binary Tree — Easy
+- [x] Validate Binary Search Tree — Medium
+- [x] Lowest Common Ancestor (BST) — Medium
+- [x] Kth Smallest Element in a BST — Medium
+- [x] Serialize and Deserialize Binary Tree — Hard
+- [ ] Same Tree — Easy (optional, not yet added)
+- [ ] Binary Tree Path Sum — Easy/Medium (optional, not yet added)
 
-### Trees (have 1 — need the fundamentals)
-- [ ] Maximum Depth of Binary Tree — Easy
-- [ ] Invert Binary Tree — Easy
-- [ ] Same Tree / Symmetric Tree — Easy
-- [ ] Validate Binary Search Tree — Medium
-- [ ] Lowest Common Ancestor (BST + binary tree) — Medium
-- [ ] Diameter of Binary Tree — Easy/Medium
-- [ ] Binary Tree Path Sum — Easy/Medium
-- [ ] Kth Smallest Element in a BST — Medium
-- [ ] Serialize and Deserialize Binary Tree — Hard
+### Linked lists
+- [x] Reverse a Linked List — Easy
+- [x] Linked List Cycle (detect) — Easy
+- [x] Middle of the Linked List — Easy
+- [x] Palindrome Linked List — Easy
+- [x] Remove Nth Node From End — Medium
+- [x] Reorder List — Medium
 
-### Linked-list fundamentals (have Add Two Numbers, Merge k — need the basics)
-- [ ] Reverse a Linked List — Easy
-- [ ] Linked List Cycle (detect) — Easy
-- [ ] Middle of the Linked List — Easy
-- [ ] Remove Nth Node From End — Medium
-- [ ] Reorder List — Medium
-- [ ] Palindrome Linked List — Easy
+### Dynamic programming
+- [x] Maximum Subarray (Kadane) — Medium
+- [x] House Robber — Medium
+- [x] Coin Change — Medium
+- [x] Unique Paths — Medium
+- [x] Longest Increasing Subsequence — Medium
+- [x] Longest Common Subsequence — Medium
+- [x] Edit Distance — Hard
 
-### Dynamic programming (have Climbing Stairs, Word Break — need a ladder)
-- [ ] House Robber — Medium
-- [ ] Coin Change — Medium
-- [ ] Longest Increasing Subsequence — Medium
-- [ ] Maximum Subarray (Kadane) — Medium
-- [ ] Unique Paths — Medium
-- [ ] Longest Common Subsequence — Medium
-- [ ] Edit Distance — Hard
+### Graphs (boost)
+- [x] Clone Graph — Medium
+- [x] Rotting Oranges — Medium (multi-source BFS)
+- [x] Number of Connected Components — Medium (union-find)
+- [x] Pacific Atlantic Water Flow — Medium (multi-source DFS)
+- [x] Word Ladder — Hard (BFS)
 
 ## Priority 2 — missing categories
 
@@ -93,11 +99,9 @@ and DP is a wide category we've barely touched.
 - [ ] Palindrome Partitioning — Medium
 - [ ] N-Queens — Hard
 
-### Graphs (have 5)
-- [ ] Clone Graph — Medium
-- [ ] Number of Connected Components — Medium
-- [ ] Pacific Atlantic Water Flow — Medium
-- [ ] Word Ladder — Hard
+### Graphs (have 10)
+- [ ] Surrounded Regions — Medium
+- [ ] Redundant Connection — Medium (union-find)
 
 ### Heap / two pointers (have a few)
 - [ ] Kth Largest Element in a Stream — Easy
@@ -111,8 +115,7 @@ and DP is a wide category we've barely touched.
   higher-frequency problems: `sock-merchant`, `hourglass-sum`,
   `array-left-rotation` (HackerRank warmups), `hamming-code-7-4` (niche),
   `basic-calculator` (trivial two-operand, not the real stack-parser).
-- **Curate, don't dump.** Unlike the initial import (which pulled whatever
-  existed in the practice repos), add these as a deliberate Easy → Hard ladder
+- **Curate, don't dump.** Add new problems as a deliberate Easy → Hard ladder
   per topic so a candidate can progress.
 - Later modes (out of scope for the coding bank): **system design** and
   **behavioral** — tracked separately when we get there.
