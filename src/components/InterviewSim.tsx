@@ -5,8 +5,16 @@ import ReactMarkdown from "react-markdown";
 import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
-import { PROBLEMS, getProblem, type LanguageId } from "@/lib/problems";
+import { PROBLEMS, getProblem, type LanguageId, type Problem } from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
+
+// Languages the editor can actually run, in display order. A problem is offered
+// in the intersection of these and the languages it provides a starter for.
+const RUNNABLE_LANGUAGES: LanguageId[] = ["python", "javascript"];
+
+function languagesFor(problem: Problem): LanguageId[] {
+  return RUNNABLE_LANGUAGES.filter((l) => l in problem.starterCode);
+}
 
 export default function InterviewSim() {
   // Stable id tying every turn + the assessment to one server-side session.
@@ -23,14 +31,15 @@ export default function InterviewSim() {
   const [assessError, setAssessError] = useState<string | null>(null);
 
   const problem = useMemo(() => getProblem(problemId)!, [problemId]);
+  const availableLanguages = useMemo(() => languagesFor(problem), [problem]);
 
   // Code is tracked per (problem, language) so switching either restores the
   // right buffer. Initialised lazily from each problem's starter scaffold.
   const [buffers, setBuffers] = useState<Record<string, string>>(() => ({
-    [`${problem.id}:${language}`]: problem.starterCode[language],
+    [`${problem.id}:${language}`]: problem.starterCode[language] ?? "",
   }));
   const bufKey = `${problemId}:${language}`;
-  const code = buffers[bufKey] ?? problem.starterCode[language];
+  const code = buffers[bufKey] ?? problem.starterCode[language] ?? "";
 
   const lastRunRef = useRef<string | undefined>(undefined);
 
@@ -46,7 +55,9 @@ export default function InterviewSim() {
   const ensureBuffer = useCallback((pid: string, lang: LanguageId) => {
     const key = `${pid}:${lang}`;
     setBuffers((prev) =>
-      key in prev ? prev : { ...prev, [key]: getProblem(pid)!.starterCode[lang] }
+      key in prev
+        ? prev
+        : { ...prev, [key]: getProblem(pid)!.starterCode[lang] ?? "" }
     );
     lastRunRef.current = undefined;
   }, []);
@@ -62,7 +73,12 @@ export default function InterviewSim() {
   const handleProblemChange = useCallback(
     (id: string) => {
       setProblemId(id);
-      ensureBuffer(id, language);
+      // The new problem may not offer the current language (e.g. a JS-only
+      // utility). Fall back to a supported one, preferring Python.
+      const supported = languagesFor(getProblem(id)!);
+      const nextLang = supported.includes(language) ? language : supported[0];
+      setLanguage(nextLang);
+      ensureBuffer(id, nextLang);
     },
     [language, ensureBuffer]
   );
@@ -171,6 +187,7 @@ export default function InterviewSim() {
             <CodeEditor
               code={code}
               language={language}
+              languages={availableLanguages}
               onCodeChange={setCode}
               onLanguageChange={handleLanguageChange}
               onRun={handleRun}
