@@ -9,6 +9,7 @@ import {
   isValidMode,
   type InterviewMode,
 } from "@/lib/prompts";
+import { isValidLevel } from "@/lib/levels";
 
 // Produces a structured scorecard for the interview so far. Non-streaming, not
 // spoken — rendered as a card in the UI.
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       lastRun,
       // non-coding
       notes,
+      level,
     } = body;
 
     if (!sessionId) {
@@ -57,7 +59,8 @@ export async function POST(req: NextRequest) {
       })
       .join("\n");
 
-    const assessSystem = getAssessSystemPrompt(mode);
+    const targetLevel = isValidLevel(level) ? level : undefined;
+    const assessSystem = getAssessSystemPrompt(mode, targetLevel);
     const userContent = buildAssessUserContent(mode, {
       transcript,
       questionTitle: qTitle,

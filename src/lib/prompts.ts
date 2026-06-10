@@ -1,4 +1,5 @@
 import type { InterviewMode } from "./types/mode";
+import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
 
 export type { InterviewMode };
 
@@ -26,11 +27,18 @@ export function getModeLabel(mode: InterviewMode): string {
 
 export function getInterviewerSystemPrompt(
   mode: InterviewMode,
-  opts: { questionTitle?: string; questionPrompt?: string } = {}
+  opts: { questionTitle?: string; questionPrompt?: string; targetLevel?: TargetLevel } = {}
 ): string {
   const title = opts.questionTitle ? `"${opts.questionTitle}"` : "the question";
   const promptBlock = opts.questionPrompt
     ? `\n\nThe current ${mode === "coding" ? "problem" : "question"} is ${title}:\n${opts.questionPrompt}`
+    : "";
+
+  // Behavioral and system-design interviews are calibrated to a target level;
+  // coding mode doesn't take a level (its branch below never appends this).
+  const level = opts.targetLevel ? getLevel(opts.targetLevel) : null;
+  const levelBlock = level
+    ? `\n\nThe candidate is interviewing for the ${level.label} level (${level.hint}). A strong candidate at this level ${level.blurb}\nCalibrate your follow-ups to that bar: probe for the scope, judgment, and influence expected at this level, and dig deeper when an answer stays a level below it. Don't demand more than the level calls for.`
     : "";
 
   if (mode === "coding") {
@@ -53,7 +61,7 @@ How to behave:
 - Greet, present the behavioral question, then let them tell the story. Follow up on vague parts ("What was the situation exactly?", "What did *you* do?", "What was the measurable impact?").
 - Push gently for the full arc: Situation/Task, Action (their specific contribution), Result + reflection. If they ramble or stay high-level, ask for a concrete example or a number.
 - Be supportive but rigorous — real interviewers will dig. One focused follow-up at a time.
-- Never give away a "perfect" story; help them surface and sharpen their own.${promptBlock}`;
+- Never give away a "perfect" story; help them surface and sharpen their own.${levelBlock}${promptBlock}`;
   }
 
   // system-design
@@ -66,7 +74,7 @@ How to behave:
 - Ask them to outline a high-level design first. Then pick 1-2 components for deep dive (storage, APIs, consistency, partitioning, caching, etc.).
 - React to their live notes (appended in brackets). If they wrote something about "sharded DB" or "Redis cache", ask about write path, hot partitions, or eviction policy.
 - Cover capacity estimation, tradeoffs, and failure modes. Be encouraging but press on weak spots.
-- One question or observation per turn.${promptBlock}`;
+- One question or observation per turn.${levelBlock}${promptBlock}`;
 }
 
 /** Stage direction for the very first (kickoff) turn — no user audio yet. */
@@ -84,7 +92,10 @@ export function getKickoffPrompt(mode: InterviewMode): string {
 /* ASSESSMENT PROMPTS (used by /api/assess)                                   */
 /* -------------------------------------------------------------------------- */
 
-export function getAssessSystemPrompt(mode: InterviewMode): string {
+export function getAssessSystemPrompt(
+  mode: InterviewMode,
+  targetLevel?: TargetLevel
+): string {
   if (mode === "coding") {
     return `You are a senior engineer writing up a structured evaluation of a coding interview you just observed. Be fair, specific, and evidence-based — cite what the candidate actually said and wrote. Score on a 1-5 scale where 3 = meets the bar for the level, 5 = exceptional.
 
@@ -105,6 +116,17 @@ Respond with ONLY a JSON object in exactly this shape (no markdown, no prose out
 }`;
   }
 
+  // Behavioral and system-design assessments are level-aware: scores anchor to
+  // the candidate's target level, and the evaluator independently places the
+  // actual performance on the same ladder (performedAtLevel).
+  const target = targetLevel ? getLevel(targetLevel) : null;
+  const scoreAnchor = target
+    ? `Score on a 1-5 scale anchored to the candidate's target level, ${target.label} (${target.hint}): 3 = meets the bar for ${target.label}; 4 = strong for that level; 5 = performing a full level or more above it. Do not inflate scores.`
+    : `Score on a 1-5 scale where 3 = solid, meets the bar for a competent engineer at the target level; 4 = strong; 5 = exceptional. Do not inflate scores.`;
+  const levelContext = `${target ? `The candidate is targeting the ${target.label} level (${target.hint}). A strong candidate at this level ${target.blurb}\n\n` : ""}Level ladder for reference:\n${describeLevelLadder()}
+
+Independently of the target level, also judge which level on the ladder the candidate's actual performance in THIS interview most resembles — report it in "performedAtLevel" with one sentence of evidence. Base it only on what they demonstrated here, not their resume or the level they're targeting.`;
+
   if (mode === "behavioral") {
     return `You are a senior engineering manager writing a structured behavioral interview evaluation after a voice "Tell Me About a Time" interview. Be extremely fair, specific, and evidence-based.
 
@@ -114,12 +136,15 @@ Key evaluation principles:
 - Strong answers have clear structure, specific details, measurable or observable impact, and genuine reflection.
 - Weak answers are vague, stay at a high level ("we improved things"), lack the candidate's personal agency, or have no real outcome or learning.
 
-Score on a 1-5 scale where 3 = solid, meets the bar for a competent engineer at the target level; 4 = strong; 5 = exceptional / staff+ caliber for this dimension. Do not inflate scores.
+${scoreAnchor}
+
+${levelContext}
 
 Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
 {
   "recommendation": "Strong Hire" | "Hire" | "Lean Hire" | "Lean No Hire" | "No Hire",
   "overall": <number 1-5>,
+  "performedAtLevel": { "level": "E1" | "E2" | "Senior" | "Staff" | "Principal", "rationale": "<one sentence citing specific evidence from this interview>" },
   "scores": {
     "storytelling": { "score": <1-5>, "notes": "<one sentence on narrative structure, flow, and clarity for the listener>" },
     "ownership": { "score": <1-5>, "notes": "<one sentence on personal agency, initiative, and accountability vs 'we' language>" },
@@ -143,12 +168,15 @@ Key evaluation principles:
 - They perform (or attempt) rough quantitative reasoning, identify real bottlenecks, and discuss concrete tradeoffs with pros/cons of alternatives.
 - Weak performances jump straight to implementation details, ignore scale, cannot justify choices, or treat the interview as a monologue instead of a collaborative design discussion.
 
-Cite specific proposals, numbers, or statements from the transcript and their live notes. Score on a 1-5 scale where 3 = meets the bar for a senior engineer; 4 = strong senior / low staff; 5 = strong staff+ thinking.
+Cite specific proposals, numbers, or statements from the transcript and their live notes. ${scoreAnchor}
+
+${levelContext}
 
 Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
 {
   "recommendation": "Strong Hire" | "Hire" | "Lean Hire" | "Lean No Hire" | "No Hire",
   "overall": <number 1-5>,
+  "performedAtLevel": { "level": "E1" | "E2" | "Senior" | "Staff" | "Principal", "rationale": "<one sentence citing specific evidence from this interview>" },
   "scores": {
     "requirements": { "score": <1-5>, "notes": "<one sentence on how well they drove clarification of functional/non-functional requirements, scale, users, and constraints>" },
     "highLevelDesign": { "score": <1-5>, "notes": "<one sentence on the coherence and quality of the overall architecture and major component choices>" },

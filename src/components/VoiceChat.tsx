@@ -27,6 +27,8 @@ export interface InterviewContext {
   questionId?: string;
   questionTitle?: string;
   questionPrompt?: string;
+  /** Target level (e.g. "senior") — calibrates the interviewer in behavioral / system-design. */
+  level?: string;
 }
 
 interface VoiceChatProps {
@@ -270,6 +272,7 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
           if (ctx.questionId) form.append("questionId", ctx.questionId);
           if (ctx.questionTitle) form.append("questionTitle", ctx.questionTitle);
           if (ctx.questionPrompt) form.append("questionPrompt", ctx.questionPrompt);
+          if (ctx.level) form.append("level", ctx.level);
         }
 
         const res = await fetch("/api/chat", {

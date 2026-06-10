@@ -5,6 +5,7 @@ import Link from "next/link";
 import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
 import { SYSTEM_DESIGN_QUESTIONS } from "@/lib/questions/system-design";
+import { LEVELS, type TargetLevel } from "@/lib/levels";
 
 export default function SystemDesignInterview() {
   const [sessionId] = useState(() =>
@@ -14,6 +15,7 @@ export default function SystemDesignInterview() {
   );
 
   const [questionId, setQuestionId] = useState(SYSTEM_DESIGN_QUESTIONS[0].id);
+  const [level, setLevel] = useState<TargetLevel>("senior");
   const [notes, setNotes] = useState("");
 
   const [assessing, setAssessing] = useState(false);
@@ -31,8 +33,9 @@ export default function SystemDesignInterview() {
       questionId: question.id,
       questionTitle: question.title,
       questionPrompt: question.prompt,
+      level,
     }),
-    [notes, question]
+    [notes, question, level]
   );
 
   const handleQuestionChange = useCallback((id: string) => {
@@ -53,6 +56,7 @@ export default function SystemDesignInterview() {
           questionTitle: ctx.questionTitle,
           questionPrompt: ctx.questionPrompt,
           notes: ctx.notes,
+          level: ctx.level,
         }),
       });
       const data = await res.json();
@@ -81,6 +85,18 @@ export default function SystemDesignInterview() {
           <h1 className="text-lg font-semibold">System Design Interview</h1>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <label className="text-gray-400">Level</label>
+          <select
+            value={level}
+            onChange={(e) => setLevel(e.target.value as TargetLevel)}
+            className="bg-gray-800 text-gray-200 rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-gray-500"
+          >
+            {LEVELS.map((lvl) => (
+              <option key={lvl.id} value={lvl.id}>
+                {lvl.label} ({lvl.hint})
+              </option>
+            ))}
+          </select>
           <label className="text-gray-400">Prompt</label>
           <select
             value={questionId}

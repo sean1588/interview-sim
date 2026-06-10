@@ -14,6 +14,7 @@ import {
   isValidMode,
   type InterviewMode,
 } from "@/lib/prompts";
+import { isValidLevel } from "@/lib/levels";
 
 // Kept only for any hypothetical direct callers of the old name.
 // Internal code now uses the mode-aware getInterviewerSystemPrompt(mode, ...).
@@ -53,6 +54,8 @@ export async function POST(req: NextRequest) {
     const questionPrompt = (formData.get("problemPrompt") as string | null) ?? (formData.get("questionPrompt") as string | null) ?? "";
     const lastRun = (formData.get("lastRun") as string | null) ?? "";
     const notes = (formData.get("notes") as string | null) ?? "";
+    const rawLevel = formData.get("level") as string | null;
+    const targetLevel = isValidLevel(rawLevel) ? rawLevel : undefined;
 
     // Kickoff starts a fresh interview; otherwise transcribe the candidate.
     let transcript = "";
@@ -85,6 +88,7 @@ export async function POST(req: NextRequest) {
       content: getInterviewerSystemPrompt(mode, {
         questionTitle,
         questionPrompt,
+        targetLevel,
       }),
     };
     const messages = [systemMsg, ...session.history];

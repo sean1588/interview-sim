@@ -65,4 +65,100 @@ export const SYSTEM_DESIGN_QUESTIONS: SystemDesignQuestion[] = [
     prompt:
       "Design a file storage and sync service. Users can upload, download, share, and sync files/folders across devices. Support very large files, versioning, concurrent edits (at least conflict detection), permissions, and search. Key challenges: chunking + deduplication, storage tiering, metadata vs blob storage, and handling billions of files with strong durability.",
   },
+  {
+    id: "web-crawler",
+    title: "Web Crawler",
+    prompt:
+      "Design a web crawler that continuously discovers and downloads pages to feed a search index. It must crawl billions of pages, be polite (respect robots.txt and per-domain rate limits), deduplicate both URLs and near-identical content, and keep popular pages fresh. Consider the URL frontier design, distributing the crawl across machines, traps (infinite URL spaces), and prioritization of what to crawl next.",
+  },
+  {
+    id: "video-streaming",
+    title: "Video Streaming (YouTube/Netflix)",
+    prompt:
+      "Design a video streaming platform like YouTube. Users upload videos that must be transcoded into multiple resolutions/formats and served globally with low startup latency. Consider the upload and transcoding pipeline at scale, CDN strategy and cache hierarchy, adaptive bitrate streaming, serving viral vs long-tail content, and keeping view counts and watch history at billions of events per day.",
+  },
+  {
+    id: "collaborative-docs",
+    title: "Collaborative Editing (Google Docs)",
+    prompt:
+      "Design a real-time collaborative document editor like Google Docs. Multiple users edit the same document concurrently and see each other's changes and cursors within ~100ms. Key challenges: concurrent conflict resolution (operational transforms vs CRDTs), document storage and version history, offline editing and reconnection, permissions/sharing, and scaling a single hot document with many simultaneous editors.",
+  },
+  {
+    id: "payment-system",
+    title: "Payment System",
+    prompt:
+      "Design a payment system for a large e-commerce site. It must integrate with external payment providers, guarantee a customer is never double-charged despite retries, timeouts, and partial failures, and support refunds and chargebacks. Consider idempotency keys, the ledger and double-entry bookkeeping, distributed transactions vs sagas, reconciliation against provider records, and strict auditability.",
+  },
+  {
+    id: "job-scheduler",
+    title: "Distributed Job Scheduler",
+    prompt:
+      "Design a distributed job scheduler (cron-as-a-service). Users register one-off and recurring jobs; the system executes them at the right time with retries, priorities, and per-tenant rate limits, supporting tens of millions of scheduled jobs. Consider at-least-once vs exactly-once execution, clock skew, partitioning the schedule across workers, leader election or coordination, misfire handling, and monitoring job health.",
+  },
+  {
+    id: "metrics-monitoring",
+    title: "Metrics & Monitoring (Datadog-like)",
+    prompt:
+      "Design a metrics and monitoring system like Datadog or a large-scale Prometheus. Services emit millions of data points per second; users build dashboards and define alerts. Consider the ingestion pipeline, time-series storage and compression, downsampling and retention tiers, the tag/label cardinality explosion problem, low-latency alert evaluation, and keeping the monitoring system itself reliable when everything else is on fire.",
+  },
+  {
+    id: "top-k-trending",
+    title: "Top-K / Trending (hashtags, videos)",
+    prompt:
+      "Design a service that computes the top K most popular items in near real time — for example trending hashtags or most-viewed videos over the last 5 minutes, 1 hour, and 1 day. The event stream is millions of events per second. Consider exact vs approximate counting (count-min sketch, etc.), sliding vs tumbling windows, stream processing topology, merging partial results across shards, and serving reads with low latency.",
+  },
+  {
+    id: "proximity-search",
+    title: "Proximity Search (Yelp nearby)",
+    prompt:
+      "Design a proximity service like Yelp's 'restaurants near me'. Given a user's location, return nearby businesses with filters and ranking, at high read QPS. Consider geospatial indexing approaches (geohash, quadtree, S2), how to shard and cache a read-heavy workload, keeping business data fresh as owners update it, ranking by distance plus relevance, and handling dense city centers vs sparse rural areas.",
+  },
+  {
+    id: "google-maps",
+    title: "Google Maps (routing + traffic)",
+    prompt:
+      "Design Google Maps, focusing on map display, turn-by-turn navigation, and accurate ETAs. Consider modeling the road network as a graph, shortest-path routing at continental scale (precomputation/contraction hierarchies vs live computation), ingesting GPS probes from millions of devices to derive live traffic, map tile storage and CDN delivery, and re-routing users as conditions change mid-trip.",
+  },
+  {
+    id: "qa-platform",
+    title: "Q&A Platform (Quora)",
+    prompt:
+      "Design a Q&A platform like Quora. Users post questions, write answers, upvote, comment, and follow topics or people; a personalized feed surfaces relevant content. Consider the data model for questions/answers/votes at scale, feed generation blending recency, quality, and personalization, vote counting at high write throughput, duplicate-question detection, search, and caching for a read-heavy workload.",
+  },
+  {
+    id: "deployment-system",
+    title: "Global Deployment System (CI/CD)",
+    prompt:
+      "Design a global deployment system that ships code from merge to production across tens of thousands of servers in multiple regions. Support staged rollouts (canary, percentage-based), health checks with fast automatic rollback, config vs binary deploys, and many teams deploying concurrently. Consider artifact distribution at scale, orchestrating rollout state, detecting bad versions quickly, and limiting the blast radius of a bad config push.",
+  },
+  {
+    id: "llm-chat-service",
+    title: "LLM Chat Service (ChatGPT)",
+    prompt:
+      "Design the serving infrastructure for a ChatGPT-like conversational AI product. Users hold streaming, multi-turn conversations with a large language model. Consider request routing and queueing onto a constrained GPU fleet, token streaming to clients, conversation history storage and context assembly, latency targets per turn, rate limiting and abuse prevention, caching opportunities, and degrading gracefully under load spikes.",
+  },
+  {
+    id: "rag-support-bot",
+    title: "AI Support Bot (RAG)",
+    prompt:
+      "Design an LLM-powered customer support bot grounded in a company's knowledge base (retrieval-augmented generation). It must answer from current documentation, cite sources, hand off to human agents when unsure, and never leak one customer's data to another. Consider the ingestion and indexing pipeline (chunking, embeddings, vector search), keeping the index fresh as docs change, retrieval quality and ranking, prompt assembly, guardrails and evaluation, and cost/latency at millions of conversations.",
+  },
+  {
+    id: "message-queue",
+    title: "Distributed Message Queue (Kafka)",
+    prompt:
+      "Design a distributed messaging queue like Kafka. Producers publish to topics; consumer groups read at their own pace with ordering guarantees within a partition. Consider partitioning and replication, leader election and failover, delivery semantics (at-least-once vs exactly-once), consumer offset management and rebalancing, retention and log compaction, back-pressure, and sustaining millions of messages per second.",
+  },
+  {
+    id: "kv-store",
+    title: "Key-Value Store (DynamoDB)",
+    prompt:
+      "Design a distributed, durable key-value store like DynamoDB or Cassandra. Support get/put at single-digit-millisecond latency with high availability across regions. Consider the consistency model (strong vs eventual, quorum reads/writes), partitioning via consistent hashing, replication and conflict resolution (vector clocks, last-write-wins), hinted handoff and anti-entropy repair, hot partitions, and storage engine choices like LSM trees.",
+  },
+  {
+    id: "id-generator",
+    title: "Unique ID Generator (Snowflake)",
+    prompt:
+      "Design a distributed unique ID generation service like Twitter Snowflake. IDs must be unique across many data centers, roughly sortable by time, and generated at millions per second with very low latency. Consider the ID layout (timestamp/machine/sequence bits), clock skew and clocks moving backwards, coordinated vs coordination-free schemes, and the tradeoffs versus UUIDs or database sequences.",
+  },
 ];

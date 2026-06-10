@@ -15,6 +15,9 @@ export interface ScorecardData {
   strengths: string[];
   improvements: string[];
   summary: string;
+  /** Level the candidate actually performed at (behavioral / system-design),
+   * judged independently of the level they were targeting. */
+  performedAtLevel?: { level: string; rationale: string };
 }
 
 // Fallback for any unknown keys (or when mode not passed)
@@ -96,6 +99,17 @@ export default function Scorecard({
               </span>
             </span>
           </div>
+
+          {data.performedAtLevel && (
+            <div className="space-y-1">
+              <span className="inline-block px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-semibold">
+                Performed at: {data.performedAtLevel.level}
+              </span>
+              <p className="text-gray-500 text-xs">
+                {data.performedAtLevel.rationale}
+              </p>
+            </div>
+          )}
 
           <p className="text-gray-300 leading-relaxed">{data.summary}</p>
 

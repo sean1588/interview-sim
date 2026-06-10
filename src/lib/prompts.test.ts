@@ -161,3 +161,40 @@ describe("interviewer prompts and kickoffs", () => {
     expect(getKickoffPrompt("system-design")).toContain("system design prompt");
   });
 });
+
+describe("target-level calibration", () => {
+  it("interviewer prompt calibrates to the target level for behavioral and system-design", () => {
+    for (const mode of ["behavioral", "system-design"] as const) {
+      const prompt = getInterviewerSystemPrompt(mode, { targetLevel: "staff" });
+      expect(prompt).toContain("Staff");
+      expect(prompt).toContain("Calibrate your follow-ups");
+
+      // Without a level, no calibration block appears.
+      expect(getInterviewerSystemPrompt(mode)).not.toContain("Calibrate your follow-ups");
+    }
+  });
+
+  it("assess prompt anchors scores to the target level", () => {
+    for (const mode of ["behavioral", "system-design"] as const) {
+      const prompt = getAssessSystemPrompt(mode, "principal");
+      expect(prompt).toContain("3 = meets the bar for Principal");
+    }
+  });
+
+  it("behavioral and system-design assess prompts always request performedAtLevel with the full ladder", () => {
+    for (const mode of ["behavioral", "system-design"] as const) {
+      // With and without a target level — performed-level judgment is unconditional.
+      for (const prompt of [getAssessSystemPrompt(mode, "e2"), getAssessSystemPrompt(mode)]) {
+        expect(prompt).toContain('"performedAtLevel"');
+        expect(prompt).toContain("Level ladder");
+        expect(prompt).toContain("Independently of the target level");
+      }
+    }
+  });
+
+  it("coding assess prompt is level-free", () => {
+    const prompt = getAssessSystemPrompt("coding", "staff");
+    expect(prompt).not.toContain('"performedAtLevel"');
+    expect(prompt).not.toContain("Level ladder");
+  });
+});
