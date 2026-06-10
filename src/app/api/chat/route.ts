@@ -8,31 +8,25 @@ import {
 import { pcmToWav } from "@/lib/wav";
 import { formatEditorContext } from "@/lib/editor-context";
 import { getSession, resetSession } from "@/lib/session-store";
+import {
+  getInterviewerSystemPrompt,
+  getKickoffPrompt,
+  isValidMode,
+  type InterviewMode,
+} from "@/lib/prompts";
 
-function interviewerSystemPrompt(opts: {
+// Kept only for any hypothetical direct callers of the old name.
+// Internal code now uses the mode-aware getInterviewerSystemPrompt(mode, ...).
+// We prefix to avoid "unused var" while still exporting the symbol if something imports it.
+const interviewerSystemPrompt = (opts: {
   problemTitle?: string;
   problemPrompt?: string;
-}): string {
-  const base = `You are a warm but sharp technical interviewer conducting a live coding interview by voice.
-You can SEE the candidate's editor — their current code and latest run output are appended to each of their messages in brackets. Do not read that bracketed context aloud; just use it.
-
-How to behave:
-- Speak naturally, 1-3 sentences at a time, like a real conversation. You're speaking out loud, so NEVER use markdown, code blocks, bullet points, or formatting.
-- The interview flows in phases: greet and present the problem, let the candidate think aloud and plan, watch them implement (hint only when they're genuinely stuck — don't give the solution away), then review edge cases and time/space complexity.
-- React to what's actually in their editor: if they just wrote a brute-force loop, ask about time complexity; if their run failed, ask what they think went wrong.
-- Be encouraging and conversational, not a quizmaster. One question or comment at a time.`;
-
-  const problem =
-    opts.problemTitle && opts.problemPrompt
-      ? `\n\nThe problem the candidate is working on is "${opts.problemTitle}":\n${opts.problemPrompt}`
-      : "";
-
-  return base + problem;
-}
-
-// Stage direction used to open the interview (kickoff turn, no candidate audio).
-const KICKOFF_PROMPT =
-  "[The interview is now starting. Greet the candidate warmly, briefly introduce yourself as their interviewer, and present this problem conversationally — don't read it out word for word or list every constraint. Then invite them to share their initial thoughts.]";
+}): string =>
+  getInterviewerSystemPrompt("coding", {
+    questionTitle: opts.problemTitle,
+    questionPrompt: opts.problemPrompt,
+  });
+export { interviewerSystemPrompt }; // for any legacy direct import
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,17 +42,22 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "No audio provided" }, { status: 400 });
     }
 
+    // Mode + common fields
+    const rawMode = (formData.get("mode") as string | null) ?? "coding";
+    const mode: InterviewMode = isValidMode(rawMode) ? rawMode : "coding";
+
     const code = (formData.get("code") as string | null) ?? "";
     const language = (formData.get("language") as string | null) ?? "";
-    const problemId = (formData.get("problemId") as string | null) ?? "";
-    const problemTitle = (formData.get("problemTitle") as string | null) ?? "";
-    const problemPrompt = (formData.get("problemPrompt") as string | null) ?? "";
+    const questionId = (formData.get("problemId") as string | null) ?? (formData.get("questionId") as string | null) ?? "";
+    const questionTitle = (formData.get("problemTitle") as string | null) ?? (formData.get("questionTitle") as string | null) ?? "";
+    const questionPrompt = (formData.get("problemPrompt") as string | null) ?? (formData.get("questionPrompt") as string | null) ?? "";
     const lastRun = (formData.get("lastRun") as string | null) ?? "";
+    const notes = (formData.get("notes") as string | null) ?? "";
 
     // Kickoff starts a fresh interview; otherwise transcribe the candidate.
     let transcript = "";
     if (kickoff) {
-      resetSession(sessionId, problemId || null);
+      resetSession(sessionId, questionId || null);
     } else {
       transcript = await transcribe(audioFile as Blob);
       if (!transcript.trim()) {
@@ -69,19 +68,24 @@ export async function POST(req: NextRequest) {
     const session = getSession(sessionId);
 
     if (kickoff) {
-      session.history.push({ role: "user", content: KICKOFF_PROMPT });
+      session.history.push({ role: "user", content: getKickoffPrompt(mode) });
     } else {
-      // Attach the live editor context. The model is told (in the system
-      // prompt) not to read the bracketed part aloud.
+      // Attach the live editor context (coding) and/or notes (behavioral / system-design).
+      // The mode-specific system prompt tells the model whether and how to use the bracketed part.
+      const editorPart = formatEditorContext({ code, language, lastRun });
+      const notesPart = notes ? `\n\n[Candidate notes:\n${notes}\n]` : "";
       session.history.push({
         role: "user",
-        content: transcript + formatEditorContext({ code, language, lastRun }),
+        content: transcript + editorPart + notesPart,
       });
     }
 
     const systemMsg = {
       role: "system",
-      content: interviewerSystemPrompt({ problemTitle, problemPrompt }),
+      content: getInterviewerSystemPrompt(mode, {
+        questionTitle,
+        questionPrompt,
+      }),
     };
     const messages = [systemMsg, ...session.history];
 

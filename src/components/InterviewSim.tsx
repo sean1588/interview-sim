@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
@@ -132,7 +133,11 @@ export default function InterviewSim() {
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
       {/* Top bar */}
       <header className="flex items-center justify-between px-5 py-3 border-b border-gray-800 shrink-0">
-        <h1 className="text-lg font-semibold">Interview Sim</h1>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="text-gray-400 hover:text-white text-sm">← Home</Link>
+          <span className="text-gray-600">·</span>
+          <h1 className="text-lg font-semibold">Coding Interview</h1>
+        </div>
         <div className="flex items-center gap-3 text-sm">
           <label className="text-gray-400">Problem</label>
           <select
@@ -167,7 +172,7 @@ export default function InterviewSim() {
       <div className="flex-1 min-h-0 flex">
         {/* Left: interviewer + voice */}
         <div className="w-[38%] min-w-[320px] border-r border-gray-800 min-h-0">
-          <VoiceChat sessionId={sessionId} getContext={getContext} />
+          <VoiceChat sessionId={sessionId} mode="coding" getContext={getContext} />
         </div>
 
         {/* Right: problem + editor */}
@@ -197,7 +202,7 @@ export default function InterviewSim() {
       </div>
 
       {scorecard && (
-        <Scorecard data={scorecard} onClose={() => setScorecard(null)} />
+        <Scorecard data={scorecard} mode="coding" onClose={() => setScorecard(null)} />
       )}
     </div>
   );

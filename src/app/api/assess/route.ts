@@ -3,41 +3,42 @@ import { chatComplete } from "@/lib/openrouter";
 import { stripEditorContext } from "@/lib/editor-context";
 import { stripCodeFences } from "@/lib/llm-json";
 import { getSession } from "@/lib/session-store";
+import {
+  getAssessSystemPrompt,
+  buildAssessUserContent,
+  isValidMode,
+  type InterviewMode,
+} from "@/lib/prompts";
 
 // Produces a structured scorecard for the interview so far. Non-streaming, not
 // spoken — rendered as a card in the UI.
-const ASSESS_SYSTEM = `You are a senior engineer writing up a structured evaluation of a coding interview you just observed. Be fair, specific, and evidence-based — cite what the candidate actually said and wrote. Score on a 1-5 scale where 3 = meets the bar for the level, 5 = exceptional.
-
-Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
-{
-  "recommendation": "Strong Hire" | "Hire" | "Lean Hire" | "Lean No Hire" | "No Hire",
-  "overall": <number 1-5>,
-  "scores": {
-    "correctness": { "score": <1-5>, "notes": "<one sentence>" },
-    "problemSolving": { "score": <1-5>, "notes": "<one sentence>" },
-    "codeQuality": { "score": <1-5>, "notes": "<one sentence>" },
-    "communication": { "score": <1-5>, "notes": "<one sentence>" },
-    "complexity": { "score": <1-5>, "notes": "<one sentence on their handling of time/space complexity>" }
-  },
-  "strengths": ["<short bullet>", ...],
-  "improvements": ["<short bullet>", ...],
-  "summary": "<2-3 sentence overall summary>"
-}`;
+// The concrete prompt is now selected by mode (see getAssessSystemPrompt).
 
 export async function POST(req: NextRequest) {
   try {
+    const body = await req.json();
     const {
       sessionId,
+      mode: rawMode,
+      // coding + shared
       problemTitle,
       problemPrompt,
+      questionTitle,
+      questionPrompt,
       code,
       language,
       lastRun,
-    } = await req.json();
+      // non-coding
+      notes,
+    } = body;
 
     if (!sessionId) {
       return Response.json({ error: "No sessionId provided" }, { status: 400 });
     }
+
+    const mode: InterviewMode = isValidMode(rawMode) ? rawMode : "coding";
+    const qTitle = questionTitle || problemTitle || "";
+    const qPrompt = questionPrompt || problemPrompt || "";
 
     const session = getSession(sessionId);
     if (session.history.length === 0) {
@@ -56,22 +57,21 @@ export async function POST(req: NextRequest) {
       })
       .join("\n");
 
-    const finalState = `Problem: ${problemTitle || "(unknown)"}
-${problemPrompt || ""}
-
-Candidate's final code (${language || "code"}):
-${code || "(empty)"}
-
-Latest run output:
-${lastRun || "(never run)"}`;
+    const assessSystem = getAssessSystemPrompt(mode);
+    const userContent = buildAssessUserContent(mode, {
+      transcript,
+      questionTitle: qTitle,
+      questionPrompt: qPrompt,
+      finalCode: code,
+      language,
+      lastRun,
+      notes,
+    });
 
     const content = await chatComplete(
       [
-        { role: "system", content: ASSESS_SYSTEM },
-        {
-          role: "user",
-          content: `Here is the interview transcript:\n\n${transcript}\n\n---\n\n${finalState}\n\nWrite the evaluation JSON now.`,
-        },
+        { role: "system", content: assessSystem },
+        { role: "user", content: userContent },
       ],
       { jsonMode: true }
     );

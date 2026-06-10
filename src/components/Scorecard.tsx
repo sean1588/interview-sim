@@ -1,5 +1,8 @@
 "use client";
 
+import type { InterviewMode } from "@/lib/prompts";
+import { SCORE_LABELS as MODE_LABELS } from "@/lib/prompts";
+
 export interface ScoreItem {
   score: number;
   notes: string;
@@ -14,7 +17,8 @@ export interface ScorecardData {
   summary: string;
 }
 
-const SCORE_LABELS: Record<string, string> = {
+// Fallback for any unknown keys (or when mode not passed)
+const FALLBACK_LABELS: Record<string, string> = {
   correctness: "Correctness",
   problemSolving: "Problem Solving",
   codeQuality: "Code Quality",
@@ -54,10 +58,15 @@ function Dots({ score }: { score: number }) {
 export default function Scorecard({
   data,
   onClose,
+  mode = "coding",
 }: {
   data: ScorecardData;
   onClose: () => void;
+  /** When provided, uses the mode-specific human labels for the score axes. */
+  mode?: InterviewMode;
 }) {
+  const labels = { ...FALLBACK_LABELS, ...(MODE_LABELS[mode] ?? {}) };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl">
@@ -95,7 +104,7 @@ export default function Scorecard({
               <div key={key} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-200 font-medium">
-                    {SCORE_LABELS[key] ?? key}
+                    {labels[key] ?? key}
                   </span>
                   <Dots score={item.score} />
                 </div>

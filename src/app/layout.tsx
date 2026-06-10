@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Interview Sim — Voice Loop Spike",
-  description: "Real-time voice conversation spike",
+  title: "Interview Sim",
+  description: "Practice coding, behavioral, and system design interviews with a real-time AI voice interviewer.",
 };
 
 export default function RootLayout({

@@ -4,28 +4,41 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { SimpleVAD } from "@/lib/vad";
 import SimliAvatar, { SimliAvatarHandle } from "@/components/SimliAvatar";
 import { wavBase64ToSimliPcm, base64ToUint8 } from "@/lib/audio";
+import type { InterviewMode } from "@/lib/prompts";
 
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
 
-/** Live interview context the editor provides on every turn. */
+/** Live interview context the workspace provides on every turn.
+ * Coding mode uses code + language + problem fields.
+ * Behavioral / System Design can provide `notes` (and question identifiers).
+ */
 export interface InterviewContext {
-  code: string;
-  language: string;
-  problemId: string;
-  problemTitle: string;
-  problemPrompt: string;
+  // Coding
+  code?: string;
+  language?: string;
+  problemId?: string;
+  problemTitle?: string;
+  problemPrompt?: string;
   lastRun?: string;
+  // Behavioral + System Design (and any mode that has freeform notes)
+  notes?: string;
+  // Generic identifiers (used by non-coding modes)
+  questionId?: string;
+  questionTitle?: string;
+  questionPrompt?: string;
 }
 
 interface VoiceChatProps {
   /** Stable id tying all turns to one server-side interview session. */
   sessionId: string;
-  /** Pulled fresh on each turn so the interviewer sees the candidate's latest code. */
+  /** Which experience this is — sent on every turn so the server uses the right interviewer prompt. */
+  mode?: InterviewMode;
+  /** Pulled fresh on each turn so the interviewer sees the candidate's latest code / notes. */
   getContext?: () => InterviewContext;
 }
 
-export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
+export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const [log, setLog] = useState<string[]>([]);
@@ -238,16 +251,25 @@ export default function VoiceChat({ sessionId, getContext }: VoiceChatProps) {
         if (opts.audio) form.append("audio", opts.audio, "audio.wav");
         if (opts.kickoff) form.append("kickoff", "true");
 
-        // Attach the live editor context so the interviewer can see the
-        // candidate's current code and latest run output.
+        if (mode) {
+          form.append("mode", mode);
+        }
+
+        // Attach live context so the interviewer "sees" the candidate's state.
+        // Coding: code + runs. Behavioral/System: notes + current question.
         const ctx = getContextRef.current?.();
         if (ctx) {
-          form.append("code", ctx.code);
-          form.append("language", ctx.language);
-          form.append("problemId", ctx.problemId);
-          form.append("problemTitle", ctx.problemTitle);
-          form.append("problemPrompt", ctx.problemPrompt);
+          if (ctx.code) form.append("code", ctx.code);
+          if (ctx.language) form.append("language", ctx.language);
+          if (ctx.problemId) form.append("problemId", ctx.problemId);
+          if (ctx.problemTitle) form.append("problemTitle", ctx.problemTitle);
+          if (ctx.problemPrompt) form.append("problemPrompt", ctx.problemPrompt);
           if (ctx.lastRun) form.append("lastRun", ctx.lastRun);
+
+          if (ctx.notes) form.append("notes", ctx.notes);
+          if (ctx.questionId) form.append("questionId", ctx.questionId);
+          if (ctx.questionTitle) form.append("questionTitle", ctx.questionTitle);
+          if (ctx.questionPrompt) form.append("questionPrompt", ctx.questionPrompt);
         }
 
         const res = await fetch("/api/chat", {
