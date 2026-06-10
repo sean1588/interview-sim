@@ -10,17 +10,6 @@ export function isValidMode(m: string | null | undefined): m is InterviewMode {
   return MODES.includes(m as InterviewMode);
 }
 
-export function getModeLabel(mode: InterviewMode): string {
-  switch (mode) {
-    case "coding":
-      return "Coding";
-    case "behavioral":
-      return "Behavioral";
-    case "system-design":
-      return "System Design";
-  }
-}
-
 /* -------------------------------------------------------------------------- */
 /* INTERVIEWER SYSTEM PROMPTS (used by /api/chat)                             */
 /* -------------------------------------------------------------------------- */
@@ -58,6 +47,7 @@ Your goal is to help the candidate practice clear, structured storytelling (espe
 
 How to behave:
 - Speak naturally, 1-3 sentences at a time. No markdown, bullets, or code — pure spoken conversation.
+- The candidate's live notes may be appended to their turns in brackets. Use them to inform your follow-ups, but never read them aloud or mention them — they are not part of what the candidate said.
 - Greet, present the behavioral question, then let them tell the story. Follow up on vague parts ("What was the situation exactly?", "What did *you* do?", "What was the measurable impact?").
 - Push gently for the full arc: Situation/Task, Action (their specific contribution), Result + reflection. If they ramble or stay high-level, ask for a concrete example or a number.
 - Be supportive but rigorous — real interviewers will dig. One focused follow-up at a time.
@@ -221,7 +211,7 @@ ${args.lastRun || "(never run)"}`;
   }
 
   if (mode === "behavioral") {
-    const notes = args.notes ? `\n\nCandidate's private notes / outline during the interview:\n${args.notes}` : "";
+    const notes = args.notes ? `\n\nCandidate's live notes / outline (visible to the interviewer during the session):\n${args.notes}` : "";
     return `Behavioral question: ${q}\n${p}\n\nHere is the interview transcript:\n\n${args.transcript}${notes}\n\nWrite the evaluation JSON now.`;
   }
 
@@ -231,30 +221,3 @@ ${args.lastRun || "(never run)"}`;
   return `Here is the interview transcript:\n\n${args.transcript}\n\n---\n\n${finalState}\n\nWrite the evaluation JSON now.`;
 }
 
-/* -------------------------------------------------------------------------- */
-/* LABELS FOR SCORECARD UI                                                    */
-/* -------------------------------------------------------------------------- */
-
-export const SCORE_LABELS: Record<InterviewMode, Record<string, string>> = {
-  coding: {
-    correctness: "Correctness",
-    problemSolving: "Problem Solving",
-    codeQuality: "Code Quality",
-    communication: "Communication",
-    complexity: "Complexity Analysis",
-  },
-  behavioral: {
-    storytelling: "Storytelling & Structure",
-    ownership: "Ownership & Initiative",
-    impact: "Impact & Results",
-    specificity: "Specificity & Detail",
-    reflection: "Reflection & Learning",
-  },
-  "system-design": {
-    requirements: "Requirements Clarification",
-    highLevelDesign: "High-Level Architecture",
-    componentDesign: "Component Design & Data",
-    scalabilityTradeoffs: "Scalability, Tradeoffs & Reliability",
-    communication: "Communication & Reasoning",
-  },
-};

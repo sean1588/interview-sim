@@ -6,7 +6,7 @@ import {
   parseSseStream,
 } from "@/lib/openrouter";
 import { pcmToWav } from "@/lib/wav";
-import { formatEditorContext } from "@/lib/editor-context";
+import { formatEditorContext, formatNotesContext } from "@/lib/turn-context";
 import { getSession, resetSession } from "@/lib/session-store";
 import {
   getInterviewerSystemPrompt,
@@ -15,19 +15,6 @@ import {
   type InterviewMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
-
-// Kept only for any hypothetical direct callers of the old name.
-// Internal code now uses the mode-aware getInterviewerSystemPrompt(mode, ...).
-// We prefix to avoid "unused var" while still exporting the symbol if something imports it.
-const interviewerSystemPrompt = (opts: {
-  problemTitle?: string;
-  problemPrompt?: string;
-}): string =>
-  getInterviewerSystemPrompt("coding", {
-    questionTitle: opts.problemTitle,
-    questionPrompt: opts.problemPrompt,
-  });
-export { interviewerSystemPrompt }; // for any legacy direct import
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,9 +36,9 @@ export async function POST(req: NextRequest) {
 
     const code = (formData.get("code") as string | null) ?? "";
     const language = (formData.get("language") as string | null) ?? "";
-    const questionId = (formData.get("problemId") as string | null) ?? (formData.get("questionId") as string | null) ?? "";
-    const questionTitle = (formData.get("problemTitle") as string | null) ?? (formData.get("questionTitle") as string | null) ?? "";
-    const questionPrompt = (formData.get("problemPrompt") as string | null) ?? (formData.get("questionPrompt") as string | null) ?? "";
+    const questionId = (formData.get("questionId") as string | null) ?? "";
+    const questionTitle = (formData.get("questionTitle") as string | null) ?? "";
+    const questionPrompt = (formData.get("questionPrompt") as string | null) ?? "";
     const lastRun = (formData.get("lastRun") as string | null) ?? "";
     const notes = (formData.get("notes") as string | null) ?? "";
     const rawLevel = formData.get("level") as string | null;
@@ -75,11 +62,12 @@ export async function POST(req: NextRequest) {
     } else {
       // Attach the live editor context (coding) and/or notes (behavioral / system-design).
       // The mode-specific system prompt tells the model whether and how to use the bracketed part.
-      const editorPart = formatEditorContext({ code, language, lastRun });
-      const notesPart = notes ? `\n\n[Candidate notes:\n${notes}\n]` : "";
       session.history.push({
         role: "user",
-        content: transcript + editorPart + notesPart,
+        content:
+          transcript +
+          formatEditorContext({ code, language, lastRun }) +
+          formatNotesContext(notes),
       });
     }
 

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { chatComplete } from "@/lib/openrouter";
-import { stripEditorContext } from "@/lib/editor-context";
+import { stripTurnContext } from "@/lib/turn-context";
 import { stripCodeFences } from "@/lib/llm-json";
 import { getSession } from "@/lib/session-store";
 import {
@@ -21,11 +21,9 @@ export async function POST(req: NextRequest) {
     const {
       sessionId,
       mode: rawMode,
-      // coding + shared
-      problemTitle,
-      problemPrompt,
       questionTitle,
       questionPrompt,
+      // coding
       code,
       language,
       lastRun,
@@ -39,8 +37,6 @@ export async function POST(req: NextRequest) {
     }
 
     const mode: InterviewMode = isValidMode(rawMode) ? rawMode : "coding";
-    const qTitle = questionTitle || problemTitle || "";
-    const qPrompt = questionPrompt || problemPrompt || "";
 
     const session = getSession(sessionId);
     if (session.history.length === 0) {
@@ -50,12 +46,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Render the transcript for the evaluator. Strip our bracketed editor-state
-    // annotations from user turns so it reads as a clean conversation.
+    // Render the transcript for the evaluator. Strip our bracketed annotations
+    // (editor state, notes) from user turns so it reads as a clean conversation.
     const transcript = session.history
       .map((m) => {
         const who = m.role === "assistant" ? "Interviewer" : "Candidate";
-        return `${who}: ${stripEditorContext(m.content)}`;
+        return `${who}: ${stripTurnContext(m.content)}`;
       })
       .join("\n");
 
@@ -63,8 +59,8 @@ export async function POST(req: NextRequest) {
     const assessSystem = getAssessSystemPrompt(mode, targetLevel);
     const userContent = buildAssessUserContent(mode, {
       transcript,
-      questionTitle: qTitle,
-      questionPrompt: qPrompt,
+      questionTitle,
+      questionPrompt,
       finalCode: code,
       language,
       lastRun,

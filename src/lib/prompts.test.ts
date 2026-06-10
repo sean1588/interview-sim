@@ -2,12 +2,17 @@ import { describe, it, expect } from "vitest";
 import {
   MODES,
   isValidMode,
-  getModeLabel,
   getAssessSystemPrompt,
   buildAssessUserContent,
   getInterviewerSystemPrompt,
   getKickoffPrompt,
 } from "./prompts";
+import { SCORE_LABELS } from "./score-labels";
+import { getLevel, describeLevelLadder } from "./levels";
+
+// These tests pin contracts, not prose: the JSON keys the UI parses, the
+// presence/absence of level calibration, and that mode/question/level data
+// actually reaches the prompt. Copy tweaks should not break them.
 
 describe("mode helpers", () => {
   it("exports exactly the three supported modes", () => {
@@ -24,46 +29,22 @@ describe("mode helpers", () => {
     expect(isValidMode(null)).toBe(false);
     expect(isValidMode("")).toBe(false);
   });
-
-  it("getModeLabel returns human names", () => {
-    expect(getModeLabel("coding")).toBe("Coding");
-    expect(getModeLabel("behavioral")).toBe("Behavioral");
-    expect(getModeLabel("system-design")).toBe("System Design");
-  });
 });
 
 describe("assess system prompts (grading rubrics)", () => {
-  it("contains the expected coding rubric axes", () => {
-    const prompt = getAssessSystemPrompt("coding");
-    expect(prompt).toContain('"correctness"');
-    expect(prompt).toContain('"problemSolving"');
-    expect(prompt).toContain('"codeQuality"');
-    expect(prompt).toContain('"communication"');
-    expect(prompt).toContain('"complexity"');
-    expect(prompt).toContain("Strong Hire");
+  it("requests exactly the score axes the Scorecard knows how to label", () => {
+    // If an axis is renamed in the prompt without updating SCORE_LABELS (or
+    // vice versa), the Scorecard silently falls back to raw keys. This is the
+    // one prompt<->UI invariant that matters.
+    for (const mode of MODES) {
+      const prompt = getAssessSystemPrompt(mode);
+      for (const key of Object.keys(SCORE_LABELS[mode])) {
+        expect(prompt, `${mode} rubric must request "${key}"`).toContain(`"${key}"`);
+      }
+    }
   });
 
-  it("contains the expected behavioral rubric axes (current contract)", () => {
-    const prompt = getAssessSystemPrompt("behavioral");
-    expect(prompt).toContain('"storytelling"');
-    expect(prompt).toContain('"ownership"');
-    expect(prompt).toContain('"impact"');
-    expect(prompt).toContain('"specificity"');
-    expect(prompt).toContain('"reflection"');
-    // Guard against accidental re-introduction of a removed axis or loss of specificity
-    expect(prompt).not.toContain('"communication"'); // we replaced it with specificity for behavioral
-  });
-
-  it("contains the expected system-design rubric axes (current contract)", () => {
-    const prompt = getAssessSystemPrompt("system-design");
-    expect(prompt).toContain('"requirements"');
-    expect(prompt).toContain('"highLevelDesign"');
-    expect(prompt).toContain('"componentDesign"');
-    expect(prompt).toContain('"scalabilityTradeoffs"');
-    expect(prompt).toContain('"communication"');
-  });
-
-  it("all assessor prompts instruct the model to return only JSON and use the standard shape", () => {
+  it("all assessor prompts instruct the model to return only JSON in the standard shape", () => {
     for (const mode of MODES) {
       const p = getAssessSystemPrompt(mode);
       expect(p).toContain("ONLY a JSON object");
@@ -75,48 +56,60 @@ describe("assess system prompts (grading rubrics)", () => {
       expect(p).toContain('"summary"');
     }
   });
+
+  it("behavioral and system-design always request performedAtLevel with the full ladder", () => {
+    for (const mode of ["behavioral", "system-design"] as const) {
+      // With and without a target level — performed-level judgment is unconditional.
+      for (const prompt of [getAssessSystemPrompt(mode, "e2"), getAssessSystemPrompt(mode)]) {
+        expect(prompt).toContain('"performedAtLevel"');
+        expect(prompt).toContain(describeLevelLadder());
+      }
+    }
+  });
+
+  it("anchors scores to the target level when one is given", () => {
+    for (const mode of ["behavioral", "system-design"] as const) {
+      expect(getAssessSystemPrompt(mode, "principal")).toContain(
+        `meets the bar for ${getLevel("principal").label}`
+      );
+    }
+  });
+
+  it("keeps the coding assessment level-free", () => {
+    const prompt = getAssessSystemPrompt("coding", "staff");
+    expect(prompt).not.toContain('"performedAtLevel"');
+    expect(prompt).not.toContain(getLevel("staff").blurb);
+  });
 });
 
 describe("buildAssessUserContent", () => {
   const baseTranscript = "Interviewer: Hello\nCandidate: Hi there";
 
-  it("includes the transcript for all modes", () => {
+  it("includes the transcript and question for all modes", () => {
     for (const mode of MODES) {
       const content = buildAssessUserContent(mode, {
         transcript: baseTranscript,
         questionTitle: "Test Q",
       });
       expect(content).toContain(baseTranscript);
+      expect(content).toContain("Test Q");
     }
   });
 
-  it("includes notes for behavioral and system-design but not raw code", () => {
-    const behavioral = buildAssessUserContent("behavioral", {
-      transcript: baseTranscript,
-      notes: "STAR: Situation was X. My action was Y.",
-    });
-    expect(behavioral).toContain("Candidate's private notes");
-    expect(behavioral).toContain("STAR: Situation was X");
-
-    const sys = buildAssessUserContent("system-design", {
-      transcript: baseTranscript,
-      notes: "Use consistent hashing + 3 replicas",
-    });
-    expect(sys).toContain("live design notes");
-    expect(sys).toContain("consistent hashing");
-
-    const coding = buildAssessUserContent("coding", {
-      transcript: baseTranscript,
-      finalCode: "def foo(): pass",
-      language: "python",
-      lastRun: "exit 0\nok",
-    });
-    expect(coding).not.toContain("Candidate's private notes");
-    expect(coding).toContain("final code");
-    expect(coding).toContain("def foo");
+  it("includes notes only when provided (behavioral and system-design)", () => {
+    const notes = "STAR: Situation was X. My action was Y.";
+    for (const mode of ["behavioral", "system-design"] as const) {
+      expect(
+        buildAssessUserContent(mode, { transcript: baseTranscript, notes })
+      ).toContain(notes);
+      // Without notes there must be no notes header at all.
+      expect(
+        buildAssessUserContent(mode, { transcript: baseTranscript })
+      ).not.toContain("notes");
+    }
   });
 
-  it("includes coding-specific final state when provided", () => {
+  it("includes the coding-specific final state when provided", () => {
     const content = buildAssessUserContent("coding", {
       transcript: baseTranscript,
       questionTitle: "Two Sum",
@@ -125,76 +118,45 @@ describe("buildAssessUserContent", () => {
       lastRun: "exit 1\nfail",
     });
     expect(content).toContain("Two Sum");
-    expect(content).toContain("final code (python)");
+    expect(content).toContain("class Solution: ...");
+    expect(content).toContain("python");
     expect(content).toContain("exit 1");
   });
 });
 
 describe("interviewer prompts and kickoffs", () => {
-  it("produces different system prompts per mode", () => {
-    const coding = getInterviewerSystemPrompt("coding", {
-      questionTitle: "Foo",
-      questionPrompt: "Solve two sum.",
-    });
-    const beh = getInterviewerSystemPrompt("behavioral", {
-      questionTitle: "Bar",
-      questionPrompt: "Tell me about a conflict.",
-    });
-    const sys = getInterviewerSystemPrompt("system-design", {
-      questionTitle: "Baz",
-      questionPrompt: "Design a cache.",
-    });
-
-    expect(coding).toContain("coding interview");
-    expect(beh).toContain("behavioral interviewer");
-    expect(sys).toContain("system design interviewer");
-
-    // When both title and prompt are provided, the title is embedded in the prompt block.
-    expect(coding).toContain("Foo");
-    expect(beh).toContain("Bar");
-    expect(sys).toContain("Baz");
+  it("produces distinct prompts per mode that embed the current question", () => {
+    const prompts = MODES.map((m) =>
+      getInterviewerSystemPrompt(m, { questionTitle: "Foo", questionPrompt: "Bar baz." })
+    );
+    expect(new Set(prompts).size).toBe(MODES.length);
+    for (const p of prompts) {
+      expect(p).toContain("Foo");
+      expect(p).toContain("Bar baz.");
+    }
   });
 
-  it("produces mode-appropriate kickoff instructions", () => {
-    expect(getKickoffPrompt("coding")).toContain("present this problem");
-    expect(getKickoffPrompt("behavioral")).toContain("behavioral question");
-    expect(getKickoffPrompt("system-design")).toContain("system design prompt");
+  it("produces distinct non-empty kickoff instructions per mode", () => {
+    const kickoffs = MODES.map(getKickoffPrompt);
+    expect(new Set(kickoffs).size).toBe(MODES.length);
+    for (const k of kickoffs) {
+      expect(k.length).toBeGreaterThan(20);
+    }
   });
 });
 
-describe("target-level calibration", () => {
-  it("interviewer prompt calibrates to the target level for behavioral and system-design", () => {
+describe("target-level calibration (interviewer)", () => {
+  it("embeds the target level's expectations for behavioral and system-design", () => {
+    const staff = getLevel("staff");
     for (const mode of ["behavioral", "system-design"] as const) {
-      const prompt = getInterviewerSystemPrompt(mode, { targetLevel: "staff" });
-      expect(prompt).toContain("Staff");
-      expect(prompt).toContain("Calibrate your follow-ups");
-
-      // Without a level, no calibration block appears.
-      expect(getInterviewerSystemPrompt(mode)).not.toContain("Calibrate your follow-ups");
+      expect(getInterviewerSystemPrompt(mode, { targetLevel: "staff" })).toContain(staff.blurb);
+      expect(getInterviewerSystemPrompt(mode)).not.toContain(staff.blurb);
     }
   });
 
-  it("assess prompt anchors scores to the target level", () => {
-    for (const mode of ["behavioral", "system-design"] as const) {
-      const prompt = getAssessSystemPrompt(mode, "principal");
-      expect(prompt).toContain("3 = meets the bar for Principal");
-    }
-  });
-
-  it("behavioral and system-design assess prompts always request performedAtLevel with the full ladder", () => {
-    for (const mode of ["behavioral", "system-design"] as const) {
-      // With and without a target level — performed-level judgment is unconditional.
-      for (const prompt of [getAssessSystemPrompt(mode, "e2"), getAssessSystemPrompt(mode)]) {
-        expect(prompt).toContain('"performedAtLevel"');
-        expect(prompt).toContain("Level ladder");
-        expect(prompt).toContain("Independently of the target level");
-      }
-    }
-  });
-
-  it("coding assess prompt is level-free", () => {
-    const prompt = getAssessSystemPrompt("coding", "staff");
-    expect(prompt).not.toContain('"performedAtLevel"');
-    expect(prompt).not.toContain("Level ladder");
+  it("never level-calibrates the coding interviewer, even when a level is passed", () => {
+    expect(
+      getInterviewerSystemPrompt("coding", { targetLevel: "staff" })
+    ).not.toContain(getLevel("staff").blurb);
   });
 });

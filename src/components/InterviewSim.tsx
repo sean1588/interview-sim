@@ -5,7 +5,8 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
-import Scorecard, { ScorecardData } from "@/components/Scorecard";
+import Scorecard from "@/components/Scorecard";
+import { useInterviewSession } from "@/components/useInterviewSession";
 import { PROBLEMS, getProblem, type LanguageId, type Problem } from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
 
@@ -18,18 +19,11 @@ function languagesFor(problem: Problem): LanguageId[] {
 }
 
 export default function InterviewSim() {
-  // Stable id tying every turn + the assessment to one server-side session.
-  const [sessionId] = useState(() =>
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `s_${Date.now()}_${Math.random().toString(36).slice(2)}`
-  );
   const [problemId, setProblemId] = useState(PROBLEMS[0].id);
   const [language, setLanguage] = useState<LanguageId>("python");
 
-  const [assessing, setAssessing] = useState(false);
-  const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
-  const [assessError, setAssessError] = useState<string | null>(null);
+  const { sessionId, assessing, scorecard, assessError, endInterview, closeScorecard } =
+    useInterviewSession("coding");
 
   const problem = useMemo(() => getProblem(problemId)!, [problemId]);
   const availableLanguages = useMemo(() => languagesFor(problem), [problem]);
@@ -94,40 +88,24 @@ export default function InterviewSim() {
     (): InterviewContext => ({
       code,
       language,
-      problemId: problem.id,
-      problemTitle: problem.title,
-      problemPrompt: problem.prompt,
+      questionId: problem.id,
+      questionTitle: problem.title,
+      questionPrompt: problem.prompt,
       lastRun: lastRunRef.current,
     }),
     [code, problem, language]
   );
 
-  const endInterview = useCallback(async () => {
-    setAssessing(true);
-    setAssessError(null);
-    try {
-      const ctx = getContext();
-      const res = await fetch("/api/assess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId,
-          problemTitle: ctx.problemTitle,
-          problemPrompt: ctx.problemPrompt,
-          code: ctx.code,
-          language: ctx.language,
-          lastRun: ctx.lastRun,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Assessment failed");
-      setScorecard(data.scorecard);
-    } catch (e) {
-      setAssessError(e instanceof Error ? e.message : "Assessment failed");
-    } finally {
-      setAssessing(false);
-    }
-  }, [getContext, sessionId]);
+  const handleEnd = useCallback(() => {
+    const ctx = getContext();
+    endInterview({
+      questionTitle: ctx.questionTitle,
+      questionPrompt: ctx.questionPrompt,
+      code: ctx.code,
+      language: ctx.language,
+      lastRun: ctx.lastRun,
+    });
+  }, [getContext, endInterview]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
@@ -155,7 +133,7 @@ export default function InterviewSim() {
             <span className="text-red-400 text-xs">{assessError}</span>
           )}
           <button
-            onClick={endInterview}
+            onClick={handleEnd}
             disabled={assessing}
             className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
               assessing
@@ -202,7 +180,7 @@ export default function InterviewSim() {
       </div>
 
       {scorecard && (
-        <Scorecard data={scorecard} mode="coding" onClose={() => setScorecard(null)} />
+        <Scorecard data={scorecard} mode="coding" onClose={closeScorecard} />
       )}
     </div>
   );

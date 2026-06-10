@@ -24,19 +24,17 @@ describe("behavioral question bank invariants", () => {
     }
   });
 
-  it("covers a reasonable spread of behavioral themes", () => {
-    const allText = BEHAVIORAL_QUESTIONS.map((q) => `${q.title} ${q.prompt}`).join(" ").toLowerCase();
-
-    // Spot-check coverage of high-signal engineering behavioral areas,
-    // inspired by strong real-world TMAT examples (production issues, cross-team work,
-    // initiative, pressure, rapid learning, feedback, mentoring, ownership of mistakes).
-    expect(allText).toMatch(/conflict|disagree|pushback/);
-    expect(allText).toMatch(/bug|production|incident|pressure/);
-    expect(allText).toMatch(/oversight|assumption|mistake|review/);
-    expect(allText).toMatch(/initiative|took initiative|identified|built/);
-    expect(allText).toMatch(/cross-team|coordination|align|multiple teams/);
-    expect(allText).toMatch(/feedback|mentor|onboard|growth/);
-    expect(allText).toMatch(/learn|ramp|quickly|domain/);
-    expect(allText).toMatch(/led|impact|results|scale/);
+  it("keeps the load-bearing classics in the bank", () => {
+    const ids = BEHAVIORAL_QUESTIONS.map((q) => q.id);
+    for (const id of [
+      "tell-me-about-yourself",
+      "production-bug",
+      "conflict-coworker",
+      "made-mistake",
+      "influenced-without-authority",
+      "failed-project",
+    ]) {
+      expect(ids).toContain(id);
+    }
   });
 });

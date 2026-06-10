@@ -1,7 +1,7 @@
 "use client";
 
-import type { InterviewMode } from "@/lib/prompts";
-import { SCORE_LABELS as MODE_LABELS } from "@/lib/prompts";
+import type { InterviewMode } from "@/lib/types/mode";
+import { SCORE_LABELS } from "@/lib/score-labels";
 
 export interface ScoreItem {
   score: number;
@@ -19,15 +19,6 @@ export interface ScorecardData {
    * judged independently of the level they were targeting. */
   performedAtLevel?: { level: string; rationale: string };
 }
-
-// Fallback for any unknown keys (or when mode not passed)
-const FALLBACK_LABELS: Record<string, string> = {
-  correctness: "Correctness",
-  problemSolving: "Problem Solving",
-  codeQuality: "Code Quality",
-  communication: "Communication",
-  complexity: "Complexity Analysis",
-};
 
 // Closed enum from the assessor (see /api/assess) — keyed lookup, so coloring
 // can't break on substring ordering (e.g. "Lean No Hire" containing "hire").
@@ -61,14 +52,15 @@ function Dots({ score }: { score: number }) {
 export default function Scorecard({
   data,
   onClose,
-  mode = "coding",
+  mode,
 }: {
   data: ScorecardData;
   onClose: () => void;
-  /** When provided, uses the mode-specific human labels for the score axes. */
-  mode?: InterviewMode;
+  mode: InterviewMode;
 }) {
-  const labels = { ...FALLBACK_LABELS, ...(MODE_LABELS[mode] ?? {}) };
+  // Per-key fallback (labels[key] ?? key below) stays: the LLM may emit a key
+  // we don't know. The mode itself is always known.
+  const labels = SCORE_LABELS[mode];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">

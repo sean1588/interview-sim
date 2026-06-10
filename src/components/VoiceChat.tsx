@@ -10,23 +10,19 @@ type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
 
 /** Live interview context the workspace provides on every turn.
- * Coding mode uses code + language + problem fields.
- * Behavioral / System Design can provide `notes` (and question identifiers).
+ * Every mode identifies its current question; coding adds editor state,
+ * behavioral / system-design add freeform notes and a target level.
  */
 export interface InterviewContext {
-  // Coding
-  code?: string;
-  language?: string;
-  problemId?: string;
-  problemTitle?: string;
-  problemPrompt?: string;
-  lastRun?: string;
-  // Behavioral + System Design (and any mode that has freeform notes)
-  notes?: string;
-  // Generic identifiers (used by non-coding modes)
   questionId?: string;
   questionTitle?: string;
   questionPrompt?: string;
+  // Coding
+  code?: string;
+  language?: string;
+  lastRun?: string;
+  // Behavioral + System Design
+  notes?: string;
   /** Target level (e.g. "senior") — calibrates the interviewer in behavioral / system-design. */
   level?: string;
 }
@@ -261,18 +257,9 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
         // Coding: code + runs. Behavioral/System: notes + current question.
         const ctx = getContextRef.current?.();
         if (ctx) {
-          if (ctx.code) form.append("code", ctx.code);
-          if (ctx.language) form.append("language", ctx.language);
-          if (ctx.problemId) form.append("problemId", ctx.problemId);
-          if (ctx.problemTitle) form.append("problemTitle", ctx.problemTitle);
-          if (ctx.problemPrompt) form.append("problemPrompt", ctx.problemPrompt);
-          if (ctx.lastRun) form.append("lastRun", ctx.lastRun);
-
-          if (ctx.notes) form.append("notes", ctx.notes);
-          if (ctx.questionId) form.append("questionId", ctx.questionId);
-          if (ctx.questionTitle) form.append("questionTitle", ctx.questionTitle);
-          if (ctx.questionPrompt) form.append("questionPrompt", ctx.questionPrompt);
-          if (ctx.level) form.append("level", ctx.level);
+          for (const [key, value] of Object.entries(ctx)) {
+            if (value) form.append(key, value);
+          }
         }
 
         const res = await fetch("/api/chat", {
@@ -356,7 +343,7 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
         setStatus("listening");
       }
     },
-    [addLog, stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId]
+    [addLog, stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode]
   );
 
   const sendAudio = useCallback(
