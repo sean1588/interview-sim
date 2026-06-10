@@ -1,5 +1,8 @@
 "use client";
 
+import type { InterviewMode } from "@/lib/types/mode";
+import { SCORE_LABELS } from "@/lib/score-labels";
+
 export interface ScoreItem {
   score: number;
   notes: string;
@@ -12,15 +15,10 @@ export interface ScorecardData {
   strengths: string[];
   improvements: string[];
   summary: string;
+  /** Level the candidate actually performed at (behavioral / system-design),
+   * judged independently of the level they were targeting. */
+  performedAtLevel?: { level: string; rationale: string };
 }
-
-const SCORE_LABELS: Record<string, string> = {
-  correctness: "Correctness",
-  problemSolving: "Problem Solving",
-  codeQuality: "Code Quality",
-  communication: "Communication",
-  complexity: "Complexity Analysis",
-};
 
 // Closed enum from the assessor (see /api/assess) — keyed lookup, so coloring
 // can't break on substring ordering (e.g. "Lean No Hire" containing "hire").
@@ -54,10 +52,16 @@ function Dots({ score }: { score: number }) {
 export default function Scorecard({
   data,
   onClose,
+  mode,
 }: {
   data: ScorecardData;
   onClose: () => void;
+  mode: InterviewMode;
 }) {
+  // Per-key fallback (labels[key] ?? key below) stays: the LLM may emit a key
+  // we don't know. The mode itself is always known.
+  const labels = SCORE_LABELS[mode];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl">
@@ -88,6 +92,17 @@ export default function Scorecard({
             </span>
           </div>
 
+          {data.performedAtLevel && (
+            <div className="space-y-1">
+              <span className="inline-block px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-semibold">
+                Performed at: {data.performedAtLevel.level}
+              </span>
+              <p className="text-gray-500 text-xs">
+                {data.performedAtLevel.rationale}
+              </p>
+            </div>
+          )}
+
           <p className="text-gray-300 leading-relaxed">{data.summary}</p>
 
           <div className="space-y-3">
@@ -95,7 +110,7 @@ export default function Scorecard({
               <div key={key} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-200 font-medium">
-                    {SCORE_LABELS[key] ?? key}
+                    {labels[key] ?? key}
                   </span>
                   <Dots score={item.score} />
                 </div>
