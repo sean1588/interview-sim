@@ -4,20 +4,20 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { SimpleVAD } from "@/lib/vad";
 import SimliAvatar, { SimliAvatarHandle } from "@/components/SimliAvatar";
 import { wavBase64ToSimliPcm, base64ToUint8 } from "@/lib/audio";
-import type { InterviewMode } from "@/lib/prompts";
+import type { SessionMode } from "@/lib/prompts";
 
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
 
-/** Live interview context the workspace provides on every turn.
- * Every mode identifies its current question; coding adds editor state,
- * behavioral / system-design add freeform notes and a target level.
+/** Live workspace context provided on every turn. Every mode identifies its
+ * current question/lesson; coding and learning add editor state, behavioral /
+ * system-design add freeform notes and a target level.
  */
-export interface InterviewContext {
+export interface SessionContext {
   questionId?: string;
   questionTitle?: string;
   questionPrompt?: string;
-  // Coding
+  // Coding + Learning
   code?: string;
   language?: string;
   lastRun?: string;
@@ -28,12 +28,12 @@ export interface InterviewContext {
 }
 
 interface VoiceChatProps {
-  /** Stable id tying all turns to one server-side interview session. */
+  /** Stable id tying all turns to one server-side session. */
   sessionId: string;
-  /** Which experience this is — sent on every turn so the server uses the right interviewer prompt. */
-  mode?: InterviewMode;
-  /** Pulled fresh on each turn so the interviewer sees the candidate's latest code / notes. */
-  getContext?: () => InterviewContext;
+  /** Which experience this is — sent on every turn so the server uses the right system prompt. */
+  mode?: SessionMode;
+  /** Pulled fresh on each turn so the interviewer / tutor sees the latest code / notes. */
+  getContext?: () => SessionContext;
 }
 
 export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProps) {

@@ -9,10 +9,10 @@ import { pcmToWav } from "@/lib/wav";
 import { formatEditorContext, formatNotesContext } from "@/lib/turn-context";
 import { getSession, resetSession } from "@/lib/session-store";
 import {
-  getInterviewerSystemPrompt,
+  getSystemPrompt,
   getKickoffPrompt,
-  isValidMode,
-  type InterviewMode,
+  isValidSessionMode,
+  type SessionMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
 
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     // Mode + common fields
     const rawMode = (formData.get("mode") as string | null) ?? "coding";
-    const mode: InterviewMode = isValidMode(rawMode) ? rawMode : "coding";
+    const mode: SessionMode = isValidSessionMode(rawMode) ? rawMode : "coding";
 
     const code = (formData.get("code") as string | null) ?? "";
     const language = (formData.get("language") as string | null) ?? "";
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     const systemMsg = {
       role: "system",
-      content: getInterviewerSystemPrompt(mode, {
+      content: getSystemPrompt(mode, {
         questionTitle,
         questionPrompt,
         targetLevel,

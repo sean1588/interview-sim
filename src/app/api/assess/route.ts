@@ -6,8 +6,8 @@ import { getSession } from "@/lib/session-store";
 import {
   getAssessSystemPrompt,
   buildAssessUserContent,
-  isValidMode,
-  type InterviewMode,
+  isValidSessionMode,
+  type SessionMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
 
@@ -36,21 +36,23 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "No sessionId provided" }, { status: 400 });
     }
 
-    const mode: InterviewMode = isValidMode(rawMode) ? rawMode : "coding";
+    const mode: SessionMode = isValidSessionMode(rawMode) ? rawMode : "coding";
 
     const session = getSession(sessionId);
     if (session.history.length === 0) {
       return Response.json(
-        { error: "No interview to assess yet." },
+        { error: "Nothing to assess yet." },
         { status: 400 }
       );
     }
 
     // Render the transcript for the evaluator. Strip our bracketed annotations
     // (editor state, notes) from user turns so it reads as a clean conversation.
+    const [speaker, listener] =
+      mode === "learning" ? ["Tutor", "Student"] : ["Interviewer", "Candidate"];
     const transcript = session.history
       .map((m) => {
-        const who = m.role === "assistant" ? "Interviewer" : "Candidate";
+        const who = m.role === "assistant" ? speaker : listener;
         return `${who}: ${stripTurnContext(m.content)}`;
       })
       .join("\n");
@@ -75,9 +77,9 @@ export async function POST(req: NextRequest) {
       { jsonMode: true }
     );
 
-    let scorecard;
+    let result;
     try {
-      scorecard = JSON.parse(stripCodeFences(content));
+      result = JSON.parse(stripCodeFences(content));
     } catch {
       console.error("[assess] could not parse model output:", content);
       return Response.json(
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return Response.json({ scorecard });
+    return Response.json({ result });
   } catch (error) {
     console.error("[assess] failed:", error);
     return Response.json(

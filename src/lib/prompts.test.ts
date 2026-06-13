@@ -4,7 +4,7 @@ import {
   isValidMode,
   getAssessSystemPrompt,
   buildAssessUserContent,
-  getInterviewerSystemPrompt,
+  getSystemPrompt,
   getKickoffPrompt,
 } from "./prompts";
 import { SCORE_LABELS } from "./score-labels";
@@ -127,7 +127,7 @@ describe("buildAssessUserContent", () => {
 describe("interviewer prompts and kickoffs", () => {
   it("produces distinct prompts per mode that embed the current question", () => {
     const prompts = MODES.map((m) =>
-      getInterviewerSystemPrompt(m, { questionTitle: "Foo", questionPrompt: "Bar baz." })
+      getSystemPrompt(m, { questionTitle: "Foo", questionPrompt: "Bar baz." })
     );
     expect(new Set(prompts).size).toBe(MODES.length);
     for (const p of prompts) {
@@ -149,14 +149,14 @@ describe("target-level calibration (interviewer)", () => {
   it("embeds the target level's expectations for behavioral and system-design", () => {
     const staff = getLevel("staff");
     for (const mode of ["behavioral", "system-design"] as const) {
-      expect(getInterviewerSystemPrompt(mode, { targetLevel: "staff" })).toContain(staff.blurb);
-      expect(getInterviewerSystemPrompt(mode)).not.toContain(staff.blurb);
+      expect(getSystemPrompt(mode, { targetLevel: "staff" })).toContain(staff.blurb);
+      expect(getSystemPrompt(mode)).not.toContain(staff.blurb);
     }
   });
 
   it("never level-calibrates the coding interviewer, even when a level is passed", () => {
     expect(
-      getInterviewerSystemPrompt("coding", { targetLevel: "staff" })
+      getSystemPrompt("coding", { targetLevel: "staff" })
     ).not.toContain(getLevel("staff").blurb);
   });
 });

@@ -3,10 +3,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
+import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
-import Scorecard from "@/components/Scorecard";
-import { useInterviewSession } from "@/components/useInterviewSession";
+import Scorecard, { ScorecardData } from "@/components/Scorecard";
+import { useSession } from "@/components/useSession";
 import { PROBLEMS, getProblem, type LanguageId, type Problem } from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
 
@@ -22,8 +22,8 @@ export default function InterviewSim() {
   const [problemId, setProblemId] = useState(PROBLEMS[0].id);
   const [language, setLanguage] = useState<LanguageId>("python");
 
-  const { sessionId, assessing, scorecard, assessError, endInterview, closeScorecard } =
-    useInterviewSession("coding");
+  const { sessionId, assessing, result: scorecard, error: assessError, endSession, closeResult } =
+    useSession<ScorecardData>("coding");
 
   const problem = useMemo(() => getProblem(problemId)!, [problemId]);
   const availableLanguages = useMemo(() => languagesFor(problem), [problem]);
@@ -85,7 +85,7 @@ export default function InterviewSim() {
 
   // Pulled fresh by VoiceChat on each turn.
   const getContext = useCallback(
-    (): InterviewContext => ({
+    (): SessionContext => ({
       code,
       language,
       questionId: problem.id,
@@ -98,14 +98,14 @@ export default function InterviewSim() {
 
   const handleEnd = useCallback(() => {
     const ctx = getContext();
-    endInterview({
+    endSession({
       questionTitle: ctx.questionTitle,
       questionPrompt: ctx.questionPrompt,
       code: ctx.code,
       language: ctx.language,
       lastRun: ctx.lastRun,
     });
-  }, [getContext, endInterview]);
+  }, [getContext, endSession]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
@@ -180,7 +180,7 @@ export default function InterviewSim() {
       </div>
 
       {scorecard && (
-        <Scorecard data={scorecard} mode="coding" onClose={closeScorecard} />
+        <Scorecard data={scorecard} mode="coding" onClose={closeResult} />
       )}
     </div>
   );
