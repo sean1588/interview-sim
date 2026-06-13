@@ -2,10 +2,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import VoiceChat, { InterviewContext } from "@/components/VoiceChat";
-import Scorecard from "@/components/Scorecard";
+import VoiceChat, { SessionContext } from "@/components/VoiceChat";
+import Scorecard, { ScorecardData } from "@/components/Scorecard";
 import { LEVELS, type TargetLevel } from "@/lib/levels";
-import { useInterviewSession } from "@/components/useInterviewSession";
+import { useSession } from "@/components/useSession";
 import type { InterviewMode } from "@/lib/types/mode";
 
 /** The notes-based interview workspace shared by the behavioral and
@@ -35,8 +35,8 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
   // Notes survive question switches — the candidate may want to carry ideas over.
   const [notes, setNotes] = useState("");
 
-  const { sessionId, assessing, scorecard, assessError, endInterview, closeScorecard } =
-    useInterviewSession(mode);
+  const { sessionId, assessing, result: scorecard, error: assessError, endSession, closeResult } =
+    useSession<ScorecardData>(mode);
 
   const question = useMemo(
     () => questions.find((q) => q.id === questionId)!,
@@ -44,7 +44,7 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
   );
 
   const getContext = useCallback(
-    (): InterviewContext => ({
+    (): SessionContext => ({
       notes,
       questionId: question.id,
       questionTitle: question.title,
@@ -59,7 +59,7 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
 
   const handleEnd = () => {
     const ctx = getContext();
-    endInterview({
+    endSession({
       questionTitle: ctx.questionTitle,
       questionPrompt: ctx.questionPrompt,
       notes: ctx.notes,
@@ -173,7 +173,7 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
       </div>
 
       {scorecard && (
-        <Scorecard data={scorecard} mode={mode} onClose={closeScorecard} />
+        <Scorecard data={scorecard} mode={mode} onClose={closeResult} />
       )}
     </div>
   );

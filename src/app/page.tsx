@@ -44,6 +44,9 @@ export default function Home() {
           </p>
         </header>
 
+        <div className="mb-3 text-xs uppercase tracking-[2px] text-gray-500">
+          Practice interviews
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <ModeCard
             href="/coding"
@@ -65,6 +68,19 @@ export default function Home() {
             description="Design scalable systems end-to-end. Clarify requirements, sketch architecture, discuss tradeoffs, capacity, and bottlenecks."
             icon="🗺️"
             accent="text-sky-400"
+          />
+        </div>
+
+        <div className="mt-10 mb-3 text-xs uppercase tracking-[2px] text-gray-500">
+          Learn
+        </div>
+        <div className="grid gap-4">
+          <ModeCard
+            href="/learn"
+            title="Learn Python"
+            description="A guided course for experienced programmers new to Python. A voice tutor walks you through syntax, idioms, tooling, and the libraries you'll use on the job — with hands-on exercises you run as you go."
+            icon="🐍"
+            accent="text-yellow-400"
           />
         </div>
 

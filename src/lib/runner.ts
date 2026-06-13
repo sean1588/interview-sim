@@ -72,6 +72,10 @@ async function runPython(code: string): Promise<RunResult> {
   py.setStdout({ batched: (s: string) => (stdout += s + "\n") });
   py.setStderr({ batched: (s: string) => (stderr += s + "\n") });
   try {
+    // Auto-fetch any imported packages bundled for Pyodide (numpy, pandas, …)
+    // from the CDN so the libraries lessons can actually run. No-op for code
+    // that only imports the stdlib.
+    await py.loadPackagesFromImports(code);
     await py.runPythonAsync(code);
     return makeResult({ stdout, stderr, exitCode: stderr ? 1 : 0 });
   } catch (e) {
