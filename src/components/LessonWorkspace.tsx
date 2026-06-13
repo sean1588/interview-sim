@@ -18,6 +18,9 @@ export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
   const hasExercises = lesson.exercises.length > 0;
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const exercise = hasExercises ? lesson.exercises[exerciseIndex] : null;
+  // Collapse the lesson notes to hand the saved space to the editor — the tutor
+  // still narrates the concept by voice. Only relevant when there are exercises.
+  const [notesCollapsed, setNotesCollapsed] = useState(false);
 
   const { sessionId, assessing, result: recap, error, endSession, closeResult } =
     useSession<RecapData>("learning");
@@ -110,15 +113,33 @@ export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
 
         {/* Right: lesson card + exercise editor */}
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
-          <div
-            className={`px-5 py-4 border-b border-gray-800 overflow-y-auto ${
-              hasExercises ? "max-h-[45%]" : "flex-1"
-            }`}
-          >
-            <div className="prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
-              <ReactMarkdown>{markdown}</ReactMarkdown>
+          {hasExercises ? (
+            <>
+              {/* Collapsible lesson notes — capped so the editor keeps room. */}
+              <button
+                onClick={() => setNotesCollapsed((c) => !c)}
+                className="flex items-center justify-between px-5 py-2 border-b border-gray-800 shrink-0 text-left hover:bg-gray-900/40"
+              >
+                <span className="text-xs uppercase tracking-wide text-gray-500">
+                  Lesson notes
+                </span>
+                <span className="text-gray-500 text-xs">
+                  {notesCollapsed ? "▸ Show" : "▾ Hide"}
+                </span>
+              </button>
+              {!notesCollapsed && (
+                <div className="px-5 py-3 border-b border-gray-800 overflow-y-auto max-h-[30%] prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
+                  <ReactMarkdown>{markdown}</ReactMarkdown>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="px-5 py-4 border-b border-gray-800 overflow-y-auto flex-1">
+              <div className="prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
+                <ReactMarkdown>{markdown}</ReactMarkdown>
+              </div>
             </div>
-          </div>
+          )}
 
           {hasExercises && exercise && (
             <>
@@ -147,7 +168,7 @@ export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
                     </button>
                   </div>
                 </div>
-                <div className="prose-invert max-w-none text-xs text-gray-400 markdown">
+                <div className="prose-invert max-w-none text-xs text-gray-400 markdown max-h-20 overflow-y-auto">
                   <ReactMarkdown>{exercise.instructions}</ReactMarkdown>
                 </div>
               </div>
