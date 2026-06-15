@@ -70,6 +70,15 @@ export default function Home() {
             accent="text-sky-400"
           />
         </div>
+        <div className="mt-4 grid gap-4">
+          <ModeCard
+            href="/freestyle"
+            title="Freestyle"
+            description="A free-form session — you steer. Ask for a behavioral, coding, or system design interview, open practice, or to learn something new, and the coach adapts in real time, dropping problems and starter code straight into your editor."
+            icon="🎛️"
+            accent="text-fuchsia-400"
+          />
+        </div>
 
         <div className="mt-10 mb-3 text-xs uppercase tracking-[2px] text-gray-500">
           Learn

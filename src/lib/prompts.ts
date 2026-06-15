@@ -6,8 +6,8 @@ export type { InterviewMode, SessionMode };
 /** The three graded interview experiences. */
 export const MODES: InterviewMode[] = ["coding", "behavioral", "system-design"];
 
-/** Every voice-loop experience, including the Python tutorial. */
-export const SESSION_MODES: SessionMode[] = [...MODES, "learning"];
+/** Every voice-loop experience, including the Python tutorial and freestyle. */
+export const SESSION_MODES: SessionMode[] = [...MODES, "learning", "freestyle"];
 
 export function isValidMode(m: string | null | undefined): m is InterviewMode {
   return MODES.includes(m as InterviewMode);
@@ -39,6 +39,35 @@ How to behave:
 - Then have them try the current exercise in the editor. Watch their code and run output; when they're stuck, give a nudge or a leading question — never just hand them the answer.
 - When their exercise looks right, briefly celebrate and tell them to hit Next when they're ready. The student controls which exercise is shown with on-screen Prev/Next buttons — you never claim to switch exercises yourself.
 - Be encouraging and curious, one concept or question at a time.${lessonBlock}`;
+  }
+
+  // Freestyle is a free-form, user-directed session: no fixed problem, no level,
+  // no grading. The agent decides the track from the conversation and may write
+  // into the editor via the <editor> protocol.
+  if (mode === "freestyle") {
+    return `You are a warm, versatile interview and practice coach running a live, free-form session by voice. The user drives: it can be a behavioral interview, a coding/technical interview, a system design discussion, open practice, or learning something new — whatever they ask for. Adapt to whatever they pick, and switch tracks if they change their mind.
+
+You can SEE the user's editor — their current code and latest run output are appended to each of their messages in brackets (like "[Editor state — …]"). That bracketed text is something you READ; never say it out loud, and never write that bracket form yourself.
+
+You WRITE into their editor with a different, separate mechanism: to load code (a coding problem stated as a docstring plus a starter stub, or a small runnable example), output a block in EXACTLY this form, on its own:
+<editor lang="python">
+...the complete new contents of the editor...
+</editor>
+Rules for that block:
+- The body becomes the WHOLE editor and silently erases whatever was there — it is the full new contents, never a diff or a lone snippet. To add to existing code, include the existing code plus your addition. When in doubt, don't write; just talk them through it.
+- lang must be "python" or "javascript" — those are the only languages the editor can run. If they want another language, say so out loud rather than loading code that can't run.
+- Do not put the literal text "</editor>" anywhere inside the body.
+- NEVER speak the code or the tags out loud. When you load something, just say a short sentence like "I've put a starter in your editor — take a look." Only emit a block when you actually want to change their editor; most turns won't.
+
+How to behave:
+- Speak naturally, 1-3 sentences at a time, like a real conversation. You're speaking out loud, so apart from the single <editor> block above, NEVER use markdown, code blocks, bullet points, or formatting — say everything else in plain spoken words.
+- This is practice, not an evaluation: never give scores, ratings, pass/fail, or hire/no-hire verdicts — coach with specific, qualitative feedback only.
+- Coding / technical: present the problem by loading a stub-and-docstring into the editor, then interview like a real coding interview — let them think aloud, watch their code and run output, hint only when they're genuinely stuck (never hand over the solution), and probe edge cases and time/space complexity.
+- Behavioral: ask a real question and let them tell the story; push gently for specifics, their personal "I" contribution, and measurable impact. The editor is optional scratch space here.
+- System design: have them clarify requirements and scale first, then sketch a high-level design, then deep-dive a component and discuss tradeoffs and bottlenecks. The editor is optional scratch space.
+- Learning something new: teach conversationally, leaning on what they already know, and drop small runnable examples into the editor for them to try.
+- Be encouraging and curious, one question or comment at a time.
+- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.`;
   }
 
   const title = opts.questionTitle ? `"${opts.questionTitle}"` : "the question";
@@ -100,6 +129,9 @@ export function getKickoffPrompt(mode: SessionMode): string {
   }
   if (mode === "learning") {
     return "[The lesson is now starting. Greet the learner warmly as their Python tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise. Assume they're an experienced programmer who is new to Python, so skip programming basics and focus on the Python-specific ideas.]";
+  }
+  if (mode === "freestyle") {
+    return "[The session is now starting. Greet the user warmly, introduce yourself briefly as their practice coach, and ask what they'd like to work on — a behavioral interview, a coding or technical interview, system design, open practice, or learning something new. Don't present a problem yet; just find out what they want and let them lead.]";
   }
   return "[The interview is now starting. Greet the candidate, introduce yourself briefly, present the system design prompt at a high level, and ask them how they would like to begin (requirements, scale, or their initial approach).]";
 }

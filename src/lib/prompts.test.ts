@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   MODES,
+  SESSION_MODES,
   isValidMode,
+  isValidSessionMode,
   getAssessSystemPrompt,
   buildAssessUserContent,
   getSystemPrompt,
@@ -158,5 +160,34 @@ describe("target-level calibration (interviewer)", () => {
     expect(
       getSystemPrompt("coding", { targetLevel: "staff" })
     ).not.toContain(getLevel("staff").blurb);
+  });
+});
+
+describe("freestyle mode", () => {
+  it("is a valid session mode but not one of the graded interview modes", () => {
+    expect(SESSION_MODES).toContain("freestyle");
+    expect(isValidSessionMode("freestyle")).toBe(true);
+    expect(MODES).not.toContain("freestyle");
+    expect(isValidMode("freestyle")).toBe(false);
+  });
+
+  it("documents the <editor> write protocol in its system prompt", () => {
+    const p = getSystemPrompt("freestyle");
+    expect(p.length).toBeGreaterThan(20);
+    // The model must know the exact tag form and that the body replaces the editor.
+    expect(p).toContain('<editor lang="python">');
+    expect(p).toContain("</editor>");
+    expect(p).toMatch(/whole editor|full new contents|replace/i);
+  });
+
+  it("forbids grading — freestyle is an ungraded sandbox", () => {
+    expect(getSystemPrompt("freestyle")).toMatch(
+      /never give scores|not an evaluation|no-hire|pass\/fail/i
+    );
+  });
+
+  it("has a non-empty kickoff that asks what to work on", () => {
+    const k = getKickoffPrompt("freestyle");
+    expect(k.length).toBeGreaterThan(20);
   });
 });

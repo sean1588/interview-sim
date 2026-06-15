@@ -75,25 +75,131 @@ export async function textToSpeechPcm(text: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+/** A block the model asked us to load into the editor (freestyle mode). */
+export interface EditorBlock {
+  language: string;
+  code: string;
+}
+
+// The agent (freestyle) can write the editor by emitting a sentinel block:
+//   <editor lang="python"> ...full new editor contents... </editor>
+// This text must never reach TTS, and the body is surfaced via onEditor. The
+// markers can be split across token deltas, so the splitter below holds back any
+// trailing text that could be the start of a marker until it resolves.
+//
+// Matching is deliberately lenient and symmetric: the open tag is matched
+// generically (any attribute order, optional lang) and the close case-
+// insensitively, so a small drift in what the model emits degrades to "no block
+// loaded" rather than reading the raw tag aloud. The one collision a plain-text
+// sentinel can't escape is code that literally contains "</editor>"; the
+// freestyle system prompt tells the model not to emit that inside a block.
+const EDITOR_OPEN_RE = /<editor\b[^>]*>/i;
+const EDITOR_LANG_RE = /\blang\s*=\s*["']([^"']*)["']/i;
+const EDITOR_CLOSE_RE = /<\/editor\s*>/i;
+// Tail that could be an <editor …> open tag still arriving (no '>' yet).
+const EDITOR_PARTIAL_OPEN_RE = /^<editor\b[^>]*$/i;
+
 /**
- * Read an OpenRouter SSE chat stream, accumulating tokens and invoking
- * `onSentence` each time a sentence boundary (or a 200-char cap) is reached.
- * Resolves with the full concatenated text.
+ * Read an OpenRouter SSE chat stream. Spoken text is segmented into sentences
+ * (on a sentence boundary or a 200-char cap) and handed to `onSentence` for TTS;
+ * any `<editor>` block is pulled out of the spoken stream and handed to
+ * `onEditor` instead. Resolves with the SPOKEN text only (editor blocks removed),
+ * which is what callers store as history and show in the transcript.
  */
 export async function parseSseStream(
   stream: ReadableStream<Uint8Array>,
-  onSentence: (sentence: string) => void
+  onSentence: (sentence: string) => void,
+  onEditor?: (block: EditorBlock) => void
 ): Promise<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let fullText = "";
+  let spokenText = "";
   let currentSentence = "";
 
-  const flush = () => {
+  // Splitter state. Invariant: while not capturing, unprocessed text lives in
+  // `work`; while capturing (inside an <editor> block) it lives in `captureBuf`.
+  let capturing = false;
+  let captureBuf = "";
+  let captureLang = "";
+  let work = "";
+
+  const flushSentence = () => {
     const sentence = currentSentence.trim();
     if (sentence) onSentence(sentence);
     currentSentence = "";
+  };
+
+  // Commit spoken text, flushing on a sentence boundary or length cap as before.
+  const speak = (text: string) => {
+    if (!text) return;
+    spokenText += text;
+    currentSentence += text;
+    if (/[.!?]\s*$/.test(currentSentence) || currentSentence.length > 200) {
+      flushSentence();
+    }
+  };
+
+  const drain = () => {
+    // Loop while each open/close tag we consume may expose more to process.
+    for (;;) {
+      if (capturing) {
+        const close = captureBuf.match(EDITOR_CLOSE_RE);
+        if (!close) return; // closing tag not here yet; keep accumulating
+        const at = close.index ?? 0;
+        onEditor?.({ language: captureLang, code: captureBuf.slice(0, at) });
+        work = captureBuf.slice(at + close[0].length);
+        capturing = false;
+        captureBuf = "";
+        captureLang = "";
+        continue; // process anything after the block as spoken text
+      }
+
+      const open = work.match(EDITOR_OPEN_RE);
+      if (open) {
+        const at = open.index ?? 0;
+        speak(work.slice(0, at)); // text before the tag is spoken
+        captureLang = open[0].match(EDITOR_LANG_RE)?.[1] ?? "";
+        captureBuf = work.slice(at + open[0].length);
+        work = "";
+        capturing = true;
+        continue;
+      }
+
+      // No complete open tag. Hold back a trailing fragment that could be an
+      // <editor …> tag still arriving; speak everything before it.
+      const lt = work.lastIndexOf("<");
+      if (lt !== -1) {
+        const tail = work.slice(lt);
+        const partialOpen =
+          "<editor".startsWith(tail.toLowerCase()) || // "<", "<e", … "<editor"
+          EDITOR_PARTIAL_OPEN_RE.test(tail); // "<editor lang=…" with no '>' yet
+        if (partialOpen) {
+          speak(work.slice(0, lt));
+          work = work.slice(lt);
+          return;
+        }
+      }
+      speak(work);
+      work = "";
+      return;
+    }
+  };
+
+  const feed = (token: string) => {
+    if (capturing) captureBuf += token;
+    else work += token;
+    drain();
+  };
+
+  const finish = () => {
+    // A held-back tail that never resolved into an <editor> tag is just ordinary
+    // prose (e.g. a response ending on "a <") — speak it. Only an actually
+    // unterminated block (capturing) is dropped: never load half-written code.
+    if (!capturing && work) speak(work);
+    work = "";
+    flushSentence();
+    return spokenText;
   };
 
   while (true) {
@@ -107,25 +213,15 @@ export async function parseSseStream(
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
       const payload = line.slice(6).trim();
-      if (payload === "[DONE]") {
-        flush();
-        return fullText;
-      }
+      if (payload === "[DONE]") return finish();
       try {
         const token = JSON.parse(payload).choices?.[0]?.delta?.content;
-        if (token) {
-          fullText += token;
-          currentSentence += token;
-          if (/[.!?]\s*$/.test(currentSentence) || currentSentence.length > 200) {
-            flush();
-          }
-        }
+        if (token) feed(token);
       } catch {
         // skip malformed chunks
       }
     }
   }
 
-  flush();
-  return fullText;
+  return finish();
 }

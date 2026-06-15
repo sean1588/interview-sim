@@ -144,13 +144,31 @@ export async function POST(req: NextRequest) {
               });
 
             ttsTasks.push(task);
+          },
+          // Freestyle: the agent can push starter code into the editor. These
+          // blocks are pulled out of the spoken stream and forwarded as their
+          // own NDJSON line so the client can apply them mid-turn.
+          (block) => {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: "editor",
+                  language: block.language,
+                  code: block.code,
+                }) + "\n"
+              )
+            );
           }
         );
 
         // Wait for all TTS to finish
         await Promise.all(ttsTasks);
 
-        session.history.push({ role: "assistant", content: fullResponse });
+        // An editor-only turn produces no spoken text; don't store an empty
+        // assistant message (the loaded code round-trips as editor context).
+        if (fullResponse.trim()) {
+          session.history.push({ role: "assistant", content: fullResponse });
+        }
         // Cap history (system prompt is added per-request, not stored here).
         if (session.history.length > 24) {
           session.history.splice(0, session.history.length - 24);
