@@ -34,9 +34,11 @@ interface VoiceChatProps {
   mode?: SessionMode;
   /** Pulled fresh on each turn so the interviewer / tutor sees the latest code / notes. */
   getContext?: () => SessionContext;
+  /** Freestyle: invoked when the agent pushes new contents into the editor. */
+  onEditorWrite?: (block: { language: string; code: string }) => void;
 }
 
-export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProps) {
+export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const [log, setLog] = useState<string[]>([]);
@@ -73,6 +75,13 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
   const getContextRef = useRef(getContext);
   useEffect(() => {
     getContextRef.current = getContext;
+  });
+
+  // Same for the editor-write callback (freestyle), so the stream handler below
+  // doesn't need it in its dependency list.
+  const onEditorWriteRef = useRef(onEditorWrite);
+  useEffect(() => {
+    onEditorWriteRef.current = onEditorWrite;
   });
 
   const addLog = useCallback((msg: string) => {
@@ -295,6 +304,13 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
               if (msg.type === "transcript") {
                 setMessages((prev) => [...prev, { role: "user", text: msg.text }]);
                 addLog(`You: "${msg.text}"`);
+              } else if (msg.type === "editor") {
+                // Freestyle: the agent loaded new contents into the editor.
+                onEditorWriteRef.current?.({
+                  language: msg.language,
+                  code: msg.code,
+                });
+                addLog(`Loaded ${msg.language || "code"} into editor`);
               } else if (msg.type === "text") {
                 responseText += (responseText ? " " : "") + msg.text;
               } else if (msg.type === "audio") {
@@ -317,10 +333,14 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
                   enqueueAudio(msg.data);
                 }
               } else if (msg.type === "done") {
-                setMessages((prev) => [
-                  ...prev,
-                  { role: "assistant", text: msg.fullResponse },
-                ]);
+                // An editor-only turn (the agent just loaded code, said nothing)
+                // has no spoken text — don't render a blank bubble for it.
+                if (msg.fullResponse.trim()) {
+                  setMessages((prev) => [
+                    ...prev,
+                    { role: "assistant", text: msg.fullResponse },
+                  ]);
+                }
                 addLog(`AI: "${msg.fullResponse.slice(0, 80)}${msg.fullResponse.length > 80 ? "..." : ""}"`);
                 // The turn ends once playback catches up; finishTurnIfIdle
                 // owns that decision across the avatar and <audio> paths.
@@ -410,6 +430,9 @@ export default function VoiceChat({ sessionId, mode, getContext }: VoiceChatProp
     return () => {
       vadRef.current?.stop();
       stopPlayback();
+      // Abort any in-flight turn so the stream loop exits — otherwise navigating
+      // away mid-response leaves the fetch running and audio playing detached.
+      abortRef.current?.abort();
       avatarRef.current?.destroy();
     };
   }, [stopPlayback]);
