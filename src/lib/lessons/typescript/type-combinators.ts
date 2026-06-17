@@ -99,7 +99,7 @@ console.log(\`\${key} rate:\`, rates[key]);
       title: "ReturnType",
       instructions: `\`makeUser\` returns an object. Instead of hand-writing its shape, type the \`user\` variable as \`ReturnType<typeof makeUser>\` so it tracks the function automatically. Assign a matching value and \`console.log\` it.
 
-**Expected output:** the user object, e.g. \`{"id":7,"name":"Grace"}\`.`,
+**Expected output:** the user object you assign — e.g. with \`{ id: 7, name: "Grace" }\` it prints \`{"id":7,"name":"Grace"}\`.`,
       starterCode: `function makeUser(id: number, name: string) {
   return { id, name };
 }
@@ -292,11 +292,11 @@ These are type-only, so to watch one run, declare a value of the resulting type 
     {
       id: "conditional-basic",
       title: "A conditional type",
-      instructions: `Write \`IsArray<T>\` as a conditional type that is \`true\` when \`T\` is an array and \`false\` otherwise (\`T extends any[] ? true : false\`). The starter ships a wrong check (\`T extends never\`) that always yields \`false\`, so both values are \`false\` and it runs clean. Fix the check; the editor will then force you to flip \`a\` to \`true\` because \`IsArray<number[]>\` becomes the literal \`true\`.
+      instructions: `Write \`IsArray<T>\` as a conditional type that is \`true\` when \`T\` is an array and \`false\` otherwise (\`T extends any[] ? true : false\`). The starter ships a wrong check (\`T extends never\`) that is \`false\` for both inputs here, so both values are \`false\` and it runs clean. Fix the check; the editor will then force you to flip \`a\` to \`true\` because \`IsArray<number[]>\` becomes the literal \`true\`.
 
 **Expected output (as shipped):** \`false false\`. After you fix \`IsArray\` and update \`a\`, it prints \`true false\`.`,
       starterCode: `// TODO: return the literal \`true\` when T is an array, else \`false\`.
-// This wrong check (T extends never) always yields \`false\` — fix it.
+// This wrong check (T extends never) is false for these inputs — fix it.
 type IsArray<T> = T extends never ? true : false;
 
 // Once IsArray is correct, IsArray<number[]> is \`true\` and the editor forces

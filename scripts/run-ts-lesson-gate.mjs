@@ -10,6 +10,11 @@
 
 import { transpileAndRun } from "./ts-lesson-check.mjs";
 
+// Starters run synchronously; a stray post-sync promise rejection (e.g. an async
+// helper that throws) would otherwise crash this gate on a later tick. The
+// browser worker swallows such rejections, so match it rather than counting them.
+process.on("unhandledRejection", () => {});
+
 const { typescriptCourse } = await import("/tmp/ts-lessons-bundle.mjs");
 
 let pass = 0;

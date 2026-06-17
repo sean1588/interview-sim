@@ -130,7 +130,7 @@ A file with a top-level \`import\`/\`export\` *is* a module — its top-level na
 
 ## \`import type\` — erased, cycle-safe imports
 
-When you import something used **only as a type**, prefer \`import type\`. It is guaranteed to be erased at compile time, so it emits no runtime \`require\`/\`import\` — which avoids accidental side effects and breaks import cycles that would otherwise deadlock at load time:
+When you import something used **only as a type**, prefer \`import type\`. It is guaranteed to be erased at compile time, so it emits no runtime \`require\`/\`import\` — which avoids accidental side effects and keeps the symbol out of import cycles: with no runtime edge added, it can't trigger a use-before-initialization error (an undefined binding in the temporal dead zone) during a circular load:
 
 \`\`\`ts
 import type { User } from "./models";   // erased — no runtime import

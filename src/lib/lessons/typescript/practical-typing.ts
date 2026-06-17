@@ -204,7 +204,7 @@ Rule of thumb: \`: T\` constrains *and* widens to \`T\`; \`satisfies T\` constra
     {
       id: "as-const-derive",
       title: "Derive from a value",
-      instructions: `The \`config\` object is already \`as const\`. Replace \`type ConfigKey = string\` with a type **derived** from the value: \`keyof typeof config\`. \`key\` must then be one of \`"host" | "port" | "retries"\` — anything else should be a type error.
+      instructions: `The \`config\` object is already \`as const\`. Replace \`type ConfigKey = string\` with a type **derived** from the value by combining \`keyof\` and \`typeof\` over \`config\`. \`key\` must then be one of \`"host" | "port" | "retries"\` — anything else should be a type error.
 
 **Expected output:** \`key: host value: localhost\``,
       starterCode: `// \`as const\` freezes a literal to its narrowest readonly type. Combined with
@@ -216,9 +216,8 @@ const config = {
   retries: 3,
 } as const;
 
-// TODO: derive a union of config's keys.
-//   typeof config  -> the object's type
-//   keyof typeof config -> "host" | "port" | "retries"
+// TODO: derive a union of config's keys by combining \`keyof\` and \`typeof\`.
+//   typeof config -> the object's type; keyof of THAT -> the union of its keys.
 // Replace \`string\` with that derived type:
 type ConfigKey = string;
 

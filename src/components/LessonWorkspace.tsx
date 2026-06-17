@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
@@ -84,8 +84,6 @@ export default function LessonWorkspace({
     });
   }, [endSession, course.language, lesson.title, code, hasExercises]);
 
-  const markdown = useMemo(() => lesson.content, [lesson.content]);
-
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
       {/* Top bar */}
@@ -136,14 +134,14 @@ export default function LessonWorkspace({
               </button>
               {!notesCollapsed && (
                 <div className="px-5 py-3 border-b border-gray-800 overflow-y-auto max-h-[30%] prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
-                  <ReactMarkdown>{markdown}</ReactMarkdown>
+                  <ReactMarkdown>{lesson.content}</ReactMarkdown>
                 </div>
               )}
             </>
           ) : (
             <div className="px-5 py-4 border-b border-gray-800 overflow-y-auto flex-1">
               <div className="prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
-                <ReactMarkdown>{markdown}</ReactMarkdown>
+                <ReactMarkdown>{lesson.content}</ReactMarkdown>
               </div>
             </div>
           )}

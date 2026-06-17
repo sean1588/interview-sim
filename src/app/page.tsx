@@ -1,4 +1,12 @@
 import Link from "next/link";
+import { COURSES } from "@/lib/lessons";
+
+// Per-course accent for the home cards (presentation only; the course list,
+// titles, taglines, and icons all come from the COURSES registry).
+const LEARN_ACCENTS: Record<string, string> = {
+  python: "text-yellow-400",
+  typescript: "text-sky-400",
+};
 
 type ModeCardProps = {
   href: string;
@@ -83,21 +91,21 @@ export default function Home() {
         <div className="mt-10 mb-3 text-xs uppercase tracking-[2px] text-gray-500">
           Learn
         </div>
+        <p className="mb-3 text-sm text-gray-400">
+          Guided courses for experienced programmers, each taught live by a voice
+          tutor who watches your code, with hands-on exercises you run as you go.
+        </p>
         <div className="grid gap-4 md:grid-cols-2">
-          <ModeCard
-            href="/learn/python"
-            title="Learn Python"
-            description="A guided course for experienced programmers new to Python. A voice tutor walks you through syntax, idioms, tooling, and the libraries you'll use on the job — with hands-on exercises you run as you go."
-            icon="🐍"
-            accent="text-yellow-400"
-          />
-          <ModeCard
-            href="/learn/typescript"
-            title="Learn TypeScript"
-            description="A guided course for JavaScript developers picking up TypeScript. A voice tutor takes you deep on the type system — unions, narrowing, generics, and the type-combinator toolkit — with exercises you run as you go."
-            icon="🔷"
-            accent="text-sky-400"
-          />
+          {COURSES.map((course) => (
+            <ModeCard
+              key={course.id}
+              href={`/learn/${course.id}`}
+              title={`Learn ${course.title}`}
+              description={course.tagline}
+              icon={course.icon}
+              accent={LEARN_ACCENTS[course.id] ?? "text-indigo-400"}
+            />
+          ))}
         </div>
 
         <div className="mt-10 text-center text-xs text-gray-500">

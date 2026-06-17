@@ -1,4 +1,5 @@
 import type { InterviewMode, SessionMode } from "./types/mode";
+import type { LanguageId } from "./problems";
 import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
 
 export type { InterviewMode, SessionMode };
@@ -24,8 +25,10 @@ export function isValidSessionMode(m: string | null | undefined): m is SessionMo
 // Learning mode hosts multiple language courses; the tutor persona is keyed off
 // the course language (sent on every turn via the existing `language` field).
 // One small table keeps the per-language copy in a single place rather than
-// scattered conditionals. Unknown/absent language falls back to Python.
-const TUTOR_PROFILE: Record<string, { lang: string; known: string; analogy: string }> = {
+// scattered conditionals. Typed Record<LanguageId> so shipping a course in a new
+// language without a persona here is a compile error (not a silent Python
+// fallback); the runtime `?? python` only guards a non-LanguageId string.
+const TUTOR_PROFILE: Record<LanguageId, { lang: string; known: string; analogy: string }> = {
   python: {
     lang: "Python",
     known: "TypeScript, JavaScript, Java, and/or Go",
@@ -36,10 +39,15 @@ const TUTOR_PROFILE: Record<string, { lang: string; known: string; analogy: stri
     known: "JavaScript well, and maybe a typed language like Java, C#, or Go",
     analogy: "this union type is just JavaScript at runtime, and the modeling is like a sealed type in Java",
   },
+  javascript: {
+    lang: "JavaScript",
+    known: "a typed or compiled language like Java, C#, Go, or Python",
+    analogy: "this is JavaScript's looser, more dynamic take on what you'd write in a typed language",
+  },
 };
 
 function tutorProfile(language?: string) {
-  return TUTOR_PROFILE[language ?? "python"] ?? TUTOR_PROFILE.python;
+  return (language && TUTOR_PROFILE[language as LanguageId]) || TUTOR_PROFILE.python;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -81,3 +81,57 @@ describe("typescript course — every starter transpiles to valid JS", () => {
     expect(() => new Function(js)).not.toThrow();
   });
 });
+
+// Squiggle gate (CI): type-check every TypeScript starter the way the single-file
+// Monaco editor does — non-strict, the full DOM-inclusive lib, each starter seen
+// as an ISOLATED SCRIPT — so a starter never shows the learner a SPURIOUS red
+// squiggle. Script scope is what surfaces collisions with browser globals
+// (Event / status / name / Cache). The transpile-construct test above can't see
+// type errors at all; this is the gate that protects the typing-course UX.
+describe("typescript course — starters are type-clean in the editor", () => {
+  const INTENTIONAL = new Set(["spot-the-squiggle"]); // ships a type error on purpose
+  const opts: ts.CompilerOptions = {
+    strict: false,
+    target: ts.ScriptTarget.ESNext,
+    lib: ["lib.esnext.full.d.ts"],
+    noEmit: true,
+    skipLibCheck: true,
+  };
+  const baseHost = ts.createCompilerHost(opts);
+  const cache = new Map<string, ts.SourceFile | undefined>();
+
+  function squiggles(id: string, code: string): string[] {
+    const fileName = `/virtual/${id}.ts`;
+    const sf = ts.createSourceFile(fileName, code, opts.target!, true);
+    const host: ts.CompilerHost = {
+      ...baseHost,
+      getSourceFile: (name, lang, onError, shouldCreate) => {
+        if (name === fileName) return sf;
+        if (!cache.has(name)) cache.set(name, baseHost.getSourceFile(name, lang, onError, shouldCreate));
+        return cache.get(name);
+      },
+      fileExists: (name) => name === fileName || baseHost.fileExists(name),
+      readFile: (name) => (name === fileName ? code : baseHost.readFile(name)),
+    };
+    const program = ts.createProgram([fileName], opts, host);
+    return ts
+      .getPreEmitDiagnostics(program)
+      .filter((d) => d.file?.fileName === fileName)
+      .map((d) => `[${d.code}] ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`);
+  }
+
+  const starters = (getCourse("typescript")?.lessons ?? []).flatMap((l) =>
+    l.exercises.map((e) => [e.id, e.starterCode] as const)
+  );
+
+  it.each(starters)("%s", (id, code) => {
+    const found = squiggles(id, code);
+    if (INTENTIONAL.has(id)) {
+      // The lesson teaches that a type error squiggles but doesn't block Run — so
+      // it must still carry one, or the teaching point silently breaks.
+      expect(found.length, `${id} must keep its teaching squiggle`).toBeGreaterThan(0);
+    } else {
+      expect(found, `${id} has spurious editor squiggle(s)`).toEqual([]);
+    }
+  });
+});
