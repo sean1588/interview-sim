@@ -9,18 +9,26 @@ import type { RunResult } from "@/lib/runner";
 
 // Freestyle runs whatever the user wants by voice; the editor is a shared
 // surface the agent can load code into. Only the runnable languages are offered.
-const FREESTYLE_LANGUAGES: LanguageId[] = ["python", "javascript"];
+const FREESTYLE_LANGUAGES: LanguageId[] = ["python", "javascript", "typescript"];
 
 const PLACEHOLDER = `# Freestyle session — tell the coach what you'd like to work on:
 # a coding problem, system design, a behavioral interview, or learning
 # something new. They'll load anything you need right here.
 `;
 
-/** The agent only writes python/javascript; normalize anything off-spec so a
- * stray language tag still loads the code rather than dropping it. */
+// The agent writes python/javascript/typescript; map common aliases so a stray
+// tag still loads the code, and default anything off-spec to python.
+const LANGUAGE_ALIASES: Record<string, LanguageId> = {
+  py: "python",
+  python: "python",
+  js: "javascript",
+  javascript: "javascript",
+  ts: "typescript",
+  typescript: "typescript",
+};
+
 function normalizeLanguage(lang: string): LanguageId {
-  const l = lang.trim().toLowerCase();
-  return l === "javascript" || l === "js" ? "javascript" : "python";
+  return LANGUAGE_ALIASES[lang.trim().toLowerCase()] ?? "python";
 }
 
 export default function FreestyleWorkspace() {

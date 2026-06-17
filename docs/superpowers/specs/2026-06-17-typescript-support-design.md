@@ -41,10 +41,17 @@ lets us reuse the entire JS runtime.
   added app-bundle weight; one ~8MB one-time CDN fetch (cached), faster than the
   ~10s Pyodide load.
 - **Transpile** with `ts.transpileModule(code, { target: ES2020, module: None })`.
-  `transpileModule` is single-file, never type-checks (exactly what we want), and
-  `module: None` avoids an `exports`/`require` wrapper so the output runs inside
-  the worker's `new Function`.
-- **Execute** the emitted JS through the *existing* `runJavaScript` worker — same
+  `transpileModule` is single-file and never type-checks (exactly what we want).
+  For ordinary single-file code the output is clean; but if the source uses
+  top-level `import`/`export`, TypeScript still lowers it to CommonJS that
+  references `module`/`exports`/`require` — names the worker's bare `new Function`
+  scope doesn't define, so it would throw `exports is not defined` before any user
+  code runs.
+- **Shim** the transpiled output with `wrapTranspiledTs`: prepend a minimal
+  CommonJS shim that defines `module`/`exports` (so `export`-using code runs) and
+  a `require` that rejects real module imports — unresolvable in the sandbox —
+  with a clear message. Plain code ignores the unused bindings.
+- **Execute** the shimmed JS through the *existing* `runJavaScript` worker — same
   sandbox, same console capture, same 5s timeout. No second runtime.
 
 `runCode()` keeps its clean dispatch shape: one new `if (language ===
@@ -61,8 +68,9 @@ runtime path (CDN load + worker) stays integration territory, like Python's.
 
 ## Wiring (small, mechanical)
 
-- `src/lib/runner.ts` — `loadTypeScript()`, `transpileTypeScript()` (exported),
-  `runTypeScript()`, dispatch branch, updated fallback message + header comment.
+- `src/lib/runner.ts` — `loadTypeScript()`, `transpileTypeScript()` and
+  `wrapTranspiledTs()` (both exported), `runTypeScript()`, dispatch branch,
+  updated fallback message + header comment.
 - `src/components/InterviewSim.tsx` — add `"typescript"` to `RUNNABLE_LANGUAGES`.
 - `src/components/FreestyleWorkspace.tsx` — add `"typescript"` to
   `FREESTYLE_LANGUAGES`; replace `normalizeLanguage`'s ad-hoc branches with a

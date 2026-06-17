@@ -22,6 +22,13 @@ const LANGUAGE_LABELS: Record<LanguageId, string> = {
   typescript: "TypeScript",
 };
 
+// Languages whose first run pays a one-time CDN load; shown while running so the
+// delay reads as expected, not hung. JavaScript runs instantly, so it's absent.
+const FIRST_RUN_HINT: Partial<Record<LanguageId, string>> = {
+  python: "Running… (first Python run loads the runtime, ~10s)",
+  typescript: "Running… (first TypeScript run loads the compiler)",
+};
+
 export default function CodeEditor({
   code,
   language,
@@ -115,9 +122,7 @@ export default function CodeEditor({
           {result
             ? result.output || result.stderr || "(no output)"
             : running
-              ? language === "python"
-                ? "Running… (first Python run loads the runtime, ~10s)"
-                : "Running…"
+              ? FIRST_RUN_HINT[language] ?? "Running…"
               : "Press Run to execute your code."}
         </pre>
       </div>

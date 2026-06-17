@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
+import * as ts from "typescript";
 import { PROBLEMS, getProblem } from "./index";
+import { transpileTypeScript } from "@/lib/runner";
 
 const DIFFICULTIES = new Set(["Easy", "Medium", "Hard"]);
 const LANGUAGES = new Set(["python", "javascript", "typescript"]);
-const RUNNABLE = new Set(["python", "javascript"]);
+const RUNNABLE = new Set(["python", "javascript", "typescript"]);
 
 describe("problem bank invariants", () => {
   it("has a healthy number of problems", () => {
@@ -43,6 +45,17 @@ describe("problem bank invariants", () => {
       // Construct (don't call) — throws SyntaxError on invalid JS, without
       // executing the example console.log calls.
       expect(() => new Function(js), `${p.id} JS`).not.toThrow();
+    }
+  });
+
+  it("every TypeScript starter transpiles to syntactically valid JS", () => {
+    for (const p of PROBLEMS) {
+      const tsCode = p.starterCode.typescript;
+      if (!tsCode) continue;
+      // Transpile (type-strip) the same way Run does, then construct the JS —
+      // throws SyntaxError on a malformed starter, without running it.
+      const js = transpileTypeScript(ts, tsCode);
+      expect(() => new Function(js), `${p.id} TS`).not.toThrow();
     }
   });
 
