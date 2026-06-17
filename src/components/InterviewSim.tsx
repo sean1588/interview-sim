@@ -12,7 +12,7 @@ import type { RunResult } from "@/lib/runner";
 
 // Languages the editor can actually run, in display order. A problem is offered
 // in the intersection of these and the languages it provides a starter for.
-const RUNNABLE_LANGUAGES: LanguageId[] = ["python", "javascript"];
+const RUNNABLE_LANGUAGES: LanguageId[] = ["python", "javascript", "typescript"];
 
 function languagesFor(problem: Problem): LanguageId[] {
   return RUNNABLE_LANGUAGES.filter((l) => l in problem.starterCode);

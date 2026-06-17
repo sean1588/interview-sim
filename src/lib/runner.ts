@@ -4,7 +4,9 @@
 //     from a CDN the first time the candidate hits Run.
 //   - JavaScript runs in a sandboxed Web Worker with a hard timeout so a stray
 //     infinite loop can't hang the page.
-// TypeScript execution is intentionally deferred (no transpile step yet).
+//   - TypeScript loads the compiler lazily from a CDN, strips types
+//     (transpile-only — no type-check gate), then runs the emitted JS through
+//     the same Worker. Monaco still surfaces type errors as editor squiggles.
 
 export interface RunResult {
   stdout: string;
@@ -145,14 +147,91 @@ function runJavaScript(code: string): Promise<RunResult> {
   });
 }
 
+// Pinned to the compiler the project builds with (package.json typescript ^5).
+const TYPESCRIPT_VERSION = "5.9.3";
+const TYPESCRIPT_SRC = `https://cdn.jsdelivr.net/npm/typescript@${TYPESCRIPT_VERSION}/lib/typescript.js`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let typescriptPromise: Promise<any> | null = null;
+
+// Load the TypeScript compiler from the CDN once and cache it. The UMD bundle
+// exposes a global `ts` when loaded via a <script> tag. Mirrors loadPyodide.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadTypeScript(): Promise<any> {
+  if (typescriptPromise) return typescriptPromise;
+  typescriptPromise = new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (w.ts) {
+      resolve(w.ts);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = TYPESCRIPT_SRC;
+    script.onload = () =>
+      w.ts
+        ? resolve(w.ts)
+        : reject(new Error("TypeScript compiler loaded but `ts` global is missing"));
+    script.onerror = () =>
+      reject(new Error("Failed to load the TypeScript compiler from CDN"));
+    document.head.appendChild(script);
+  });
+  return typescriptPromise;
+}
+
+/**
+ * Strip types and downlevel to plain JS. `transpileModule` is single-file and
+ * never type-checks (transpile-only), so type errors don't block a run. The
+ * output still has to pass through wrapTranspiledTs before the worker can run it
+ * (see below). Exported so it can be unit-tested with the node `typescript`
+ * package — the same compiler API as the CDN global.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function transpileTypeScript(ts: any, code: string): string {
+  return ts.transpileModule(code, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.None,
+    },
+  }).outputText;
+}
+
+/**
+ * Make transpiled TS runnable in the worker's bare `new Function` scope.
+ *
+ * `module: None` only yields wrapper-free output for code with no top-level
+ * import/export; the moment the source uses `export`/`import`, TypeScript lowers
+ * it to CommonJS that references `module`/`exports`/`require` — names the worker
+ * scope doesn't define, so it would throw "exports is not defined" before any
+ * user code runs. Prepend a minimal CommonJS shim so such code runs; `require`
+ * rejects real module imports (unresolvable in the sandbox) with a clear message.
+ * Plain code simply ignores the unused bindings.
+ *
+ * Known limit: code that *declares* a top-level `module`/`exports`/`require`
+ * would collide with the shim — rare, consistent with how CommonJS reserves
+ * those names, and a clear SyntaxError rather than silent corruption.
+ */
+export function wrapTranspiledTs(js: string): string {
+  const shim =
+    `const module = { exports: {} }, exports = module.exports, ` +
+    `require = (name) => { throw new Error("Imports aren't supported here — write a single self-contained file (no import/require)."); };`;
+  return `${shim}\n${js}`;
+}
+
+async function runTypeScript(code: string): Promise<RunResult> {
+  const ts = await loadTypeScript();
+  return runJavaScript(wrapTranspiledTs(transpileTypeScript(ts, code)));
+}
+
 export async function runCode(
   language: string,
   code: string
 ): Promise<RunResult> {
   if (language === "python") return runPython(code);
   if (language === "javascript") return runJavaScript(code);
+  if (language === "typescript") return runTypeScript(code);
   return makeResult({
-    stderr: `Running ${language} isn't supported yet — try Python or JavaScript.`,
+    stderr: `Running ${language} isn't supported yet — try Python, JavaScript, or TypeScript.`,
     exitCode: 1,
   });
 }

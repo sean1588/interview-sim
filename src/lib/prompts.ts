@@ -55,7 +55,7 @@ You WRITE into their editor with a different, separate mechanism: to load code (
 </editor>
 Rules for that block:
 - The body becomes the WHOLE editor and silently erases whatever was there — it is the full new contents, never a diff or a lone snippet. To add to existing code, include the existing code plus your addition. When in doubt, don't write; just talk them through it.
-- lang must be "python" or "javascript" — those are the only languages the editor can run. If they want another language, say so out loud rather than loading code that can't run.
+- lang must be "python", "javascript", or "typescript" — those are the only languages the editor can run. If they want another language, say so out loud rather than loading code that can't run.
 - Do not put the literal text "</editor>" anywhere inside the body.
 - NEVER speak the code or the tags out loud. When you load something, just say a short sentence like "I've put a starter in your editor — take a look." Only emit a block when you actually want to change their editor; most turns won't.
 
