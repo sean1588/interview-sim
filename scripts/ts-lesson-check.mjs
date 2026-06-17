@@ -47,7 +47,6 @@ export function transpileAndRun(code) {
     info: (...a) => logs.push(fmt(a)),
   };
   const js = wrap(transpile(code));
-  // eslint-disable-next-line no-new-func
   new Function("console", js)(mockConsole);
   return logs.join("\n");
 }
