@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const session = getSession(sessionId);
 
     if (kickoff) {
-      session.history.push({ role: "user", content: getKickoffPrompt(mode) });
+      session.history.push({ role: "user", content: getKickoffPrompt(mode, language) });
     } else {
       // Attach the live editor context (coding) and/or notes (behavioral / system-design).
       // The mode-specific system prompt tells the model whether and how to use the bracketed part.
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
         questionTitle,
         questionPrompt,
         targetLevel,
+        language,
       }),
     };
     const messages = [systemMsg, ...session.history];

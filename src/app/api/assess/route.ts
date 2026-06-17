@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       .join("\n");
 
     const targetLevel = isValidLevel(level) ? level : undefined;
-    const assessSystem = getAssessSystemPrompt(mode, targetLevel);
+    const assessSystem = getAssessSystemPrompt(mode, targetLevel, language);
     const userContent = buildAssessUserContent(mode, {
       transcript,
       questionTitle,

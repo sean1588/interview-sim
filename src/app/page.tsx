@@ -83,13 +83,20 @@ export default function Home() {
         <div className="mt-10 mb-3 text-xs uppercase tracking-[2px] text-gray-500">
           Learn
         </div>
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <ModeCard
-            href="/learn"
+            href="/learn/python"
             title="Learn Python"
             description="A guided course for experienced programmers new to Python. A voice tutor walks you through syntax, idioms, tooling, and the libraries you'll use on the job — with hands-on exercises you run as you go."
             icon="🐍"
             accent="text-yellow-400"
+          />
+          <ModeCard
+            href="/learn/typescript"
+            title="Learn TypeScript"
+            description="A guided course for JavaScript developers picking up TypeScript. A voice tutor takes you deep on the type system — unions, narrowing, generics, and the type-combinator toolkit — with exercises you run as you go."
+            icon="🔷"
+            accent="text-sky-400"
           />
         </div>
 
