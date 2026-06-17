@@ -271,3 +271,29 @@ runner (transpile-and-run stays), zod/runtime-validation libraries in exercises,
 TS-starter backfill of the interview question bank (separate deferred pass), and
 any change to interview-mode behavior. A coverage backlog for the TS course can
 follow once the format is proven.
+
+## 7. As-built deltas & deferred debt
+
+The build matched the plan, with two notable additions from the review pass:
+
+- **A squiggle gate was discovered to be load-bearing.** A *typing* course lives
+  or dies by the editor's red squiggles, and the runtime checker is transpile-only
+  (it can't see type errors). A type-check gate — each starter type-checked as an
+  isolated **script** under Monaco's defaults (non-strict, `lib.esnext.full`) —
+  caught three browser-global collisions (`status`/`name`/`Cache`) that the
+  content review missed. It now lives in `lessons.test.ts` so it runs in **CI**,
+  and asserts `spot-the-squiggle` keeps its *intentional* teaching error.
+- **CI gate split (as-built):** CI runs two starter checks — transpile-**construct**
+  (syntactic validity of the emitted JS) and the **squiggle** type-check. Both are
+  hang-safe (no execution). Full transpile-**execute** stays authoring-time
+  (`scripts/run-ts-lesson-gate.mjs`) because a stray infinite loop can't be
+  interrupted on vitest's main thread.
+
+**Deferred debt (named, from the review — low value for one-shot tools):**
+- `scripts/ts-lesson-check.mjs` hand-copies `transpileTypeScript`/`wrapTranspiledTs`
+  from `runner.ts` (a `.mjs` can't import the `.ts`); kept in sync by comment. The
+  authoritative transpile *is* CI-tested via `lessons.test.ts`.
+- The authoring-time runtime gate has no per-starter wall-clock timeout (a
+  `while(true)` starter would hang it). Acceptable: authoring-time, interruptible.
+- `gen-ts-lessons.mjs` writes files before validating counts, and normalizes CRLF
+  to LF rather than round-tripping it byte-for-byte. One-shot generator; harmless.
