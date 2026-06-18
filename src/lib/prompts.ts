@@ -78,8 +78,17 @@ How to behave:
 
   // Freestyle is a free-form, user-directed session: no fixed problem, no level,
   // no grading. The agent decides the track from the conversation and may write
-  // into the editor via the <editor> protocol.
+  // into the editor via the <editor> protocol. Optionally the user typed an
+  // up-front custom question (questionPrompt); when present, center on it.
   if (mode === "freestyle") {
+    // The question is user-pasted prose — it may contain quotes, triple-quoted
+    // Python docstrings, or newlines — so it's embedded verbatim with no
+    // symmetric fence to collide with. (Echoing it into a prompt that defines
+    // the <editor> protocol is accepted self-injection surface: freestyle is an
+    // ungraded, single-user, self-directed sandbox.)
+    const focusBlock = opts.questionPrompt
+      ? `\n\nThe user told you up front exactly what they want to work on, in their own words:\n\n${opts.questionPrompt}\n\nTreat this as the session's focus: open on it directly rather than asking what they'd like to do, infer the right track from it (coding, behavioral, system design, or learning), and if it's a coding problem load a starter into the editor. If they later steer elsewhere, follow them.`
+      : "";
     return `You are a warm, versatile interview and practice coach running a live, free-form session by voice. The user drives: it can be a behavioral interview, a coding/technical interview, a system design discussion, open practice, or learning something new — whatever they ask for. Adapt to whatever they pick, and switch tracks if they change their mind.
 
 You can SEE the user's editor — their current code and latest run output are appended to each of their messages in brackets (like "[Editor state — …]"). That bracketed text is something you READ; never say it out loud, and never write that bracket form yourself.
@@ -102,7 +111,7 @@ How to behave:
 - System design: have them clarify requirements and scale first, then sketch a high-level design, then deep-dive a component and discuss tradeoffs and bottlenecks. The editor is optional scratch space.
 - Learning something new: teach conversationally, leaning on what they already know, and drop small runnable examples into the editor for them to try.
 - Be encouraging and curious, one question or comment at a time.
-- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.`;
+- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.${focusBlock}`;
   }
 
   const title = opts.questionTitle ? `"${opts.questionTitle}"` : "the question";
@@ -154,8 +163,13 @@ How to behave:
 - One question or observation per turn.${levelBlock}${promptBlock}`;
 }
 
-/** Stage direction for the very first (kickoff) turn — no user audio yet. */
-export function getKickoffPrompt(mode: SessionMode, language?: string): string {
+/** Stage direction for the very first (kickoff) turn — no user audio yet.
+ * `questionPrompt` is the optional freestyle custom question typed up front. */
+export function getKickoffPrompt(
+  mode: SessionMode,
+  language?: string,
+  questionPrompt?: string
+): string {
   if (mode === "coding") {
     return "[The interview is now starting. Greet the candidate warmly, briefly introduce yourself as their interviewer, and present this problem conversationally — don't read it out word for word or list every constraint. Then invite them to share their initial thoughts.]";
   }
@@ -167,6 +181,11 @@ export function getKickoffPrompt(mode: SessionMode, language?: string): string {
     return `[The lesson is now starting. Greet the learner warmly as their ${lang} tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise (or, if this lesson has none, the first idea). Assume they're an experienced programmer who is new to ${lang}, so skip programming basics and focus on the ${lang}-specific ideas.]`;
   }
   if (mode === "freestyle") {
+    if (questionPrompt) {
+      // Embedded verbatim (no wrapping quotes) — the question is user-pasted and
+      // may itself contain quotes or newlines.
+      return `[The session is now starting. Greet the user warmly and briefly introduce yourself as their practice coach. They have already told you what they want to work on, in their own words:\n\n${questionPrompt}\n\nDon't ask what they'd like to do — dive straight into it: figure out the right track (coding, behavioral, system design, or learning), present it, and if it's a coding problem load a starter into their editor. Then invite them to begin.]`;
+    }
     return "[The session is now starting. Greet the user warmly, introduce yourself briefly as their practice coach, and ask what they'd like to work on — a behavioral interview, a coding or technical interview, system design, open practice, or learning something new. Don't present a problem yet; just find out what they want and let them lead.]";
   }
   return "[The interview is now starting. Greet the candidate, introduce yourself briefly, present the system design prompt at a high level, and ask them how they would like to begin (requirements, scale, or their initial approach).]";

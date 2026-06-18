@@ -190,4 +190,49 @@ describe("freestyle mode", () => {
     const k = getKickoffPrompt("freestyle");
     expect(k.length).toBeGreaterThan(20);
   });
+
+  describe("optional custom question", () => {
+    // A distinctive sentinel that never appears in any prompt's static copy, so
+    // "did the question reach the prompt?" is a copy-proof presence check. These
+    // tests pin the contract (question reaches the prompt; blank = default; text
+    // survives verbatim), NOT the wording — copy edits must not break them.
+    const Q = "SENTINEL_TOPIC: implement an LRU cache with O(1) get and put.";
+
+    it("is optional — a blank question is identical to the default flow", () => {
+      // The route coalesces "" -> undefined, so an empty string MUST fall
+      // through to the default (no-question) prompts, not a degenerate variant.
+      expect(getSystemPrompt("freestyle", { questionPrompt: "" })).toBe(
+        getSystemPrompt("freestyle")
+      );
+      expect(getKickoffPrompt("freestyle", undefined, "")).toBe(
+        getKickoffPrompt("freestyle")
+      );
+      // And the default prompts never embed a question.
+      expect(getSystemPrompt("freestyle")).not.toContain(Q);
+      expect(getKickoffPrompt("freestyle")).not.toContain(Q);
+    });
+
+    it("embeds the question verbatim in both the system prompt and the kickoff", () => {
+      expect(getSystemPrompt("freestyle", { questionPrompt: Q })).toContain(Q);
+      expect(getKickoffPrompt("freestyle", undefined, Q)).toContain(Q);
+    });
+
+    it("sets a question apart from the default flow (differential, not prose-coupled)", () => {
+      expect(getSystemPrompt("freestyle", { questionPrompt: Q })).not.toBe(
+        getSystemPrompt("freestyle")
+      );
+      expect(getKickoffPrompt("freestyle", undefined, Q)).not.toBe(
+        getKickoffPrompt("freestyle")
+      );
+    });
+
+    it("embeds quotes, triple-quotes, and newlines without mangling them", () => {
+      // Pasted problems routinely contain double-quotes, Python docstrings
+      // (`"""`), and newlines — they must survive into the prompt intact, which
+      // is why the prompt uses no symmetric fence around the question.
+      const messy = 'Build a """rate limiter""".\nIt must handle "bursts" — O(1).';
+      expect(getSystemPrompt("freestyle", { questionPrompt: messy })).toContain(messy);
+      expect(getKickoffPrompt("freestyle", undefined, messy)).toContain(messy);
+    });
+  });
 });

@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
+import CustomQuestionModal from "@/components/CustomQuestionModal";
 import type { LanguageId } from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
 
@@ -45,6 +46,12 @@ export default function FreestyleWorkspace() {
   const [language, setLanguage] = useState<LanguageId>("python");
   const lastRunRef = useRef<string | undefined>(undefined);
 
+  // Optional: the user can type the exact thing they want to work on instead of
+  // speaking it. Empty by default — when blank, freestyle behaves exactly as
+  // before (the coach opens by asking what they'd like to do).
+  const [customQuestion, setCustomQuestion] = useState("");
+  const [questionModalOpen, setQuestionModalOpen] = useState(false);
+
   const handleRun = useCallback((result: RunResult) => {
     const text = result.output || result.stderr || "(no output)";
     lastRunRef.current = `exit ${result.exitCode}\n${text}`.slice(0, 2000);
@@ -62,13 +69,17 @@ export default function FreestyleWorkspace() {
   );
 
   // Pulled fresh by VoiceChat on each turn so the coach sees the latest code.
+  // A custom question (if set) rides along as questionPrompt — the freestyle
+  // kickoff/system prompt center the session on it; when blank it's omitted and
+  // the default "what would you like to work on?" flow is unchanged.
   const getContext = useCallback(
     (): SessionContext => ({
       code,
       language,
       lastRun: lastRunRef.current,
+      questionPrompt: customQuestion || undefined,
     }),
-    [code, language]
+    [code, language, customQuestion]
   );
 
   return (
@@ -80,9 +91,18 @@ export default function FreestyleWorkspace() {
           <span className="text-gray-600">·</span>
           <h1 className="text-lg font-semibold">Freestyle</h1>
         </div>
-        <span className="text-xs text-gray-500">
-          Free-form — ask the coach for anything
-        </span>
+        <button
+          onClick={() => setQuestionModalOpen(true)}
+          title={customQuestion || "Optionally type your own question to start with"}
+          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+            customQuestion
+              ? "border-fuchsia-500/60 text-fuchsia-300 bg-fuchsia-500/10 hover:bg-fuchsia-500/20"
+              : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"
+          }`}
+        >
+          ✎ Custom question
+          {customQuestion && <span className="text-fuchsia-400">●</span>}
+        </button>
       </header>
 
       {/* Split screen */}
@@ -109,6 +129,14 @@ export default function FreestyleWorkspace() {
           />
         </div>
       </div>
+
+      {questionModalOpen && (
+        <CustomQuestionModal
+          initialValue={customQuestion}
+          onSubmit={setCustomQuestion}
+          onClose={() => setQuestionModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
