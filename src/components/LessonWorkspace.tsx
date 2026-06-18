@@ -1,20 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import RecapCard, { RecapData } from "@/components/RecapCard";
 import { useSession } from "@/components/useSession";
-import { buildLessonScript, type Lesson } from "@/lib/lessons";
-import type { LanguageId } from "@/lib/problems";
+import { buildLessonScript, type Course, type Lesson } from "@/lib/lessons";
 import type { RunResult } from "@/lib/runner";
 
-// Learning mode is Python-only.
-const PYTHON_ONLY: LanguageId[] = ["python"];
-
-export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
+export default function LessonWorkspace({
+  course,
+  lesson,
+}: {
+  course: Course;
+  lesson: Lesson;
+}) {
+  // The editor is pinned to the course's language; no picker.
+  const courseLanguages = [course.language];
   const hasExercises = lesson.exercises.length > 0;
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const exercise = hasExercises ? lesson.exercises[exerciseIndex] : null;
@@ -64,27 +68,28 @@ export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
       questionTitle: lesson.title,
       questionPrompt: buildLessonScript(lesson, exerciseIndex),
       code: hasExercises ? code : undefined,
-      language: hasExercises ? "python" : undefined,
+      // Always sent (even on conversational lessons) so the tutor persona is the
+      // course's language; with no code, the editor annotation is a no-op.
+      language: course.language,
       lastRun: lastRunRef.current,
     }),
-    [lesson, exerciseIndex, code, hasExercises]
+    [course.language, lesson, exerciseIndex, code, hasExercises]
   );
 
   const handleEnd = useCallback(() => {
     endSession({
       questionTitle: lesson.title,
       code: hasExercises ? code : undefined,
+      language: course.language,
     });
-  }, [endSession, lesson.title, code, hasExercises]);
-
-  const markdown = useMemo(() => lesson.content, [lesson.content]);
+  }, [endSession, course.language, lesson.title, code, hasExercises]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
       {/* Top bar */}
       <header className="flex items-center justify-between px-5 py-3 border-b border-gray-800 shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/learn" className="text-gray-400 hover:text-white text-sm">← Lessons</Link>
+          <Link href={`/learn/${course.id}`} className="text-gray-400 hover:text-white text-sm">← Lessons</Link>
           <span className="text-gray-600">·</span>
           <h1 className="text-lg font-semibold">{lesson.title}</h1>
         </div>
@@ -129,14 +134,14 @@ export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
               </button>
               {!notesCollapsed && (
                 <div className="px-5 py-3 border-b border-gray-800 overflow-y-auto max-h-[30%] prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
-                  <ReactMarkdown>{markdown}</ReactMarkdown>
+                  <ReactMarkdown>{lesson.content}</ReactMarkdown>
                 </div>
               )}
             </>
           ) : (
             <div className="px-5 py-4 border-b border-gray-800 overflow-y-auto flex-1">
               <div className="prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
-                <ReactMarkdown>{markdown}</ReactMarkdown>
+                <ReactMarkdown>{lesson.content}</ReactMarkdown>
               </div>
             </div>
           )}
@@ -175,8 +180,8 @@ export default function LessonWorkspace({ lesson }: { lesson: Lesson }) {
               <div className="flex-1 min-h-0">
                 <CodeEditor
                   code={code}
-                  language="python"
-                  languages={PYTHON_ONLY}
+                  language={course.language}
+                  languages={courseLanguages}
                   onCodeChange={setCode}
                   onLanguageChange={() => {}}
                   onRun={handleRun}

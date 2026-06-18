@@ -1,4 +1,5 @@
 import type { InterviewMode, SessionMode } from "./types/mode";
+import type { LanguageId } from "./problems";
 import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
 
 export type { InterviewMode, SessionMode };
@@ -18,24 +19,58 @@ export function isValidSessionMode(m: string | null | undefined): m is SessionMo
 }
 
 /* -------------------------------------------------------------------------- */
+/* LEARNING-MODE TUTOR PERSONAS                                               */
+/* -------------------------------------------------------------------------- */
+
+// Learning mode hosts multiple language courses; the tutor persona is keyed off
+// the course language (sent on every turn via the existing `language` field).
+// One small table keeps the per-language copy in a single place rather than
+// scattered conditionals. Typed Record<LanguageId> so shipping a course in a new
+// language without a persona here is a compile error (not a silent Python
+// fallback); the runtime `?? python` only guards a non-LanguageId string.
+const TUTOR_PROFILE: Record<LanguageId, { lang: string; known: string; analogy: string }> = {
+  python: {
+    lang: "Python",
+    known: "TypeScript, JavaScript, Java, and/or Go",
+    analogy: "this is Python's version of a TypeScript spread",
+  },
+  typescript: {
+    lang: "TypeScript",
+    known: "JavaScript well, and maybe a typed language like Java, C#, or Go",
+    analogy: "this union type is just JavaScript at runtime, and the modeling is like a sealed type in Java",
+  },
+  javascript: {
+    lang: "JavaScript",
+    known: "a typed or compiled language like Java, C#, Go, or Python",
+    analogy: "this is JavaScript's looser, more dynamic take on what you'd write in a typed language",
+  },
+};
+
+function tutorProfile(language?: string) {
+  return (language && TUTOR_PROFILE[language as LanguageId]) || TUTOR_PROFILE.python;
+}
+
+/* -------------------------------------------------------------------------- */
 /* INTERVIEWER SYSTEM PROMPTS (used by /api/chat)                             */
 /* -------------------------------------------------------------------------- */
 
 export function getSystemPrompt(
   mode: SessionMode,
-  opts: { questionTitle?: string; questionPrompt?: string; targetLevel?: TargetLevel } = {}
+  opts: { questionTitle?: string; questionPrompt?: string; targetLevel?: TargetLevel; language?: string } = {}
 ): string {
   // Learning mode is a tutorial, not an interview: the whole lesson script
   // arrives as questionPrompt and is appended verbatim. No level, no rubric.
+  // The course language selects the tutor persona.
   if (mode === "learning") {
+    const { lang, known, analogy } = tutorProfile(opts.language);
     const lessonBlock = opts.questionPrompt ? `\n\n${opts.questionPrompt}` : "";
-    return `You are a friendly, sharp Python tutor running a live lesson by voice.
-Your student is an EXPERIENCED programmer (they know TypeScript, JavaScript, Java, and/or Go) who is new to Python. Teach to that level: skip what programming is, and focus on Python's syntax, idioms, and how things differ from the languages they already know.
+    return `You are a friendly, sharp ${lang} tutor running a live lesson by voice.
+Your student is an EXPERIENCED programmer (they know ${known}) who is new to ${lang}. Teach to that level: skip what programming is, and focus on ${lang}'s syntax, idioms, and how things differ from the languages they already know.
 You can SEE the lesson notes (provided below) and the student's editor — their current code and latest run output are appended to each of their messages in brackets. Do not read the notes or that bracketed context aloud; use them to guide the lesson.
 
 How to behave:
 - Speak naturally, 1-3 sentences at a time, like a real tutor sitting beside them. You're speaking out loud, so NEVER use markdown, code blocks, bullet points, or formatting. Say code in plain words.
-- Teach the concept conversationally, leaning on languages they already know ("this is Python's version of a TypeScript spread"). Point them at the relevant example in the notes on the right rather than dictating code.
+- Teach the concept conversationally, leaning on languages they already know ("${analogy}"). Point them at the relevant example in the notes on the right rather than dictating code.
 - Then have them try the current exercise in the editor. Watch their code and run output; when they're stuck, give a nudge or a leading question — never just hand them the answer.
 - When their exercise looks right, briefly celebrate and tell them to hit Next when they're ready. The student controls which exercise is shown with on-screen Prev/Next buttons — you never claim to switch exercises yourself.
 - Be encouraging and curious, one concept or question at a time.${lessonBlock}`;
@@ -120,7 +155,7 @@ How to behave:
 }
 
 /** Stage direction for the very first (kickoff) turn — no user audio yet. */
-export function getKickoffPrompt(mode: SessionMode): string {
+export function getKickoffPrompt(mode: SessionMode, language?: string): string {
   if (mode === "coding") {
     return "[The interview is now starting. Greet the candidate warmly, briefly introduce yourself as their interviewer, and present this problem conversationally — don't read it out word for word or list every constraint. Then invite them to share their initial thoughts.]";
   }
@@ -128,7 +163,8 @@ export function getKickoffPrompt(mode: SessionMode): string {
     return "[The interview is now starting. Greet the candidate warmly, introduce yourself, present the behavioral question clearly, and invite them to walk you through a real example from their experience.]";
   }
   if (mode === "learning") {
-    return "[The lesson is now starting. Greet the learner warmly as their Python tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise. Assume they're an experienced programmer who is new to Python, so skip programming basics and focus on the Python-specific ideas.]";
+    const { lang } = tutorProfile(language);
+    return `[The lesson is now starting. Greet the learner warmly as their ${lang} tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise (or, if this lesson has none, the first idea). Assume they're an experienced programmer who is new to ${lang}, so skip programming basics and focus on the ${lang}-specific ideas.]`;
   }
   if (mode === "freestyle") {
     return "[The session is now starting. Greet the user warmly, introduce yourself briefly as their practice coach, and ask what they'd like to work on — a behavioral interview, a coding or technical interview, system design, open practice, or learning something new. Don't present a problem yet; just find out what they want and let them lead.]";
@@ -142,10 +178,12 @@ export function getKickoffPrompt(mode: SessionMode): string {
 
 export function getAssessSystemPrompt(
   mode: SessionMode,
-  targetLevel?: TargetLevel
+  targetLevel?: TargetLevel,
+  language?: string
 ): string {
   if (mode === "learning") {
-    return `You are a warm, encouraging Python tutor writing a short recap of a lesson you just guided a student through by voice. This is NOT a graded evaluation — there are no scores, no pass/fail, and no hiring language. Focus on what they practiced and what is worth reinforcing, in a supportive tone.
+    const { lang } = tutorProfile(language);
+    return `You are a warm, encouraging ${lang} tutor writing a short recap of a lesson you just guided a student through by voice. This is NOT a graded evaluation — there are no scores, no pass/fail, and no hiring language. Focus on what they practiced and what is worth reinforcing, in a supportive tone.
 
 Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
 {

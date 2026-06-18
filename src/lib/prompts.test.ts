@@ -139,7 +139,7 @@ describe("interviewer prompts and kickoffs", () => {
   });
 
   it("produces distinct non-empty kickoff instructions per mode", () => {
-    const kickoffs = MODES.map(getKickoffPrompt);
+    const kickoffs = MODES.map((m) => getKickoffPrompt(m));
     expect(new Set(kickoffs).size).toBe(MODES.length);
     for (const k of kickoffs) {
       expect(k.length).toBeGreaterThan(20);

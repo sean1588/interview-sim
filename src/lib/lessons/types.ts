@@ -1,39 +1,33 @@
-// Shared types for the Python learning bank. The course is split by module
-// under this directory and assembled in index.ts. Public import: "@/lib/lessons".
+// Shared types for the learning banks. A Course bundles its own ordered module
+// metadata and a flat lesson list; each course lives in its own folder and is
+// assembled into the COURSES registry in index.ts. Public import: "@/lib/lessons".
 
-export type ModuleId =
-  | "basics"
-  | "data-structures"
-  | "idioms"
-  | "oop-typing"
-  | "stdlib"
-  | "errors-testing"
-  | "tooling"
-  | "libraries";
+import type { LanguageId } from "@/lib/problems";
 
 export interface Exercise {
-  /** Globally unique, kebab-case. */
+  /** Globally unique (across all courses), kebab-case. */
   id: string;
   title: string;
   /** Markdown, shown above the editor. */
   instructions: string;
   /**
-   * Python scaffold the learner starts from: a signature plus an example call
-   * that prints something. A runnable starting point, NEVER a solution.
+   * Runnable scaffold the learner starts from: a signature/types plus an example
+   * call that prints something. A runnable starting point, NEVER a solution.
    */
   starterCode: string;
 }
 
 export interface Lesson {
-  /** Globally unique, kebab-case — also the /learn/[lessonId] route segment. */
+  /** Globally unique (across all courses), kebab-case — the /learn/[course]/[lessonId] segment. */
   id: string;
-  module: ModuleId;
+  /** A module id within the owning course (see Course.modules). */
+  module: string;
   title: string;
-  /** One-liner for the /learn overview. */
+  /** One-liner for the course overview. */
   blurb: string;
   /**
    * Markdown "lesson card": the concept plus idiomatic examples, written for an
-   * experienced programmer (explicit contrasts with TS/Java/Go where they help).
+   * experienced programmer (explicit contrasts with the languages they know).
    */
   content: string;
   /** Ordered exercises. Empty for conversational lessons (e.g. tooling). */
@@ -41,7 +35,24 @@ export interface Lesson {
 }
 
 export interface Module {
-  id: ModuleId;
+  id: string;
   title: string;
   blurb: string;
+}
+
+export interface Course {
+  /** Kebab-case, globally unique — the /learn/[course] route segment. */
+  id: string;
+  /** Editor + runner language, and the tutor-persona key. */
+  language: LanguageId;
+  /** Display name, e.g. "Python" / "TypeScript". */
+  title: string;
+  /** One-liner for the picker and the course overview header. */
+  tagline: string;
+  /** Emoji for the home + picker cards. */
+  icon: string;
+  /** Ordered module metadata — drives the overview and lesson grouping. */
+  modules: Module[];
+  /** Flat, ordered list of every lesson (module order, then sequence within). */
+  lessons: Lesson[];
 }
