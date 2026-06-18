@@ -58,7 +58,10 @@ export async function POST(req: NextRequest) {
     const session = getSession(sessionId);
 
     if (kickoff) {
-      session.history.push({ role: "user", content: getKickoffPrompt(mode, language) });
+      session.history.push({
+        role: "user",
+        content: getKickoffPrompt(mode, language, questionPrompt || undefined),
+      });
     } else {
       // Attach the live editor context (coding) and/or notes (behavioral / system-design).
       // The mode-specific system prompt tells the model whether and how to use the bracketed part.
