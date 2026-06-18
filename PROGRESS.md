@@ -1,13 +1,13 @@
 # Interview Sim — Progress & Context
 
-> Working memory for resuming this project. Last updated: spike validated, avatar working end-to-end.
+> Working memory for resuming this project. Last updated: voice-only (the animated Simli avatar was removed — the voice agent is good enough on its own).
 
 ## What we're building
 
-An AI-powered **technical interview practice simulator** with an animated
-interviewer character (Grok-companion style) you talk to by voice in real time.
-Vision: split screen — animated interviewer on the left, a CoderPad-style coding
-pane on the right. The interviewer speaks, watches you code, reacts, and assesses.
+An AI-powered **technical interview practice simulator** you talk to by voice in
+real time. Split screen — a voice interviewer on the left, a CoderPad-style
+coding pane on the right. The interviewer speaks, watches you code, reacts, and
+assesses.
 
 Two planned experiences: **technical mode** (current focus — coding/DSA + system
 design) and **behavioral mode** (later).
@@ -25,7 +25,6 @@ Validated:
 - [x] Transcription accuracy (after raw-PCM + pre-roll fix)
 - [x] Barge-in (interrupt mid-sentence)
 - [x] Sentence-level streaming (perceived latency ~5s → ~2s)
-- [x] Simli avatar working end-to-end (user tested with a live key — "works great!")
 
 **Decision reached:** OpenRouter pipeline is good enough — we are NOT using a
 realtime speech-to-speech API. Keeps model flexibility + unified billing.
@@ -41,21 +40,18 @@ realtime speech-to-speech API. Keeps model flexibility + unified billing.
    "End Interview" button that produces a structured scorecard. Still freeform
    within the interview (no hard stage gates) — could add explicit stage
    transitions / a timer later.
-3. **Friendly 3D character** — swap default realistic Simli face for a custom
-   character via `SIMLI_FACE_ID` (no code change needed).
-4. **Behavioral mode.**
-5. **TypeScript execution** — currently editor-runs only Python + JavaScript
+3. **Behavioral mode.**
+4. **TypeScript execution** — currently editor-runs only Python + JavaScript
    (TS needs an in-browser transpile step; deferred).
-6. **Productionize session store** — `src/lib/session-store.ts` is in-memory
+5. **Productionize session store** — `src/lib/session-store.ts` is in-memory
    (per server instance). Swap for Redis/DB before multi-instance deploy.
-7. **Deployment** — AWS via Pulumi (ECS Fargate + ALB + ECR + Secrets Manager).
+6. **Deployment** — AWS via Pulumi (ECS Fargate + ALB + ECR + Secrets Manager).
    Scoped at ~$35–70/mo. Deferred until there's a real product to host.
 
 ## Tech stack
 
 - Next.js 16 (App Router, TypeScript, Turbopack), Tailwind CSS
 - Web Audio API for mic capture + custom VAD
-- `simli-client` (WebRTC) for the avatar
 - `@monaco-editor/react` for the coding pane, `react-markdown` for problem text
 - **Pyodide** (CPython in WASM, lazy-loaded from CDN) for in-browser Python;
   Web Worker for in-browser JavaScript — NO execution backend (see learnings)
@@ -64,12 +60,12 @@ realtime speech-to-speech API. Keeps model flexibility + unified billing.
 ## Architecture
 
 ```
-Browser (mic + Simli avatar)
+Browser (mic)
   → VAD (raw PCM, pre-roll ring buffer) captures utterance as WAV
   → POST /api/chat
       → STT → LLM (streaming) → TTS per sentence
       → streams NDJSON back: {type: transcript|text|audio|done}
-  → audio routed to Simli avatar (PCM16@16kHz) OR <audio> fallback
+  → <audio> playback (sentence-ordered queue)
 ```
 
 ## Key files
@@ -99,10 +95,7 @@ Browser (mic + Simli avatar)
   improvements, summary) from the session transcript + final code.
 - `src/components/Scorecard.tsx` — modal that renders the assessment.
 - The interview opens automatically: `VoiceChat.runTurn({ kickoff: true })`
-  fires after the avatar connects so the interviewer speaks first.
-- **Avatar on/off toggle** in `VoiceChat`: off = voice-only mode (no Simli
-  session — saves credits, uses `<audio>` playback). Toggles live mid-session;
-  auto-reconnect is suppressed while off.
+  fires on start so the interviewer speaks first.
 
 ### Voice spike core
 - `src/lib/vad.ts` — raw-PCM VAD via ScriptProcessorNode. Ring buffer keeps
@@ -113,13 +106,8 @@ Browser (mic + Simli avatar)
 - `src/app/api/chat/route.ts` — orchestrates pipeline, streams NDJSON, keeps
   in-memory `conversationHistory` (NOTE: module-global, not per-session — fine
   for spike, must become per-session for real product).
-- `src/lib/audio.ts` — WAV(24kHz) → PCM16(16kHz) conversion for Simli.
-- `src/app/api/simli-token/route.ts` — server-side Simli token (keeps API key
-  off the browser). POST /compose/token + GET /compose/ice on api.simli.ai.
-- `src/components/SimliAvatar.tsx` — imperative handle (init/sendAudio/clear/
-  destroy) wrapping simli-client; renders the video element.
-- `src/components/VoiceChat.tsx` — main UI; VAD + streaming + avatar routing +
-  chat history + debug log + latency display.
+- `src/components/VoiceChat.tsx` — main UI; VAD + streaming + `<audio>` playback
+  + chat history + debug log + latency display.
 
 ## HARD-WON LEARNINGS (don't rediscover these the hard way)
 
@@ -153,26 +141,13 @@ Code execution:
 VAD / audio:
 - Must capture **raw PCM** (not MediaRecorder webm) to support a pre-roll buffer
   cleanly. `silenceThreshold` is on an RMS*100 scale → **1.5** (not 15).
-- Freeze the VAD during processing+playback or the mic picks up the avatar's
-  voice (echo → ghost speech).
-
-Simli:
-- simli-client (installed version) uses **session tokens**, not the older
-  `Initialize()` pattern. `new SimliClient(session_token, videoEl, audioEl,
-  iceServers)` then `.start()`, `.sendAudioData(Uint8Array PCM16@16kHz)`,
-  `.ClearBuffer()` (barge-in), `.stop()`. Events: speaking/silent/error.
-- Audio for Simli must be **PCM16 mono @ 16kHz** (we resample from 24kHz).
-- Default placeholder face id `tmp9i8bbq7c` — may need a real one from the
-  user's dashboard. Override via `SIMLI_FACE_ID`.
-- "Avatar done speaking" uses the `silent` event after we've sent all audio
-  (`donePendingRef`). May need timing tuning under real use.
+- Freeze the VAD during processing+playback or the mic picks up the playback
+  audio (echo → ghost speech).
 
 ## Env vars (.env.local — gitignored)
 
 ```
 OPENROUTER_API_KEY=...
-SIMLI_API_KEY=...          # optional; app falls back to audio-only without it
-SIMLI_FACE_ID=             # blank = default realistic face
 ```
 
 ## Repo / workflow notes

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { wavHeader, floatToPcm16, pcmToWav } from "@/lib/wav";
-import { wavToPcm16 } from "@/lib/audio";
 
 const str = (u8: Uint8Array, off: number, len: number) =>
   String.fromCharCode(...u8.subarray(off, off + len));
@@ -35,14 +34,15 @@ describe("floatToPcm16", () => {
   });
 });
 
-describe("pcmToWav <-> wavToPcm16 round-trip", () => {
-  it("recovers the original samples and sample rate", () => {
-    const original = Int16Array.from([0, 1, -1, 1000, -1000, 32767, -32768]);
-    const pcmBytes = new Uint8Array(original.buffer);
-    const wav = pcmToWav(pcmBytes, 24000);
+describe("pcmToWav", () => {
+  it("prefixes a header sized to the payload and appends the PCM bytes intact", () => {
+    const pcm = Uint8Array.from([1, 2, 3, 4, 5, 6]);
+    const wav = pcmToWav(pcm, 16000);
 
-    const { samples, sampleRate } = wavToPcm16(wav);
-    expect(sampleRate).toBe(24000);
-    expect(Array.from(samples)).toEqual(Array.from(original));
+    expect(wav.length).toBe(44 + pcm.length);
+    const dv = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+    expect(dv.getUint32(24, true)).toBe(16000); // sample rate in the header
+    expect(dv.getUint32(40, true)).toBe(pcm.length); // data length
+    expect(Array.from(wav.subarray(44))).toEqual(Array.from(pcm)); // payload intact
   });
 });
