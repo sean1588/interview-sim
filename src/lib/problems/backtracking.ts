@@ -30,6 +30,13 @@ if __name__ == "__main__":
 
 console.log(permute([1, 2, 3])); // expected: [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]
 `,
+      typescript: `function permute(nums: number[]): number[][] {
+  // Your code here
+  return [];
+}
+
+console.log(permute([1, 2, 3])); // expected: [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]
+`,
     },
   },
   {
@@ -56,6 +63,13 @@ if __name__ == "__main__":
     print(letter_combinations("23"))  # expected: ['ad','ae','af','bd','be','bf','cd','ce','cf']
 `,
       javascript: `function letterCombinations(digits) {
+  // Your code here
+  return [];
+}
+
+console.log(letterCombinations("23")); // expected: ['ad','ae','af','bd','be','bf','cd','ce','cf']
+`,
+      typescript: `function letterCombinations(digits: string): string[] {
   // Your code here
   return [];
 }

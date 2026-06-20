@@ -78,6 +78,14 @@ if __name__ == "__main__":
 console.log(groupAnagrams(["eat", "tea", "tan", "ate", "nat", "bat"]));
 // expected: [["eat", "tea", "ate"], ["tan", "nat"], ["bat"]]
 `,
+      typescript: `function groupAnagrams(strs: string[]): string[][] {
+  // Your code here
+  return [];
+}
+
+console.log(groupAnagrams(["eat", "tea", "tan", "ate", "nat", "bat"]));
+// expected: [["eat", "tea", "ate"], ["tan", "nat"], ["bat"]]
+`,
     },
   },
   {
@@ -115,6 +123,14 @@ if __name__ == "__main__":
 console.log(isAnagram("anagram", "nagaram")); // expected: true
 console.log(isAnagram("rat", "car"));         // expected: false
 `,
+      typescript: `function isAnagram(s: string, t: string): boolean {
+  // Your code here
+  return false;
+}
+
+console.log(isAnagram("anagram", "nagaram")); // expected: true
+console.log(isAnagram("rat", "car"));         // expected: false
+`,
     },
   },
   {
@@ -144,6 +160,14 @@ if __name__ == "__main__":
     print(length_of_longest_substring("pwwkew"))    # expected: 3
 `,
       javascript: `function lengthOfLongestSubstring(s) {
+  // Your code here
+  return 0;
+}
+
+console.log(lengthOfLongestSubstring("abcabcbb")); // expected: 3
+console.log(lengthOfLongestSubstring("pwwkew"));   // expected: 3
+`,
+      typescript: `function lengthOfLongestSubstring(s: string): number {
   // Your code here
   return 0;
 }
@@ -188,6 +212,14 @@ if __name__ == "__main__":
 console.log(minWindow("adobecodebanc", "abc")); // expected: banc
 console.log(minWindow("abc", "abc"));           // expected: abc
 `,
+      typescript: `function minWindow(s: string, t: string): string {
+  // Your code here
+  return "";
+}
+
+console.log(minWindow("adobecodebanc", "abc")); // expected: banc
+console.log(minWindow("abc", "abc"));           // expected: abc
+`,
     },
   },
   {
@@ -217,6 +249,14 @@ if __name__ == "__main__":
     print(is_palindrome("race a car"))                      # expected: False
 `,
       javascript: `function isPalindrome(s) {
+  // Your code here
+  return false;
+}
+
+console.log(isPalindrome("A man, a plan, a canal: Panama")); // expected: true
+console.log(isPalindrome("race a car"));                     // expected: false
+`,
+      typescript: `function isPalindrome(s: string): boolean {
   // Your code here
   return false;
 }
@@ -254,6 +294,14 @@ if __name__ == "__main__":
     print(hamming_distance("10101", "10011"))      # expected: 2
 `,
       javascript: `function hammingDistance(s1, s2) {
+  // Your code here
+  return 0;
+}
+
+console.log(hammingDistance("karolin", "kathrin")); // expected: 3
+console.log(hammingDistance("10101", "10011"));     // expected: 2
+`,
+      typescript: `function hammingDistance(s1: string, s2: string): number {
   // Your code here
   return 0;
 }
@@ -304,6 +352,24 @@ if __name__ == "__main__":
 }
 
 function hammingDecode(codeword) {
+  // Your code here
+  return { data: [], corrected: [], errorPos: 0 };
+}
+
+console.log(hammingEncode([1, 0, 1, 1])); // expected: [0, 1, 1, 0, 0, 1, 1]
+console.log(hammingDecode([0, 1, 1, 0, 0, 1, 1]));
+// expected: data [1, 0, 1, 1], errorPos 0
+`,
+      typescript: `function hammingEncode(data: number[]): number[] {
+  // Your code here
+  return [];
+}
+
+function hammingDecode(codeword: number[]): {
+  data: number[];
+  corrected: number[];
+  errorPos: number;
+} {
   // Your code here
   return { data: [], corrected: [], errorPos: 0 };
 }

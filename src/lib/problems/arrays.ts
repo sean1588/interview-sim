@@ -112,6 +112,13 @@ if __name__ == "__main__":
 
 console.log(threeSum([-1, 0, 1, 2, -1, -4])); // expected: [[-1, -1, 2], [-1, 0, 1]]
 `,
+      typescript: `function threeSum(nums: number[]): number[][] {
+  // Your code here
+  return [];
+}
+
+console.log(threeSum([-1, 0, 1, 2, -1, -4])); // expected: [[-1, -1, 2], [-1, 0, 1]]
+`,
     },
   },
   {
@@ -138,6 +145,13 @@ if __name__ == "__main__":
     print(product_except_self([1, 2, 3, 4]))  # expected: [24, 12, 8, 6]
 `,
       javascript: `function productExceptSelf(nums) {
+  // Your code here
+  return [];
+}
+
+console.log(productExceptSelf([1, 2, 3, 4])); // expected: [24, 12, 8, 6]
+`,
+      typescript: `function productExceptSelf(nums: number[]): number[] {
   // Your code here
   return [];
 }
@@ -175,6 +189,13 @@ if __name__ == "__main__":
 
 console.log(topKFrequent([1, 1, 1, 2, 2, 3], 2)); // expected: [1, 2]
 `,
+      typescript: `function topKFrequent(nums: number[], k: number): number[] {
+  // Your code here
+  return [];
+}
+
+console.log(topKFrequent([1, 1, 1, 2, 2, 3], 2)); // expected: [1, 2]
+`,
     },
   },
   {
@@ -200,6 +221,13 @@ if __name__ == "__main__":
     print(longest_consecutive([100, 4, 200, 1, 3, 2]))  # expected: 4
 `,
       javascript: `function longestConsecutive(nums) {
+  // Your code here
+  return 0;
+}
+
+console.log(longestConsecutive([100, 4, 200, 1, 3, 2])); // expected: 4
+`,
+      typescript: `function longestConsecutive(nums: number[]): number {
   // Your code here
   return 0;
 }
@@ -237,6 +265,13 @@ if __name__ == "__main__":
 
 console.log(sockMerchant(9, [10, 20, 20, 10, 10, 30, 50, 10, 20])); // expected: 3
 `,
+      typescript: `function sockMerchant(n: number, ar: number[]): number {
+  // Your code here
+  return 0;
+}
+
+console.log(sockMerchant(9, [10, 20, 20, 10, 10, 30, 50, 10, 20])); // expected: 3
+`,
     },
   },
   {
@@ -262,6 +297,13 @@ if __name__ == "__main__":
     print(rot_left([1, 2, 3, 4, 5], 2))  # expected: [3, 4, 5, 1, 2]
 `,
       javascript: `function rotLeft(a, d) {
+  // Your code here
+  return a;
+}
+
+console.log(rotLeft([1, 2, 3, 4, 5], 2)); // expected: [3, 4, 5, 1, 2]
+`,
+      typescript: `function rotLeft(a: number[], d: number): number[] {
   // Your code here
   return a;
 }
@@ -327,6 +369,21 @@ const grid = [
 ];
 console.log(hourglassSum(grid)); // expected: 19
 `,
+      typescript: `function hourglassSum(arr: number[][]): number {
+  // Your code here
+  return 0;
+}
+
+const grid = [
+  [1, 1, 1, 0, 0, 0],
+  [0, 1, 0, 0, 0, 0],
+  [1, 1, 1, 0, 0, 0],
+  [0, 0, 2, 4, 4, 0],
+  [0, 0, 0, 2, 0, 0],
+  [0, 0, 1, 2, 4, 0],
+];
+console.log(hourglassSum(grid)); // expected: 19
+`,
     },
   },
   {
@@ -360,6 +417,13 @@ if __name__ == "__main__":
 
 console.log(twoMoviesOnFlight([90, 85, 75, 60, 120, 150, 125], 250)); // expected: [125, 90]
 `,
+      typescript: `function twoMoviesOnFlight(movieDurations: number[], flightDuration: number): number[] | null {
+  // Your code here
+  return null;
+}
+
+console.log(twoMoviesOnFlight([90, 85, 75, 60, 120, 150, 125], 250)); // expected: [125, 90]
+`,
     },
   },
   {
@@ -386,6 +450,13 @@ if __name__ == "__main__":
     print(stock_span([100, 80, 60, 70, 60, 75, 85]))  # expected: [1, 1, 1, 2, 1, 4, 6]
 `,
       javascript: `function stockSpan(prices) {
+  // Your code here
+  return [];
+}
+
+console.log(stockSpan([100, 80, 60, 70, 60, 75, 85])); // expected: [1, 1, 1, 2, 1, 4, 6]
+`,
+      typescript: `function stockSpan(prices: number[]): number[] {
   // Your code here
   return [];
 }

@@ -30,6 +30,13 @@ if __name__ == "__main__":
 
 console.log(climbStairs(3)); // expected: 3
 `,
+      typescript: `function climbStairs(n: number): number {
+  // Your code here
+  return 0;
+}
+
+console.log(climbStairs(3)); // expected: 3
+`,
     },
   },
   {
@@ -62,6 +69,13 @@ if __name__ == "__main__":
 
 console.log(wordBreak("leetcode", ["leet", "code"])); // expected: true
 `,
+      typescript: `function wordBreak(s: string, wordDict: string[]): boolean {
+  // Your code here
+  return false;
+}
+
+console.log(wordBreak("leetcode", ["leet", "code"])); // expected: true
+`,
     },
   },
   {
@@ -87,6 +101,13 @@ if __name__ == "__main__":
     print(max_subarray([-2, 1, -3, 4, -1, 2, 1, -5, 4]))  # expected: 6
 `,
       javascript: `function maxSubArray(nums) {
+  // Your code here
+  return 0;
+}
+
+console.log(maxSubArray([-2, 1, -3, 4, -1, 2, 1, -5, 4])); // expected: 6
+`,
+      typescript: `function maxSubArray(nums: number[]): number {
   // Your code here
   return 0;
 }
@@ -126,6 +147,13 @@ if __name__ == "__main__":
 
 console.log(rob([2, 7, 9, 3, 1])); // expected: 12
 `,
+      typescript: `function rob(nums: number[]): number {
+  // Your code here
+  return 0;
+}
+
+console.log(rob([2, 7, 9, 3, 1])); // expected: 12
+`,
     },
   },
   {
@@ -153,6 +181,13 @@ if __name__ == "__main__":
     print(coin_change([1, 2, 5], 11))  # expected: 3
 `,
       javascript: `function coinChange(coins, amount) {
+  // Your code here
+  return -1;
+}
+
+console.log(coinChange([1, 2, 5], 11)); // expected: 3
+`,
+      typescript: `function coinChange(coins: number[], amount: number): number {
   // Your code here
   return -1;
 }
@@ -191,6 +226,13 @@ if __name__ == "__main__":
 
 console.log(uniquePaths(3, 7)); // expected: 28
 `,
+      typescript: `function uniquePaths(m: number, n: number): number {
+  // Your code here
+  return 0;
+}
+
+console.log(uniquePaths(3, 7)); // expected: 28
+`,
     },
   },
   {
@@ -217,6 +259,13 @@ if __name__ == "__main__":
     print(length_of_lis([10, 9, 2, 5, 3, 7, 101, 18]))  # expected: 4
 `,
       javascript: `function lengthOfLIS(nums) {
+  // Your code here
+  return 0;
+}
+
+console.log(lengthOfLIS([10, 9, 2, 5, 3, 7, 101, 18])); // expected: 4
+`,
+      typescript: `function lengthOfLIS(nums: number[]): number {
   // Your code here
   return 0;
 }
@@ -255,6 +304,13 @@ if __name__ == "__main__":
 
 console.log(longestCommonSubsequence("abcde", "ace")); // expected: 3
 `,
+      typescript: `function longestCommonSubsequence(text1: string, text2: string): number {
+  // Your code here
+  return 0;
+}
+
+console.log(longestCommonSubsequence("abcde", "ace")); // expected: 3
+`,
     },
   },
   {
@@ -281,6 +337,13 @@ if __name__ == "__main__":
     print(min_distance("horse", "ros"))  # expected: 3
 `,
       javascript: `function minDistance(word1, word2) {
+  // Your code here
+  return 0;
+}
+
+console.log(minDistance("horse", "ros")); // expected: 3
+`,
+      typescript: `function minDistance(word1: string, word2: string): number {
   // Your code here
   return 0;
 }

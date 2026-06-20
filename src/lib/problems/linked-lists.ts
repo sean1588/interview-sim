@@ -82,6 +82,43 @@ const l1 = buildList([2, 4, 3]);
 const l2 = buildList([5, 6, 4]);
 console.log(listToArray(addTwoNumbers(l1, l2))); // expected: [7, 0, 8]
 `,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function addTwoNumbers(l1: ListNode | null, l2: ListNode | null): ListNode | null {
+  // Your code here
+  return null;
+}
+
+const l1 = buildList([2, 4, 3]);
+const l2 = buildList([5, 6, 4]);
+console.log(listToArray(addTwoNumbers(l1, l2))); // expected: [7, 0, 8]
+`,
     },
   },
   {
@@ -163,6 +200,42 @@ function mergeKLists(lists) {
 const lists = [buildList([1, 4, 5]), buildList([1, 3, 4]), buildList([2, 6])];
 console.log(listToArray(mergeKLists(lists))); // expected: [1, 1, 2, 3, 4, 4, 5, 6]
 `,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function mergeKLists(lists: (ListNode | null)[]): ListNode | null {
+  // Your code here
+  return null;
+}
+
+const lists = [buildList([1, 4, 5]), buildList([1, 3, 4]), buildList([2, 6])];
+console.log(listToArray(mergeKLists(lists))); // expected: [1, 1, 2, 3, 4, 4, 5, 6]
+`,
     },
   },
   {
@@ -237,6 +310,42 @@ function listToArray(head) {
 }
 
 function reverseList(head) {
+  // Your code here
+  return null;
+}
+
+const head = buildList([1, 2, 3, 4, 5]);
+console.log(listToArray(reverseList(head))); // expected: [5, 4, 3, 2, 1]
+`,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function reverseList(head: ListNode | null): ListNode | null {
   // Your code here
   return null;
 }
@@ -349,6 +458,53 @@ console.log(hasCycle(cyclic)); // expected: true
 const acyclic = buildList([1, 2]);
 console.log(hasCycle(acyclic)); // expected: false
 `,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function hasCycle(head: ListNode | null): boolean {
+  // Your code here
+  return false;
+}
+
+// Cyclic example: build [3, 2, 0, -4], then wire the tail back to the second node.
+const cyclic = buildList([3, 2, 0, -4])!;
+const second = cyclic.next;
+let tail = cyclic;
+while (tail.next !== null) {
+  tail = tail.next;
+}
+tail.next = second;
+console.log(hasCycle(cyclic)); // expected: true
+
+// Acyclic example.
+const acyclic = buildList([1, 2]);
+console.log(hasCycle(acyclic)); // expected: false
+`,
     },
   },
   {
@@ -429,6 +585,45 @@ function listToArray(head) {
 }
 
 function middleNode(head) {
+  // Your code here
+  return null;
+}
+
+const odd = buildList([1, 2, 3, 4, 5]);
+console.log(listToArray(middleNode(odd))); // expected: [3, 4, 5]
+
+const even = buildList([1, 2, 3, 4, 5, 6]);
+console.log(listToArray(middleNode(even))); // expected: [4, 5, 6]
+`,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function middleNode(head: ListNode | null): ListNode | null {
   // Your code here
   return null;
 }
@@ -523,6 +718,42 @@ function isPalindrome(head) {
 console.log(isPalindrome(buildList([1, 2, 2, 1]))); // expected: true
 console.log(isPalindrome(buildList([1, 2, 3]))); // expected: false
 `,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function isPalindrome(head: ListNode | null): boolean {
+  // Your code here
+  return false;
+}
+
+console.log(isPalindrome(buildList([1, 2, 2, 1]))); // expected: true
+console.log(isPalindrome(buildList([1, 2, 3]))); // expected: false
+`,
     },
   },
   {
@@ -599,6 +830,42 @@ function listToArray(head) {
 }
 
 function removeNthFromEnd(head, n) {
+  // Your code here
+  return null;
+}
+
+const head = buildList([1, 2, 3, 4, 5]);
+console.log(listToArray(removeNthFromEnd(head, 2))); // expected: [1, 2, 3, 5]
+`,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function removeNthFromEnd(head: ListNode | null, n: number): ListNode | null {
   // Your code here
   return null;
 }
@@ -688,6 +955,46 @@ function listToArray(head) {
 }
 
 function reorderList(head) {
+  // Your code here (reorder in place, return undefined)
+}
+
+let head = buildList([1, 2, 3, 4]);
+reorderList(head);
+console.log(listToArray(head)); // expected: [1, 4, 2, 3]
+
+head = buildList([1, 2, 3, 4, 5]);
+reorderList(head);
+console.log(listToArray(head)); // expected: [1, 5, 2, 4, 3]
+`,
+      typescript: `class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val = 0, next: ListNode | null = null) {
+    this.val = val;
+    this.next = next;
+  }
+}
+
+// Build a linked list from an array of values; returns the head (or null).
+function buildList(values: number[]): ListNode | null {
+  let head: ListNode | null = null;
+  for (let i = values.length - 1; i >= 0; i--) {
+    head = new ListNode(values[i], head);
+  }
+  return head;
+}
+
+// Convert a linked list back to a plain array of values.
+function listToArray(head: ListNode | null): number[] {
+  const result: number[] = [];
+  while (head !== null) {
+    result.push(head.val);
+    head = head.next;
+  }
+  return result;
+}
+
+function reorderList(head: ListNode | null): void {
   // Your code here (reorder in place, return undefined)
 }
 

@@ -44,6 +44,19 @@ const grid = [
 ];
 console.log(computeMedianIslandSize(grid)); // expected: 1.5
 `,
+      typescript: `function computeMedianIslandSize(grid: number[][]): number {
+  // Your code here
+  return 0;
+}
+
+const grid: number[][] = [
+  [1, 0, 0, 1],
+  [0, 0, 0, 0],
+  [1, 1, 0, 1],
+  [0, 0, 0, 1],
+];
+console.log(computeMedianIslandSize(grid)); // expected: 1.5
+`,
     },
   },
   {
@@ -68,6 +81,13 @@ if __name__ == "__main__":
     print(can_finish(2, [[1, 0]]))  # expected: True
 `,
       javascript: `function canFinish(numCourses, prerequisites) {
+  // Your code here
+  return false;
+}
+
+console.log(canFinish(2, [[1, 0]])); // expected: true
+`,
+      typescript: `function canFinish(numCourses: number, prerequisites: number[][]): boolean {
   // Your code here
   return false;
 }
@@ -119,6 +139,24 @@ const graph = {
 };
 console.log(shortestPathBfs(graph, "A", "E")); // expected: 3
 `,
+      typescript: `function shortestPathBfs(
+  graph: Record<string, string[]>,
+  start: string,
+  end: string,
+): number {
+  // Your code here
+  return -1;
+}
+
+const graph: Record<string, string[]> = {
+  A: ["B", "C"],
+  B: ["A", "D"],
+  C: ["A", "D"],
+  D: ["B", "C", "E"],
+  E: ["D"],
+};
+console.log(shortestPathBfs(graph, "A", "E")); // expected: 3
+`,
     },
   },
   {
@@ -152,6 +190,18 @@ if __name__ == "__main__":
 const graph = { A: ["B"], B: ["C"], C: ["D"], D: [] };
 console.log(pathExistsDfs(graph, "A", "D")); // expected: true
 `,
+      typescript: `function pathExistsDfs(
+  graph: Record<string, string[]>,
+  start: string,
+  end: string,
+): boolean {
+  // Your code here
+  return false;
+}
+
+const graph: Record<string, string[]> = { A: ["B"], B: ["C"], C: ["D"], D: [] };
+console.log(pathExistsDfs(graph, "A", "D")); // expected: true
+`,
     },
   },
   {
@@ -182,6 +232,14 @@ if __name__ == "__main__":
 }
 
 const graph = { "1": ["2"], "2": ["3"], "3": [] };
+console.log(topologicalSort(graph)); // expected: ["1", "2", "3"]
+`,
+      typescript: `function topologicalSort(graph: Record<string, string[]>): string[] {
+  // Your code here
+  return [];
+}
+
+const graph: Record<string, string[]> = { "1": ["2"], "2": ["3"], "3": [] };
 console.log(topologicalSort(graph)); // expected: ["1", "2", "3"]
 `,
     },
@@ -226,6 +284,18 @@ const grid = [
 ];
 console.log(orangesRotting(grid)); // expected: 4
 `,
+      typescript: `function orangesRotting(grid: number[][]): number {
+  // Your code here
+  return -1;
+}
+
+const grid: number[][] = [
+  [2, 1, 1],
+  [1, 1, 0],
+  [0, 1, 1],
+];
+console.log(orangesRotting(grid)); // expected: 4
+`,
     },
   },
   {
@@ -250,6 +320,13 @@ if __name__ == "__main__":
     print(count_components(5, [[0, 1], [1, 2], [3, 4]]))  # expected: 2
 `,
       javascript: `function countComponents(n, edges) {
+  // Your code here
+  return 0;
+}
+
+console.log(countComponents(5, [[0, 1], [1, 2], [3, 4]])); // expected: 2
+`,
+      typescript: `function countComponents(n: number, edges: number[][]): number {
   // Your code here
   return 0;
 }
@@ -306,6 +383,21 @@ const heights = [
 // expected (any order): [[0, 4], [1, 3], [1, 4], [2, 2], [3, 0], [3, 1], [4, 0]]
 console.log(pacificAtlantic(heights));
 `,
+      typescript: `function pacificAtlantic(heights: number[][]): number[][] {
+  // Your code here
+  return [];
+}
+
+const heights: number[][] = [
+  [1, 2, 2, 3, 5],
+  [3, 2, 3, 4, 4],
+  [2, 4, 5, 3, 1],
+  [6, 7, 1, 4, 5],
+  [5, 1, 1, 2, 4],
+];
+// expected (any order): [[0, 4], [1, 3], [1, 4], [2, 2], [3, 0], [3, 1], [4, 0]]
+console.log(pacificAtlantic(heights));
+`,
     },
   },
   {
@@ -339,6 +431,18 @@ if __name__ == "__main__":
 }
 
 const wordList = ["hot", "dot", "dog", "lot", "log", "cog"];
+console.log(ladderLength("hit", "cog", wordList)); // expected: 5
+`,
+      typescript: `function ladderLength(
+  beginWord: string,
+  endWord: string,
+  wordList: string[],
+): number {
+  // Your code here
+  return 0;
+}
+
+const wordList: string[] = ["hot", "dot", "dog", "lot", "log", "cog"];
 console.log(ladderLength("hit", "cog", wordList)); // expected: 5
 `,
     },
@@ -441,6 +545,52 @@ function cloneGraph(node) {
 }
 
 const adj = [[2, 4], [1, 3], [2, 4], [1, 3]];
+const original = buildGraph(adj);
+const cloned = cloneGraph(original);
+console.log(graphToAdj(cloned)); // expected: [[2, 4], [1, 3], [2, 4], [1, 3]]
+`,
+      typescript: `class Node {
+  val: number;
+  neighbors: Node[];
+  constructor(val = 0, neighbors: Node[] = []) {
+    this.val = val;
+    this.neighbors = neighbors;
+  }
+}
+
+function buildGraph(adj: number[][]): Node | null {
+  if (adj.length === 0) return null;
+  const nodes: Record<number, Node> = {};
+  for (let i = 1; i <= adj.length; i++) nodes[i] = new Node(i);
+  for (let i = 1; i <= adj.length; i++) {
+    nodes[i].neighbors = adj[i - 1].map((j) => nodes[j]);
+  }
+  return nodes[1];
+}
+
+function graphToAdj(node: Node | null): number[][] {
+  if (node === null) return [];
+  const seen = new Map<number, Node>();
+  const stack: Node[] = [node];
+  while (stack.length > 0) {
+    const cur = stack.pop()!;
+    if (seen.has(cur.val)) continue;
+    seen.set(cur.val, cur);
+    for (const nb of cur.neighbors) {
+      if (!seen.has(nb.val)) stack.push(nb);
+    }
+  }
+  return [...seen.keys()]
+    .sort((a, b) => a - b)
+    .map((val) => seen.get(val)!.neighbors.map((nb) => nb.val));
+}
+
+function cloneGraph(node: Node | null): Node | null {
+  // Your code here
+  return null;
+}
+
+const adj: number[][] = [[2, 4], [1, 3], [2, 4], [1, 3]];
 const original = buildGraph(adj);
 const cloned = cloneGraph(original);
 console.log(graphToAdj(cloned)); // expected: [[2, 4], [1, 3], [2, 4], [1, 3]]

@@ -52,6 +52,28 @@ console.log(cache.get(1));  // expected: 1
 cache.put(3, 3);            // evicts key 2
 console.log(cache.get(2));  // expected: -1
 `,
+      typescript: `class LRUCache {
+  constructor(capacity: number) {
+    // Your code here
+  }
+
+  get(key: number): number {
+    // Your code here
+    return -1;
+  }
+
+  put(key: number, value: number): void {
+    // Your code here
+  }
+}
+
+const cache = new LRUCache(2);
+cache.put(1, 1);
+cache.put(2, 2);
+console.log(cache.get(1));  // expected: 1
+cache.put(3, 3);            // evicts key 2
+console.log(cache.get(2));  // expected: -1
+`,
     },
   },
   {
@@ -103,6 +125,34 @@ if __name__ == "__main__":
   }
 
   startsWith(prefix) {
+    // Your code here
+    return false;
+  }
+}
+
+const trie = new Trie();
+trie.insert("apple");
+console.log(trie.search("apple"));     // expected: true
+console.log(trie.search("app"));       // expected: false
+console.log(trie.startsWith("app"));   // expected: true
+trie.insert("app");
+console.log(trie.search("app"));       // expected: true
+`,
+      typescript: `class Trie {
+  constructor() {
+    // Your code here
+  }
+
+  insert(word: string): void {
+    // Your code here
+  }
+
+  search(word: string): boolean {
+    // Your code here
+    return false;
+  }
+
+  startsWith(prefix: string): boolean {
     // Your code here
     return false;
   }

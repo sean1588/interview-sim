@@ -91,6 +91,47 @@ function levelOrder(root) {
 const root = buildTree([3, 9, 20, null, null, 15, 7]);
 console.log(levelOrder(root)); // expected: [[3], [9, 20], [15, 7]]
 `,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function levelOrder(root: TreeNode | null): number[][] {
+  // Your code here
+  return [];
+}
+
+const root = buildTree([3, 9, 20, null, null, 15, 7]);
+console.log(levelOrder(root)); // expected: [[3], [9, 20], [15, 7]]
+`,
     },
   },
   {
@@ -176,6 +217,47 @@ function buildTree(values) {
 }
 
 function maxDepth(root) {
+  // Your code here
+  return 0;
+}
+
+const root = buildTree([3, 9, 20, null, null, 15, 7]);
+console.log(maxDepth(root)); // expected: 3
+`,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function maxDepth(root: TreeNode | null): number {
   // Your code here
   return 0;
 }
@@ -312,6 +394,67 @@ function invertTree(root) {
 const root = buildTree([4, 2, 7, 1, 3, 6, 9]);
 console.log(treeToLevelOrder(invertTree(root))); // expected: [4, 7, 2, 9, 6, 3, 1]
 `,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+// Convert a tree back to a trimmed level-order array (null = missing node).
+function treeToLevelOrder(root: TreeNode | null): (number | null)[] {
+  const result: (number | null)[] = [];
+  const queue: (TreeNode | null)[] = [root];
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    if (node === null) {
+      result.push(null);
+      continue;
+    }
+    result.push(node.val);
+    queue.push(node.left);
+    queue.push(node.right);
+  }
+  while (result.length > 0 && result[result.length - 1] === null) {
+    result.pop();
+  }
+  return result;
+}
+
+function invertTree(root: TreeNode | null): TreeNode | null {
+  // Your code here
+  return root;
+}
+
+const root = buildTree([4, 2, 7, 1, 3, 6, 9]);
+console.log(treeToLevelOrder(invertTree(root))); // expected: [4, 7, 2, 9, 6, 3, 1]
+`,
     },
   },
   {
@@ -400,6 +543,47 @@ function buildTree(values) {
 }
 
 function isSymmetric(root) {
+  // Your code here
+  return false;
+}
+
+const root = buildTree([1, 2, 2, 3, 4, 4, 3]);
+console.log(isSymmetric(root)); // expected: true
+`,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function isSymmetric(root: TreeNode | null): boolean {
   // Your code here
   return false;
 }
@@ -499,6 +683,47 @@ function diameterOfBinaryTree(root) {
 const root = buildTree([1, 2, 3, 4, 5]);
 console.log(diameterOfBinaryTree(root)); // expected: 3
 `,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function diameterOfBinaryTree(root: TreeNode | null): number {
+  // Your code here
+  return 0;
+}
+
+const root = buildTree([1, 2, 3, 4, 5]);
+console.log(diameterOfBinaryTree(root)); // expected: 3
+`,
     },
   },
   {
@@ -584,6 +809,47 @@ function buildTree(values) {
 }
 
 function isBalanced(root) {
+  // Your code here
+  return false;
+}
+
+const root = buildTree([3, 9, 20, null, null, 15, 7]);
+console.log(isBalanced(root)); // expected: true
+`,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function isBalanced(root: TreeNode | null): boolean {
   // Your code here
   return false;
 }
@@ -686,6 +952,47 @@ function isValidBST(root) {
 const root = buildTree([2, 1, 3]);
 console.log(isValidBST(root)); // expected: true
 `,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function isValidBST(root: TreeNode | null): boolean {
+  // Your code here
+  return false;
+}
+
+const root = buildTree([2, 1, 3]);
+console.log(isValidBST(root)); // expected: true
+`,
     },
   },
   {
@@ -778,6 +1085,47 @@ function lowestCommonAncestor(root, p, q) {
 const root = buildTree([6, 2, 8, 0, 4, 7, 9]);
 console.log(lowestCommonAncestor(root, 2, 8)); // expected: 6
 `,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function lowestCommonAncestor(root: TreeNode | null, p: number, q: number): number | null {
+  // Your code here
+  return null;
+}
+
+const root = buildTree([6, 2, 8, 0, 4, 7, 9]);
+console.log(lowestCommonAncestor(root, 2, 8)); // expected: 6
+`,
     },
   },
   {
@@ -863,6 +1211,47 @@ function buildTree(values) {
 }
 
 function kthSmallest(root, k) {
+  // Your code here
+  return 0;
+}
+
+const root = buildTree([3, 1, 4, null, 2]);
+console.log(kthSmallest(root, 1)); // expected: 1
+`,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+function kthSmallest(root: TreeNode | null, k: number): number {
   // Your code here
   return 0;
 }
@@ -1005,6 +1394,73 @@ function serialize(root) {
 }
 
 function deserialize(data) {
+  // Your code here
+  return null;
+}
+
+const root = buildTree([1, 2, 3, null, null, 4, 5]);
+const restored = deserialize(serialize(root));
+console.log(treeToLevelOrder(restored)); // expected: [1, 2, 3, null, null, 4, 5]
+`,
+      typescript: `class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val = 0, left: TreeNode | null = null, right: TreeNode | null = null) {
+    this.val = val;
+    this.left = left;
+    this.right = right;
+  }
+}
+
+// Build a binary tree from a level-order array (null = missing node).
+function buildTree(values: (number | null)[]): TreeNode | null {
+  if (values.length === 0) return null;
+  const root = new TreeNode(values[0]!);
+  const queue: TreeNode[] = [root];
+  let i = 1;
+  while (queue.length > 0 && i < values.length) {
+    const node = queue.shift()!;
+    if (i < values.length && values[i] !== null) {
+      node.left = new TreeNode(values[i]!);
+      queue.push(node.left);
+    }
+    i += 1;
+    if (i < values.length && values[i] !== null) {
+      node.right = new TreeNode(values[i]!);
+      queue.push(node.right);
+    }
+    i += 1;
+  }
+  return root;
+}
+
+// Convert a tree back to a trimmed level-order array (null = missing node).
+function treeToLevelOrder(root: TreeNode | null): (number | null)[] {
+  const result: (number | null)[] = [];
+  const queue: (TreeNode | null)[] = [root];
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    if (node === null) {
+      result.push(null);
+      continue;
+    }
+    result.push(node.val);
+    queue.push(node.left);
+    queue.push(node.right);
+  }
+  while (result.length > 0 && result[result.length - 1] === null) {
+    result.pop();
+  }
+  return result;
+}
+
+function serialize(root: TreeNode | null): string {
+  // Your code here
+  return "";
+}
+
+function deserialize(data: string): TreeNode | null {
   // Your code here
   return null;
 }
