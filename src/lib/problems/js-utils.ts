@@ -22,6 +22,20 @@ inc();
 inc();
 setTimeout(() => console.log(count), 150);  // expected: 1
 `,
+      typescript: `function debounce(fn: (...args: any[]) => void, delay: number): (...args: any[]) => void {
+  // Your code here
+  return function (...args: any[]): void {
+    // Your code here
+  };
+}
+
+let count = 0;
+const inc = debounce(() => { count += 1; }, 100);
+inc();
+inc();
+inc();
+setTimeout(() => console.log(count), 150);  // expected: 1
+`,
     },
   },
   {
@@ -37,6 +51,22 @@ setTimeout(() => console.log(count), 150);  // expected: 1
   }
 
   isAllowed(userId) {
+    // Your code here
+    return false;
+  }
+}
+
+const limiter = new RateLimiter(2, 1000);
+console.log(limiter.isAllowed("u1"));  // expected: true
+console.log(limiter.isAllowed("u1"));  // expected: true
+console.log(limiter.isAllowed("u1"));  // expected: false
+`,
+      typescript: `class RateLimiter {
+  constructor(limit: number, windowMs: number) {
+    // Your code here
+  }
+
+  isAllowed(userId: string): boolean {
     // Your code here
     return false;
   }
@@ -80,6 +110,30 @@ while (it.hasNext()) {
 console.log(out);          // expected: [1, 2, 3]
 console.log(it.next());    // expected: undefined
 `,
+      typescript: `class ArrayIterator {
+  constructor(arr: number[]) {
+    // Your code here
+  }
+
+  hasNext(): boolean {
+    // Your code here
+    return false;
+  }
+
+  next(): number | undefined {
+    // Your code here
+    return undefined;
+  }
+}
+
+const it = new ArrayIterator([1, 2, 3]);
+const out: (number | undefined)[] = [];
+while (it.hasNext()) {
+  out.push(it.next());
+}
+console.log(out);          // expected: [1, 2, 3]
+console.log(it.next());    // expected: undefined
+`,
     },
   },
   {
@@ -101,6 +155,16 @@ if __name__ == "__main__":
     print(original["b"]["c"])   # expected: 2
 `,
       javascript: `function deepClone(value) {
+  // Your code here
+  return value;
+}
+
+const original = { a: 1, b: { c: 2, d: [3, 4] } };
+const clone = deepClone(original);
+clone.b.c = 99;
+console.log(original.b.c);   // expected: 2
+`,
+      typescript: `function deepClone(value: any): any {
   // Your code here
   return value;
 }
@@ -136,6 +200,14 @@ if __name__ == "__main__":
 console.log(flatten([[1, 2, [3]], [4, 5]]));   // expected: [1, 2, 3, 4, 5]
 console.log(flatten([1, [2], [3], 4, [5]]));   // expected: [1, 2, 3, 4, 5]
 `,
+      typescript: `function flatten(nested: any[]): any[] {
+  // Your code here
+  return [];
+}
+
+console.log(flatten([[1, 2, [3]], [4, 5]]));   // expected: [1, 2, 3, 4, 5]
+console.log(flatten([1, [2], [3], 4, [5]]));   // expected: [1, 2, 3, 4, 5]
+`,
     },
   },
   {
@@ -157,6 +229,16 @@ if __name__ == "__main__":
     print(calculator(2, 4, "/"))   # expected: 0.5
 `,
       javascript: `function calculator(a, b, op) {
+  // Your code here
+  return undefined;
+}
+
+console.log(calculator(2, 4, "+"));   // expected: 6
+console.log(calculator(2, 4, "-"));   // expected: -2
+console.log(calculator(2, 4, "*"));   // expected: 8
+console.log(calculator(2, 4, "/"));   // expected: 0.5
+`,
+      typescript: `function calculator(a: number, b: number, op: string): number | undefined {
   // Your code here
   return undefined;
 }

@@ -30,6 +30,13 @@ if __name__ == "__main__":
 
 console.log(kLargest([3, 1, 5, 12, 2, 11], 3)); // expected: [12, 11, 5]
 `,
+      typescript: `function kLargest(nums: number[], k: number): number[] {
+  // Your code here
+  return [];
+}
+
+console.log(kLargest([3, 1, 5, 12, 2, 11], 3)); // expected: [12, 11, 5]
+`,
     },
   },
   {
@@ -57,6 +64,13 @@ if __name__ == "__main__":
     print(min_cost_connect_ropes([8, 4, 6, 12]))  # expected: 58
 `,
       javascript: `function minCostConnectRopes(ropes) {
+  // Your code here
+  return 0;
+}
+
+console.log(minCostConnectRopes([8, 4, 6, 12])); // expected: 58
+`,
+      typescript: `function minCostConnectRopes(ropes: number[]): number {
   // Your code here
   return 0;
 }

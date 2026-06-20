@@ -29,6 +29,13 @@ if __name__ == "__main__":
 
 console.log(binarySearch([1, 2, 3, 4, 5], 3)); // expected: 2
 `,
+      typescript: `function binarySearch(nums: number[], target: number): number {
+  // Your code here
+  return -1;
+}
+
+console.log(binarySearch([1, 2, 3, 4, 5], 3)); // expected: 2
+`,
     },
   },
   {
@@ -59,6 +66,13 @@ if __name__ == "__main__":
 
 console.log(search([4, 5, 6, 7, 0, 1, 2], 0)); // expected: 4
 `,
+      typescript: `function search(nums: number[], target: number): number {
+  // Your code here
+  return -1;
+}
+
+console.log(search([4, 5, 6, 7, 0, 1, 2], 0)); // expected: 4
+`,
     },
   },
   {
@@ -83,6 +97,13 @@ if __name__ == "__main__":
     print(find_median_sorted_arrays([1, 3], [2]))  # expected: 2.0
 `,
       javascript: `function findMedianSortedArrays(nums1, nums2) {
+  // Your code here
+  return 0.0;
+}
+
+console.log(findMedianSortedArrays([1, 3], [2])); // expected: 2.0
+`,
+      typescript: `function findMedianSortedArrays(nums1: number[], nums2: number[]): number {
   // Your code here
   return 0.0;
 }
