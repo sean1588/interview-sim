@@ -182,3 +182,15 @@
   font-size: 1.0625rem;
   line-height: 1.55;
 }
+/* Authored `>` callouts (e.g. lesson Hints) as olive-tinted inset boxes. */
+.markdown blockquote {
+  margin: 0.7rem 0;
+  padding: 0.7rem 0.95rem;
+  border-left: 3px solid var(--color-olive);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--color-olive) 9%, transparent);
+  color: var(--color-ink-body);
+}
+.markdown blockquote p {
+  margin: 0.2rem 0;
+}

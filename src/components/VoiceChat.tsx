@@ -74,13 +74,15 @@ export default function VoiceChat({
 }: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
+  // Surfaced in the mic bar. Mic-permission failures and failed turns used to
+  // reach only the (now-removed) dev log; this is the user-facing channel.
+  const [error, setError] = useState<string | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
   const playingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-  const logRef = useRef<string[]>([]);
 
   // Turn lifecycle. A turn ends — mic reopens — only once the server has
   // finished streaming AND playback is done (the <audio> queue is drained).
@@ -99,14 +101,6 @@ export default function VoiceChat({
   useEffect(() => {
     onEditorWriteRef.current = onEditorWrite;
   });
-
-  // Bounded in-memory turn log, retained for debugging; no longer surfaced in the
-  // redesigned column. The mic-reopen decision lives in finishTurnIfIdle, not here.
-  const addLog = useCallback((msg: string) => {
-    const buf = logRef.current;
-    buf.push(`${new Date().toLocaleTimeString()} — ${msg}`);
-    if (buf.length > 40) buf.shift();
-  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -131,8 +125,7 @@ export default function VoiceChat({
     streamDoneRef.current = false;
     vadRef.current?.unfreeze();
     setStatus("listening");
-    addLog("Listening...");
-  }, [addLog]);
+  }, []);
 
   const playNext = useCallback(() => {
     // Local recursion so the drain loop doesn't reference the memoized callback
@@ -186,11 +179,7 @@ export default function VoiceChat({
 
       vadRef.current?.freeze();
       setStatus("processing");
-      addLog(
-        opts.kickoff
-          ? "Starting interview..."
-          : `Sending ${((opts.audio?.size ?? 0) / 1024).toFixed(1)}KB of audio...`
-      );
+      setError(null);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -245,14 +234,12 @@ export default function VoiceChat({
 
               if (msg.type === "transcript") {
                 setMessages((prev) => [...prev, { role: "user", text: msg.text }]);
-                addLog(`You: "${msg.text}"`);
               } else if (msg.type === "editor") {
                 // Freestyle: the agent loaded new contents into the editor.
                 onEditorWriteRef.current?.({
                   language: msg.language,
                   code: msg.code,
                 });
-                addLog(`Loaded ${msg.language || "code"} into editor`);
               } else if (msg.type === "text") {
                 responseText += (responseText ? " " : "") + msg.text;
               } else if (msg.type === "audio") {
@@ -266,7 +253,6 @@ export default function VoiceChat({
                     { role: "assistant", text: msg.fullResponse },
                   ]);
                 }
-                addLog(`AI: "${msg.fullResponse.slice(0, 80)}${msg.fullResponse.length > 80 ? "..." : ""}"`);
                 // The turn ends once playback catches up; finishTurnIfIdle owns
                 // that decision.
                 streamDoneRef.current = true;
@@ -280,15 +266,15 @@ export default function VoiceChat({
       } catch (e) {
         vadRef.current?.unfreeze();
         if (e instanceof DOMException && e.name === "AbortError") {
-          addLog("Interrupted — listening again");
+          // Interrupted by the next turn — expected, not an error.
           setStatus("listening");
           return;
         }
-        addLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
+        setError(e instanceof Error ? e.message : "Something went wrong.");
         setStatus("listening");
       }
     },
-    [addLog, stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode]
+    [stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode]
   );
 
   const sendAudio = useCallback(
@@ -305,7 +291,6 @@ export default function VoiceChat({
       preRollMs: 400,
       onSpeechStart: () => {
         stopPlayback();
-        addLog("Speech detected...");
       },
       onSpeechEnd: (audio: Blob) => {
         sendAudio(audio);
@@ -316,15 +301,19 @@ export default function VoiceChat({
       await vad.start();
       vadRef.current = vad;
       setMessages([]);
+      setError(null);
       setStatus("listening");
-      addLog("Microphone active — start talking!");
 
       // The interviewer opens: greet the candidate and present the problem.
       runTurn({ kickoff: true });
     } catch (e) {
-      addLog(`Mic error: ${e instanceof Error ? e.message : "unknown"}`);
+      setError(
+        e instanceof Error
+          ? `Microphone unavailable — ${e.message}`
+          : "Microphone unavailable — check your browser permissions."
+      );
     }
-  }, [addLog, sendAudio, stopPlayback, runTurn]);
+  }, [sendAudio, stopPlayback, runTurn]);
 
   const stopConversation = useCallback(() => {
     vadRef.current?.stop();
@@ -333,8 +322,7 @@ export default function VoiceChat({
     abortRef.current?.abort();
     streamDoneRef.current = false;
     setStatus("idle");
-    addLog("Stopped.");
-  }, [addLog, stopPlayback]);
+  }, [stopPlayback]);
 
   useEffect(() => {
     return () => {
@@ -385,17 +373,21 @@ export default function VoiceChat({
         <button
           onClick={status === "idle" ? startConversation : stopConversation}
           aria-label={status === "idle" ? "Start conversation" : "Stop conversation"}
-          className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105"
+          className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
           style={{ boxShadow: "0 3px 10px rgba(168,85,29,.35)" }}
         >
           <Mic size={17} />
         </button>
         <div className="flex items-center gap-2.5 min-w-0">
-          {status === "listening" && (
+          {status === "listening" && !error && (
             <Equalizer color="#cdbfa3" bars={4} height={18} stagger={0.2} />
           )}
-          <span className="font-sans text-[13px] text-[#8a7259] truncate">
-            {MIC_HINT[status]}
+          <span
+            className={`truncate font-sans text-[13px] ${
+              error ? "text-[#9c3b28]" : "text-[#8a7259]"
+            }`}
+          >
+            {error ?? MIC_HINT[status]}
           </span>
         </div>
       </div>

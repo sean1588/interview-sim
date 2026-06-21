@@ -97,17 +97,19 @@ export default function LessonWorkspace({
           <VoiceChat sessionId={sessionId} mode="learning" getContext={getContext} orbSize={56} />
         </div>
 
-        {hasExercises ? (
+        {hasExercises && exercise ? (
           <>
             {/* Lesson material — tabbed Notes / Exercise */}
             <div className="w-[440px] flex-none border-r border-hair min-h-0">
               <LessonMaterial
                 content={lesson.content}
-                exercise={exercise}
-                exerciseIndex={exerciseIndex}
-                total={lesson.exercises.length}
-                onPrev={() => goToExercise(exerciseIndex - 1)}
-                onNext={() => goToExercise(exerciseIndex + 1)}
+                exercise={{
+                  data: exercise,
+                  index: exerciseIndex,
+                  total: lesson.exercises.length,
+                  onPrev: () => goToExercise(exerciseIndex - 1),
+                  onNext: () => goToExercise(exerciseIndex + 1),
+                }}
               />
             </div>
 
@@ -126,14 +128,7 @@ export default function LessonWorkspace({
         ) : (
           // Conversational lesson: no exercises, no editor — the notes fill the room.
           <div className="flex-1 min-w-0 min-h-0">
-            <LessonMaterial
-              content={lesson.content}
-              exercise={null}
-              exerciseIndex={0}
-              total={0}
-              onPrev={() => {}}
-              onNext={() => {}}
-            />
+            <LessonMaterial content={lesson.content} />
           </div>
         )}
       </SessionFrame>

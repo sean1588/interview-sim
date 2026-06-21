@@ -94,7 +94,7 @@ export default function SessionFrame({
             <button
               onClick={onEnd}
               disabled={ending}
-              className={`rounded-[7px] px-4 py-[9px] font-sans text-[13px] font-medium transition-colors ${
+              className={`rounded-[7px] px-4 py-[9px] font-sans text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
                 ending
                   ? "cursor-not-allowed bg-edge text-faint"
                   : "bg-cognac text-[#fbf3e7] hover:bg-cognac/90"

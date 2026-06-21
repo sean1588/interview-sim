@@ -110,7 +110,7 @@ export default function CodeEditor({
             onChange={(e) => onLanguageChange(e.target.value as LanguageId)}
             disabled={fixedLanguage}
             aria-label="Language"
-            className={`appearance-none rounded-[7px] border border-edge bg-chip py-1.5 pl-3 font-mono text-[12.5px] text-ink-soft focus:outline-none ${
+            className={`appearance-none rounded-[7px] border border-edge bg-chip py-1.5 pl-3 font-mono text-[12.5px] text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
               fixedLanguage ? "pr-3 cursor-default" : "pr-8 cursor-pointer"
             }`}
           >
@@ -130,7 +130,7 @@ export default function CodeEditor({
         <button
           onClick={run}
           disabled={!runnable}
-          className={`inline-flex items-center gap-2 rounded-[7px] px-4 py-2 font-sans text-[13px] font-medium transition-colors ${
+          className={`inline-flex items-center gap-2 rounded-[7px] px-4 py-2 font-sans text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
             runnable
               ? "bg-olive text-[#f3f1e4] hover:bg-olive/90"
               : "cursor-not-allowed bg-[#cdbfa3] text-[#f3f1e4]"
@@ -175,11 +175,11 @@ export default function CodeEditor({
       </div>
 
       {/* Output console */}
-      <div className="h-[122px] flex-none border-t border-hair bg-inset">
-        <div className="border-b border-hair px-[18px] py-[9px] font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
+      <div className="h-[122px] flex-none flex flex-col border-t border-hair bg-inset">
+        <div className="flex-none border-b border-hair px-[18px] py-[9px] font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
           Output
         </div>
-        <pre className="overflow-auto px-[18px] py-3 font-mono text-[12.5px] whitespace-pre-wrap text-ink-body">
+        <pre className="flex-1 min-h-0 overflow-auto px-[18px] py-3 font-mono text-[12.5px] whitespace-pre-wrap text-ink-body">
           {result
             ? result.output || result.stderr || "(no output)"
             : running

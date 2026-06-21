@@ -22,7 +22,7 @@ export default function SelectChip({
         value={value}
         onChange={onChange}
         aria-label={ariaLabel}
-        className={`cursor-pointer appearance-none rounded-[7px] border border-edge bg-chip py-[7px] pl-3 pr-9 font-sans text-[13px] text-ink-soft focus:outline-none ${className}`}
+        className={`cursor-pointer appearance-none rounded-[7px] border border-edge bg-chip py-[7px] pl-3 pr-9 font-sans text-[13px] text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${className}`}
       >
         {children}
       </select>
