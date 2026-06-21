@@ -3,12 +3,19 @@ import { COURSES } from "@/lib/lessons";
 
 export default function LearnHome() {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-app">
       <div className="mx-auto max-w-4xl px-6 pt-16 pb-24">
         <header className="mb-10">
-          <Link href="/" className="text-gray-400 hover:text-white text-sm">← Home</Link>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight">Learn</h1>
-          <p className="mt-3 text-lg text-gray-400">
+          <Link
+            href="/"
+            className="font-sans text-[13px] text-muted transition-colors hover:text-ink"
+          >
+            ← Home
+          </Link>
+          <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
+            Learn
+          </h1>
+          <p className="mt-3 font-serif text-[18px] leading-[1.55] text-ink-body">
             Guided courses for experienced programmers, each taught live by a voice
             tutor who watches your code as you go. Pick a language to start.
           </p>
@@ -19,18 +26,18 @@ export default function LearnHome() {
             <Link
               key={course.id}
               href={`/learn/${course.id}`}
-              className="group block rounded-2xl border border-gray-800 bg-gray-900/60 p-6 transition hover:border-gray-700 hover:bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="group block rounded-[10px] border border-edge bg-chip p-6 transition hover:border-cognac/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
             >
               <div className="flex items-start gap-4">
-                <div className="mt-1 text-3xl">{course.icon}</div>
+                <div className="mt-0.5 text-3xl">{course.icon}</div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-white group-hover:text-indigo-300 transition">
+                  <h2 className="font-serif text-[22px] font-semibold text-ink transition group-hover:text-cognac-text">
                     Learn {course.title}
                   </h2>
-                  <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                  <p className="mt-1.5 font-serif text-[16px] leading-[1.55] text-ink-body">
                     {course.tagline}
                   </p>
-                  <p className="mt-3 text-xs text-gray-500">
+                  <p className="mt-3 font-sans text-[12px] text-faint">
                     {course.lessons.length} lessons · {course.modules.length} modules
                   </p>
                 </div>

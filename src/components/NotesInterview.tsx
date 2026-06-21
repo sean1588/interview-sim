@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
+import SessionFrame from "@/components/session/SessionFrame";
+import SelectChip from "@/components/session/SelectChip";
 import { LEVELS, type TargetLevel } from "@/lib/levels";
 import { useSession } from "@/components/useSession";
 import type { InterviewMode } from "@/lib/types/mode";
@@ -67,90 +68,79 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
     });
   };
 
-  return (
-    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-gray-400 hover:text-white text-sm">← Home</Link>
-          <span className="text-gray-600">·</span>
-          <h1 className="text-lg font-semibold">{cfg.title}</h1>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <label className="text-gray-400">Level</label>
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value as TargetLevel)}
-            className="bg-gray-800 text-gray-200 rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-gray-500"
-          >
-            {LEVELS.map((lvl) => (
-              <option key={lvl.id} value={lvl.id}>
-                {lvl.label} ({lvl.hint})
-              </option>
-            ))}
-          </select>
-          <label className="text-gray-400">{cfg.questionLabel}</label>
-          <select
-            value={questionId}
-            onChange={(e) => setQuestionId(e.target.value)}
-            className="bg-gray-800 text-gray-200 rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-gray-500 max-w-[260px] truncate"
-          >
-            {questions.map((q) => (
-              <option key={q.id} value={q.id}>
-                {q.title}
-              </option>
-            ))}
-          </select>
-          {assessError && (
-            <span className="text-red-400 text-xs">{assessError}</span>
-          )}
-          <button
-            onClick={handleEnd}
-            disabled={assessing}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              assessing
-                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                : "bg-indigo-600 hover:bg-indigo-500 text-white"
-            }`}
-          >
-            {assessing ? "Assessing…" : "End Interview"}
-          </button>
-        </div>
-      </header>
+  const controls = (
+    <>
+      <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+        Level
+      </span>
+      <SelectChip value={level} onChange={(e) => setLevel(e.target.value as TargetLevel)} ariaLabel="Level">
+        {LEVELS.map((lvl) => (
+          <option key={lvl.id} value={lvl.id}>
+            {lvl.label} ({lvl.hint})
+          </option>
+        ))}
+      </SelectChip>
+      <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+        {cfg.questionLabel}
+      </span>
+      <SelectChip
+        value={questionId}
+        onChange={(e) => setQuestionId(e.target.value)}
+        ariaLabel={cfg.questionLabel}
+        className="max-w-[240px] truncate"
+      >
+        {questions.map((q) => (
+          <option key={q.id} value={q.id}>
+            {q.title}
+          </option>
+        ))}
+      </SelectChip>
+    </>
+  );
 
-      {/* Split screen */}
-      <div className="flex-1 min-h-0 flex">
-        {/* Left: interviewer + voice */}
-        <div className="w-[38%] min-w-[320px] border-r border-gray-800 min-h-0">
+  return (
+    <>
+      <SessionFrame
+        root={{ label: "Studio", href: "/" }}
+        title={cfg.title}
+        endLabel="End Interview"
+        endBusyLabel="Assessing…"
+        ending={assessing}
+        onEnd={handleEnd}
+        error={assessError ?? undefined}
+        controls={controls}
+      >
+        {/* Conversation */}
+        <div className="w-[466px] flex-none border-r border-section min-h-0">
           <VoiceChat sessionId={sessionId} mode={mode} getContext={getContext} />
         </div>
 
-        {/* Right: question + notes workspace */}
-        <div className="flex-1 min-w-0 flex flex-col min-h-0">
-          <div className="px-5 py-4 border-b border-gray-800 max-h-[38%] overflow-y-auto">
-            <div className="flex items-baseline gap-2 mb-2">
-              <h2 className="text-base font-semibold">{question.title}</h2>
-            </div>
-            <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+        {/* Work: question + notes */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-editor">
+          <div className="h-[218px] flex-none overflow-y-auto border-b border-hair px-[26px] py-5">
+            <h2 className="mb-2 font-serif text-[25px] font-semibold text-ink">
+              {question.title}
+            </h2>
+            <p className="whitespace-pre-wrap font-serif text-[16.5px] leading-[1.6] text-ink-body">
               {question.prompt}
             </p>
             {cfg.questionTip && (
-              <p className="mt-3 text-[11px] text-gray-500">{cfg.questionTip}</p>
+              <p className="mt-3 font-sans text-[11px] text-faint">{cfg.questionTip}</p>
             )}
           </div>
 
-          <div className="flex-1 min-h-0 p-4 flex flex-col">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="text-xs uppercase tracking-wide text-gray-500">
+          <div className="flex-1 min-h-0 flex flex-col p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
                 {cfg.notesHeading}
               </div>
               {cfg.sectionChips && (
-                <div className="flex gap-1.5 text-[10px]">
+                <div className="flex gap-1.5">
                   {cfg.sectionChips.map((label) => (
                     <button
                       key={label}
                       onClick={() => insertSection(label)}
-                      className="rounded border border-gray-800 bg-gray-900 px-2 py-0.5 text-gray-400 hover:text-gray-200 hover:border-gray-700"
+                      className="rounded-[6px] border border-edge bg-chip px-2.5 py-1 font-sans text-[11px] text-ink-muted transition-colors hover:border-cognac/40 hover:text-ink"
                     >
                       + {label.split(" / ")[0]}
                     </button>
@@ -163,18 +153,16 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={cfg.notesPlaceholder}
-              className="flex-1 w-full resize-none rounded-lg border border-gray-800 bg-gray-950 p-3 text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-gray-600 font-mono leading-relaxed"
+              className="flex-1 w-full resize-none rounded-lg border border-edge bg-frame p-4 font-mono text-[13px] leading-relaxed text-ink-body placeholder:text-faint focus:border-cognac/40 focus:outline-none"
             />
             {cfg.notesFooter && (
-              <div className="mt-2 text-[10px] text-gray-500">{cfg.notesFooter}</div>
+              <div className="mt-2 font-sans text-[11px] text-faint">{cfg.notesFooter}</div>
             )}
           </div>
         </div>
-      </div>
+      </SessionFrame>
 
-      {scorecard && (
-        <Scorecard data={scorecard} mode={mode} onClose={closeResult} />
-      )}
-    </div>
+      {scorecard && <Scorecard data={scorecard} mode={mode} onClose={closeResult} />}
+    </>
   );
 }
