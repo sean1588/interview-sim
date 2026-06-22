@@ -12,14 +12,19 @@ export default async function CoursePage({
   if (!course) notFound();
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-app">
       <div className="mx-auto max-w-4xl px-6 pt-16 pb-24">
         <header className="mb-10">
-          <Link href="/learn" className="text-gray-400 hover:text-white text-sm">← Courses</Link>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight">
+          <Link
+            href="/learn"
+            className="font-sans text-[13px] text-muted transition-colors hover:text-ink"
+          >
+            ← Courses
+          </Link>
+          <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
             Learn {course.title}
           </h1>
-          <p className="mt-3 text-lg text-gray-400">
+          <p className="mt-3 font-serif text-[18px] leading-[1.55] text-ink-body">
             {course.tagline} {course.lessons.length} lessons across{" "}
             {course.modules.length} modules, each taught live by a voice tutor who
             watches your code as you go.
@@ -32,29 +37,29 @@ export default async function CoursePage({
             return (
               <section key={mod.id}>
                 <div className="mb-3">
-                  <h2 className="text-xl font-semibold text-white">
-                    <span className="text-gray-600 mr-2">{i + 1}.</span>
+                  <h2 className="font-serif text-[22px] font-semibold text-ink">
+                    <span className="mr-2 text-faint">{i + 1}.</span>
                     {mod.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-500">{mod.blurb}</p>
+                  <p className="mt-1 font-serif text-[15px] text-ink-muted">{mod.blurb}</p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {lessons.map((lesson) => (
                     <Link
                       key={lesson.id}
                       href={`/learn/${course.id}/${lesson.id}`}
-                      className="group block rounded-xl border border-gray-800 bg-gray-900/60 p-4 transition hover:border-gray-700 hover:bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      className="group block rounded-[8px] border border-edge bg-chip p-4 transition hover:border-cognac/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
                     >
-                      <h3 className="text-sm font-medium text-white group-hover:text-indigo-300 transition">
+                      <h3 className="font-serif text-[17px] font-semibold text-ink transition group-hover:text-cognac-text">
                         {lesson.title}
                       </h3>
-                      <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+                      <p className="mt-1 font-serif text-[14px] leading-[1.5] text-ink-muted">
                         {lesson.blurb}
                       </p>
                     </Link>
                   ))}
                   {lessons.length === 0 && (
-                    <p className="text-xs text-gray-600 italic">Coming soon.</p>
+                    <p className="font-serif text-[14px] italic text-faint">Coming soon.</p>
                   )}
                 </div>
               </section>

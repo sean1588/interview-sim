@@ -1,35 +1,175 @@
 @import "tailwindcss";
 
-/* Lightweight styling for the rendered problem statement markdown. */
+/* ============================================================================
+   Direction A · "Dialogue" — warm editorial design tokens.
+   The orange is a precious accent, never a flood fill; most surfaces are warm
+   neutrals. Token names mirror the design handoff.
+   ========================================================================== */
+@theme {
+  /* Surfaces (warm neutrals, light → raised) */
+  --color-app: #e4dac7; /* sand page background */
+  --color-frame: #f6f1e7; /* cream window surface */
+  --color-raised: #f1eadc; /* header bars, conversation + lesson columns */
+  --color-editor: #fbf8f1; /* editor / work area (ivory) */
+  --color-inset: #f3ecdd; /* toolbars, output panels, code insets */
+  --color-chip: #faf6ee; /* buttons, pills, interviewer bubbles */
+  --color-bubble: #f0e2cd; /* "You" message bubbles */
+
+  /* Borders */
+  --color-edge: #ddd0ba; /* default borders on chips/buttons */
+  --color-section: #e0d5c1; /* header / column dividers */
+  --color-hair: #e8ddc9; /* subtle inner dividers */
+  --color-bubble-edge: #e0caa6; /* "You" bubble border */
+
+  /* Ink (text) */
+  --color-ink: #2c2722; /* headings, primary text */
+  --color-ink-body: #464035; /* body copy */
+  --color-ink-soft: #3f3a31; /* bubble text */
+  --color-ink-muted: #6b6256; /* secondary labels */
+  --color-muted: #8a7d63; /* breadcrumbs, captions */
+  --color-faint: #a8997e; /* placeholder, output idle, line-number tint */
+
+  /* Accents */
+  --color-cognac: #a8551d; /* primary actions, active mic */
+  --color-cognac-text: #9c4f1a; /* code keywords, inline code, emphasis */
+  --color-clay: #b5651d; /* "Speaking" state */
+  --color-gold: #b08a3e; /* LIVE indicator dot */
+  --color-gold-text: #9a7423; /* LIVE text */
+  --color-olive: #5e6b3c; /* Run/success, "Listening" state, strings */
+  --color-slate: #2f5e8c; /* function / identifier names in code */
+  --color-gutter: #c3b69c; /* editor gutter digits */
+
+  /* Type families (wired to next/font CSS vars in layout.tsx) */
+  --font-serif: var(--font-cormorant), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex), ui-monospace, "IBM Plex Mono", monospace;
+
+  /* Ambient session animations */
+  --animate-breathe: breathe 3s ease-in-out infinite;
+  --animate-ripple: ripple 2.6s ease-out infinite;
+  --animate-eq: eq 0.9s ease-in-out infinite;
+  --animate-livedot: livedot 1.6s ease-in-out infinite;
+  --animate-glow: glow 1s ease-in-out infinite;
+  --animate-spin-slow: spin 7s linear infinite;
+}
+
+@keyframes ripple {
+  from {
+    transform: translate(-50%, -50%) scale(0.82);
+    opacity: 0.5;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.055);
+  }
+}
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes livedot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+/* Warm scrollbars to match the studio surfaces. */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 100, 70, 0.22);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================================
+   Rendered markdown (problem statements, lesson notes) in the editorial voice:
+   serif prose, mono inline code on an inset chip, cognac emphasis.
+   ========================================================================== */
+.markdown {
+  font-family: var(--font-serif);
+  color: var(--color-ink-body);
+}
 .markdown p {
   margin: 0.5rem 0;
-  line-height: 1.55;
+  font-size: 1.0625rem; /* ~17px */
+  line-height: 1.6;
 }
 .markdown strong {
-  color: #f3f4f6;
+  color: var(--color-ink);
   font-weight: 600;
 }
+.markdown em {
+  color: var(--color-ink);
+}
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  color: var(--color-ink);
+  font-weight: 600;
+  margin: 0.9rem 0 0.4rem;
+  line-height: 1.2;
+}
 .markdown code {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 0.85em;
-  color: #e5e7eb;
+  background: var(--color-raised);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--color-cognac-text);
 }
 .markdown pre {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-editor);
+  border: 1px solid var(--color-hair);
   border-radius: 0.5rem;
-  padding: 0.75rem;
+  padding: 0.875rem 1rem;
   overflow-x: auto;
-  margin: 0.6rem 0;
+  margin: 0.7rem 0;
 }
 .markdown pre code {
   background: none;
   padding: 0;
+  color: var(--color-ink-body);
   font-size: 0.8rem;
-  line-height: 1.4;
+  line-height: 1.6;
 }
 .markdown ul,
 .markdown ol {
@@ -38,5 +178,19 @@
   list-style: disc;
 }
 .markdown li {
+  margin: 0.25rem 0;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+/* Authored `>` callouts (e.g. lesson Hints) as olive-tinted inset boxes. */
+.markdown blockquote {
+  margin: 0.7rem 0;
+  padding: 0.7rem 0.95rem;
+  border-left: 3px solid var(--color-olive);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--color-olive) 9%, transparent);
+  color: var(--color-ink-body);
+}
+.markdown blockquote p {
   margin: 0.2rem 0;
 }

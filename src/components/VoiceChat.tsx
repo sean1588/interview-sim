@@ -1,11 +1,34 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { SimpleVAD } from "@/lib/vad";
 import type { SessionMode } from "@/lib/prompts";
+import Orb, { type OrbState } from "@/components/session/Orb";
+import Equalizer from "@/components/session/Equalizer";
+import { Mic } from "@/components/session/icons";
 
 type Status = "idle" | "listening" | "processing" | "speaking";
 type Message = { role: "user" | "assistant"; text: string };
+
+/** Who's on the other end of the conversation, per mode — the orb header name and
+ * the caps label above interviewer/coach/tutor bubbles. Dispatch by lookup, not
+ * scattered conditionals. */
+const SPEAKER: Record<SessionMode, { name: string; label: string }> = {
+  coding: { name: "The Interviewer", label: "Interviewer" },
+  behavioral: { name: "The Interviewer", label: "Interviewer" },
+  "system-design": { name: "The Interviewer", label: "Interviewer" },
+  freestyle: { name: "Your Coach", label: "Coach" },
+  learning: { name: "Your Tutor", label: "Tutor" },
+};
+
+/** The orb header treatment per voice-engine status: label, accent (state label +
+ * equalizer color), orb state, and whether the equalizer shows. */
+const VOICE: Record<Status, { label: string; accent: string; orb: OrbState; eq: boolean }> = {
+  idle: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+  listening: { label: "Listening", accent: "#5e6b3c", orb: "listening", eq: true },
+  processing: { label: "Thinking", accent: "#8a7d63", orb: "thinking", eq: false },
+  speaking: { label: "Speaking", accent: "#b5651d", orb: "speaking", eq: true },
+};
 
 /** Live workspace context provided on every turn. Every mode identifies its
  * current question/lesson; coding and learning add editor state, behavioral /
@@ -34,13 +57,26 @@ interface VoiceChatProps {
   getContext?: () => SessionContext;
   /** Freestyle: invoked when the agent pushes new contents into the editor. */
   onEditorWrite?: (block: { language: string; code: string }) => void;
+  /** Orb diameter — 64 in the interview/coach columns, 56 in the tighter lesson column. */
+  orbSize?: number;
+  /** Pre-start content shown in the transcript area before the first message
+   * arrives (e.g. freestyle's "pick a starting point" chips). */
+  prelude?: ReactNode;
 }
 
-export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }: VoiceChatProps) {
+export default function VoiceChat({
+  sessionId,
+  mode,
+  getContext,
+  onEditorWrite,
+  orbSize = 64,
+  prelude,
+}: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [log, setLog] = useState<string[]>([]);
-  const [latency, setLatency] = useState<number | null>(null);
+  // Surfaced in the mic bar. Mic-permission failures and failed turns used to
+  // reach only the (now-removed) dev log; this is the user-facing channel.
+  const [error, setError] = useState<string | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
@@ -66,10 +102,6 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
     onEditorWriteRef.current = onEditorWrite;
   });
 
-  const addLog = useCallback((msg: string) => {
-    setLog((prev) => [...prev.slice(-19), `${new Date().toLocaleTimeString()} — ${msg}`]);
-  }, []);
-
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -93,8 +125,7 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
     streamDoneRef.current = false;
     vadRef.current?.unfreeze();
     setStatus("listening");
-    addLog("Listening...");
-  }, [addLog]);
+  }, []);
 
   const playNext = useCallback(() => {
     // Local recursion so the drain loop doesn't reference the memoized callback
@@ -148,12 +179,7 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
 
       vadRef.current?.freeze();
       setStatus("processing");
-      const startTime = Date.now();
-      addLog(
-        opts.kickoff
-          ? "Starting interview..."
-          : `Sending ${((opts.audio?.size ?? 0) / 1024).toFixed(1)}KB of audio...`
-      );
+      setError(null);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -191,7 +217,6 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let firstAudioReceived = false;
         let responseText = "";
 
         while (true) {
@@ -209,23 +234,15 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
 
               if (msg.type === "transcript") {
                 setMessages((prev) => [...prev, { role: "user", text: msg.text }]);
-                addLog(`You: "${msg.text}"`);
               } else if (msg.type === "editor") {
                 // Freestyle: the agent loaded new contents into the editor.
                 onEditorWriteRef.current?.({
                   language: msg.language,
                   code: msg.code,
                 });
-                addLog(`Loaded ${msg.language || "code"} into editor`);
               } else if (msg.type === "text") {
                 responseText += (responseText ? " " : "") + msg.text;
               } else if (msg.type === "audio") {
-                if (!firstAudioReceived) {
-                  firstAudioReceived = true;
-                  const elapsed = Date.now() - startTime;
-                  setLatency(elapsed);
-                  addLog(`First audio chunk: ${elapsed}ms`);
-                }
                 enqueueAudio(msg.data);
               } else if (msg.type === "done") {
                 // An editor-only turn (the agent just loaded code, said nothing)
@@ -236,7 +253,6 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
                     { role: "assistant", text: msg.fullResponse },
                   ]);
                 }
-                addLog(`AI: "${msg.fullResponse.slice(0, 80)}${msg.fullResponse.length > 80 ? "..." : ""}"`);
                 // The turn ends once playback catches up; finishTurnIfIdle owns
                 // that decision.
                 streamDoneRef.current = true;
@@ -250,15 +266,15 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
       } catch (e) {
         vadRef.current?.unfreeze();
         if (e instanceof DOMException && e.name === "AbortError") {
-          addLog("Interrupted — listening again");
+          // Interrupted by the next turn — expected, not an error.
           setStatus("listening");
           return;
         }
-        addLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
+        setError(e instanceof Error ? e.message : "Something went wrong.");
         setStatus("listening");
       }
     },
-    [addLog, stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode]
+    [stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode]
   );
 
   const sendAudio = useCallback(
@@ -275,7 +291,6 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
       preRollMs: 400,
       onSpeechStart: () => {
         stopPlayback();
-        addLog("Speech detected...");
       },
       onSpeechEnd: (audio: Blob) => {
         sendAudio(audio);
@@ -286,15 +301,19 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
       await vad.start();
       vadRef.current = vad;
       setMessages([]);
+      setError(null);
       setStatus("listening");
-      addLog("Microphone active — start talking!");
 
       // The interviewer opens: greet the candidate and present the problem.
       runTurn({ kickoff: true });
     } catch (e) {
-      addLog(`Mic error: ${e instanceof Error ? e.message : "unknown"}`);
+      setError(
+        e instanceof Error
+          ? `Microphone unavailable — ${e.message}`
+          : "Microphone unavailable — check your browser permissions."
+      );
     }
-  }, [addLog, sendAudio, stopPlayback, runTurn]);
+  }, [sendAudio, stopPlayback, runTurn]);
 
   const stopConversation = useCallback(() => {
     vadRef.current?.stop();
@@ -303,8 +322,7 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
     abortRef.current?.abort();
     streamDoneRef.current = false;
     setStatus("idle");
-    addLog("Stopped.");
-  }, [addLog, stopPlayback]);
+  }, [stopPlayback]);
 
   useEffect(() => {
     return () => {
@@ -316,92 +334,121 @@ export default function VoiceChat({ sessionId, mode, getContext, onEditorWrite }
     };
   }, [stopPlayback]);
 
-  const statusConfig: Record<Status, { color: string; label: string; pulse: boolean }> = {
-    idle: { color: "bg-gray-500", label: "Ready", pulse: false },
-    listening: { color: "bg-green-500", label: "Listening...", pulse: true },
-    processing: { color: "bg-yellow-500", label: "Thinking...", pulse: true },
-    speaking: { color: "bg-blue-500", label: "Speaking...", pulse: true },
-  };
-
-  const { color, label, pulse } = statusConfig[status];
+  const v = VOICE[status];
+  const speaker = SPEAKER[mode ?? "coding"];
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-gray-950 text-white flex flex-col items-center p-6">
-      <div className="max-w-md w-full space-y-5">
-        <div className="flex flex-col items-center space-y-4 pt-2">
-          <div className="relative">
-            <div
-              className={`w-28 h-28 rounded-full ${color} flex items-center justify-center transition-colors duration-300`}
-            >
-              {pulse && (
-                <div
-                  className={`absolute inset-0 rounded-full ${color} animate-ping opacity-25`}
-                />
-              )}
-              <span className="text-sm font-medium z-10">{label}</span>
+    <div className="h-full w-full min-h-0 flex flex-col bg-raised">
+      {/* Orb header — the persona's reactive presence */}
+      <div className="flex-none flex items-center gap-[19px] border-b border-hair px-6 py-5">
+        <Orb state={v.orb} size={orbSize} />
+        <div>
+          <div className="font-serif text-[19px] font-semibold text-ink">{speaker.name}</div>
+          <div
+            className="mt-0.5 font-sans text-[10px] font-medium uppercase tracking-[0.14em]"
+            style={{ color: v.accent }}
+          >
+            {v.label}
+          </div>
+          {v.eq && (
+            <div className="mt-2">
+              <Equalizer color={v.accent} bars={5} height={15} />
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={status === "idle" ? startConversation : stopConversation}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                status === "idle"
-                  ? "bg-green-600 hover:bg-green-500"
-                  : "bg-red-600 hover:bg-red-500"
-              }`}
-            >
-              {status === "idle" ? "Start Conversation" : "Stop"}
-            </button>
-            {latency !== null && (
-              <span className="text-xs text-gray-500">
-                First audio:{" "}
-                <span
-                  className={`font-mono font-bold ${
-                    latency < 2000
-                      ? "text-green-400"
-                      : latency < 4000
-                        ? "text-yellow-400"
-                        : "text-red-400"
-                  }`}
-                >
-                  {(latency / 1000).toFixed(1)}s
-                </span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {messages.length > 0 && (
-          <div className="bg-gray-900 rounded-xl p-4 max-h-96 overflow-y-auto space-y-3">
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                    msg.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-800 text-gray-200"
-                  }`}
-                >
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-        )}
-
-        <div className="bg-gray-900/50 rounded-xl p-4 font-mono text-xs text-gray-500 max-h-36 overflow-y-auto">
-          {log.length === 0 ? (
-            <p>Press Start to begin...</p>
-          ) : (
-            log.map((entry, i) => <p key={i}>{entry}</p>)
           )}
         </div>
       </div>
+
+      {/* Transcript */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        {messages.length === 0 && prelude}
+        {messages.map((m, i) => (
+          <Bubble key={i} role={m.role} text={m.text} speakerLabel={speaker.label} />
+        ))}
+        {status === "processing" && <TypingIndicator />}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Mic bar */}
+      <div className="flex-none flex items-center gap-3 border-t border-hair bg-frame px-5 py-4">
+        <button
+          onClick={status === "idle" ? startConversation : stopConversation}
+          aria-label={status === "idle" ? "Start conversation" : "Stop conversation"}
+          className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
+          style={{ boxShadow: "0 3px 10px rgba(168,85,29,.35)" }}
+        >
+          <Mic size={17} />
+        </button>
+        <div className="flex items-center gap-2.5 min-w-0">
+          {status === "listening" && !error && (
+            <Equalizer color="#cdbfa3" bars={4} height={18} stagger={0.2} />
+          )}
+          <span
+            className={`truncate font-sans text-[13px] ${
+              error ? "text-[#9c3b28]" : "text-[#8a7259]"
+            }`}
+          >
+            {error ?? MIC_HINT[status]}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const MIC_HINT: Record<Status, string> = {
+  idle: "Tap the mic to begin",
+  listening: "Listening — speak any time",
+  processing: "Thinking…",
+  speaking: "Speaking…",
+};
+
+/** One transcript turn. Interviewer/coach/tutor bubbles sit left with a cognac
+ * caps label; "You" bubbles sit right with a muted label and the mirrored radius. */
+function Bubble({
+  role,
+  text,
+  speakerLabel,
+}: {
+  role: "user" | "assistant";
+  text: string;
+  speakerLabel: string;
+}) {
+  if (role === "user") {
+    return (
+      <div className="self-end max-w-[92%]">
+        <div className="mb-1.5 text-right font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
+          You
+        </div>
+        <div className="rounded-[14px_3px_14px_14px] border border-bubble-edge bg-bubble px-[15px] py-3 font-serif text-[16px] leading-[1.5] text-ink-soft">
+          {text}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="self-start max-w-[92%]">
+      <div className="mb-1.5 font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-[#a8754a]">
+        {speakerLabel}
+      </div>
+      <div className="rounded-[3px_14px_14px_14px] border border-hair bg-chip px-[15px] py-3 font-serif text-[16px] leading-[1.5] text-ink-soft">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/** Three glowing dots while the interviewer composes a reply. */
+function TypingIndicator() {
+  return (
+    <div className="self-start flex items-center gap-1.5 px-0.5 py-1">
+      {[0, 0.2, 0.4].map((d) => (
+        <span
+          key={d}
+          className="h-[7px] w-[7px] rounded-full bg-olive animate-glow"
+          style={{ animationDelay: `${d}s` }}
+        />
+      ))}
+      <span className="ml-1 font-serif italic text-[14px] text-muted">Thinking…</span>
     </div>
   );
 }

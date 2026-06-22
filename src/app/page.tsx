@@ -1,36 +1,31 @@
 import Link from "next/link";
 import { COURSES } from "@/lib/lessons";
 
-// Per-course accent for the home cards (presentation only; the course list,
-// titles, taglines, and icons all come from the COURSES registry).
-const LEARN_ACCENTS: Record<string, string> = {
-  python: "text-yellow-400",
-  typescript: "text-sky-400",
-};
-
 type ModeCardProps = {
   href: string;
   title: string;
   description: string;
   icon: string;
-  accent: string;
+  cta?: string;
 };
 
-function ModeCard({ href, title, description, icon, accent }: ModeCardProps) {
+function ModeCard({ href, title, description, icon, cta = "Start practice" }: ModeCardProps) {
   return (
     <Link
       href={href}
-      className="group block rounded-2xl border border-gray-800 bg-gray-900/60 p-6 transition hover:border-gray-700 hover:bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      className="group block rounded-[10px] border border-edge bg-chip p-6 transition hover:border-cognac/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
     >
       <div className="flex items-start gap-4">
-        <div className={`mt-1 text-3xl ${accent}`}>{icon}</div>
+        <div className="mt-0.5 text-3xl">{icon}</div>
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-white group-hover:text-indigo-300 transition">
+          <h3 className="font-serif text-[22px] font-semibold text-ink transition group-hover:text-cognac-text">
             {title}
           </h3>
-          <p className="mt-2 text-sm text-gray-400 leading-relaxed">{description}</p>
-          <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-indigo-400 group-hover:text-indigo-300">
-            Start practice <span aria-hidden>→</span>
+          <p className="mt-1.5 font-serif text-[16px] leading-[1.55] text-ink-body">
+            {description}
+          </p>
+          <div className="mt-4 inline-flex items-center gap-1 font-sans text-[13px] font-medium text-cognac-text">
+            {cta} <span aria-hidden>→</span>
           </div>
         </div>
       </div>
@@ -38,44 +33,49 @@ function ModeCard({ href, title, description, icon, accent }: ModeCardProps) {
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-3 font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-faint">
+      {children}
+    </div>
+  );
+}
+
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-app">
       <div className="mx-auto max-w-5xl px-6 pt-16 pb-24">
         <header className="mb-12 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-gray-800 bg-gray-900 px-3 py-1 text-xs tracking-[2px] text-gray-400">
-            AI-POWERED PRACTICE
+          <div className="inline-flex items-center rounded-full border border-edge bg-chip px-3 py-1 font-sans text-[10px] font-medium uppercase tracking-[0.22em] text-cognac-text">
+            AI-Powered Practice
           </div>
-          <h1 className="mt-4 text-5xl font-semibold tracking-tight">Interview Sim</h1>
-          <p className="mt-3 text-lg text-gray-400">
+          <h1 className="mt-5 font-serif text-[56px] font-semibold leading-none tracking-tight text-ink">
+            The Interview Studio
+          </h1>
+          <p className="mt-4 font-serif text-[19px] italic text-muted">
             Real-time voice interviews. Choose your focus.
           </p>
         </header>
 
-        <div className="mb-3 text-xs uppercase tracking-[2px] text-gray-500">
-          Practice interviews
-        </div>
+        <SectionLabel>Practice interviews</SectionLabel>
         <div className="grid gap-4 md:grid-cols-3">
           <ModeCard
             href="/coding"
             title="Coding Interview"
             description="Data structures, algorithms, and live coding. In-browser execution, the interviewer watches your code and run results in real time."
             icon="💻"
-            accent="text-emerald-400"
           />
           <ModeCard
             href="/behavioral"
             title="Behavioral Interview"
             description="STAR stories, leadership, conflict, influence, and failure questions. Practice telling clear, structured stories with live follow-ups."
             icon="🗣️"
-            accent="text-amber-400"
           />
           <ModeCard
             href="/system-design"
             title="System Design"
             description="Design scalable systems end-to-end. Clarify requirements, sketch architecture, discuss tradeoffs, capacity, and bottlenecks."
             icon="🗺️"
-            accent="text-sky-400"
           />
         </div>
         <div className="mt-4 grid gap-4">
@@ -84,14 +84,14 @@ export default function Home() {
             title="Freestyle"
             description="A free-form session — you steer. Ask for a behavioral, coding, or system design interview, open practice, or to learn something new, and the coach adapts in real time, dropping problems and starter code straight into your editor."
             icon="🎛️"
-            accent="text-fuchsia-400"
+            cta="Start session"
           />
         </div>
 
-        <div className="mt-10 mb-3 text-xs uppercase tracking-[2px] text-gray-500">
-          Learn
+        <div className="mt-12">
+          <SectionLabel>Learn</SectionLabel>
         </div>
-        <p className="mb-3 text-sm text-gray-400">
+        <p className="mb-3 font-serif text-[16px] text-ink-body">
           Guided courses for experienced programmers, each taught live by a voice
           tutor who watches your code, with hands-on exercises you run as you go.
         </p>
@@ -103,13 +103,13 @@ export default function Home() {
               title={`Learn ${course.title}`}
               description={course.tagline}
               icon={course.icon}
-              accent={LEARN_ACCENTS[course.id] ?? "text-indigo-400"}
+              cta="Open course"
             />
           ))}
         </div>
 
-        <div className="mt-10 text-center text-xs text-gray-500">
-          Voice + animated interviewer (optional). Sessions are ephemeral and stay on your machine.
+        <div className="mt-12 text-center font-serif text-[14px] italic text-muted">
+          Voice-driven, ephemeral, and entirely on your machine.
         </div>
       </div>
     </div>

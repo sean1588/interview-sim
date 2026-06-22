@@ -35,25 +35,26 @@ export default function CustomQuestionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#2c2722]/55 p-6"
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-[10px] border border-edge bg-frame text-ink"
+        style={{ boxShadow: "0 30px 70px rgba(60,40,20,.28)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 sticky top-0 bg-gray-900">
-          <h2 className="text-lg font-semibold text-white">Custom question</h2>
+        <div className="sticky top-0 flex items-center justify-between border-b border-section bg-raised px-6 py-4">
+          <h2 className="font-serif text-[21px] font-semibold text-ink">Custom question</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-sm px-2 py-1"
+            className="rounded-md px-2 py-1 font-sans text-[13px] text-ink-muted transition-colors hover:text-ink"
           >
             ✕ Close
           </button>
         </div>
 
-        <div className="p-5 space-y-3">
-          <p className="text-sm text-gray-400 leading-relaxed">
+        <div className="space-y-3 p-6">
+          <p className="font-serif text-[16px] leading-[1.6] text-ink-body">
             Tell the coach exactly what to run — paste a coding problem, name a
             system to design, or give a behavioral prompt. The session opens on
             this instead of asking what you&apos;d like to do.
@@ -66,34 +67,34 @@ export default function CustomQuestionModal({
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
             }}
             placeholder="e.g. Implement an LRU cache with O(1) get and put, then we'll discuss the complexity and edge cases."
-            className="w-full h-40 resize-none rounded-lg bg-gray-950 border border-gray-700 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-gray-500"
+            className="h-40 w-full resize-none rounded-lg border border-edge bg-editor px-3 py-2.5 font-mono text-[13px] text-ink-body placeholder:text-faint focus:border-cognac/40 focus:outline-none"
           />
-          <p className="text-xs text-gray-600">
+          <p className="font-sans text-[12px] text-faint">
             Applies when the session starts. ⌘/Ctrl+Enter to set.
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-800">
+        <div className="flex items-center justify-end gap-2 border-t border-section px-6 py-4">
           {draft.trim() && (
             <button
               onClick={() => {
                 onSubmit("");
                 onClose();
               }}
-              className="mr-auto text-sm text-gray-400 hover:text-white px-3 py-1.5"
+              className="mr-auto px-3 py-1.5 font-sans text-[13px] text-ink-muted transition-colors hover:text-ink"
             >
               Clear
             </button>
           )}
           <button
             onClick={onClose}
-            className="text-sm text-gray-300 hover:text-white px-3 py-1.5 rounded-lg"
+            className="rounded-lg px-3 py-1.5 font-sans text-[13px] text-ink-muted transition-colors hover:text-ink"
           >
             Cancel
           </button>
           <button
             onClick={submit}
-            className="text-sm font-medium px-4 py-1.5 rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 text-white"
+            className="rounded-lg bg-cognac px-4 py-2 font-sans text-[13px] font-medium text-[#fbf3e7] transition-colors hover:bg-cognac/90"
           >
             Set question
           </button>

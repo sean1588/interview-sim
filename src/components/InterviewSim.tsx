@@ -1,13 +1,20 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
+import SessionFrame from "@/components/session/SessionFrame";
+import SelectChip from "@/components/session/SelectChip";
 import { useSession } from "@/components/useSession";
-import { PROBLEMS, getProblem, type LanguageId, type Problem } from "@/lib/problems";
+import {
+  PROBLEMS,
+  getProblem,
+  type Difficulty,
+  type LanguageId,
+  type Problem,
+} from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
 
 // Languages the editor can actually run, in display order. A problem is offered
@@ -17,6 +24,13 @@ const RUNNABLE_LANGUAGES: LanguageId[] = ["python", "javascript", "typescript"];
 function languagesFor(problem: Problem): LanguageId[] {
   return RUNNABLE_LANGUAGES.filter((l) => l in problem.starterCode);
 }
+
+// Difficulty tags carry their own warm tone: olive (Easy) → gold (Medium) → cognac (Hard).
+const DIFFICULTY_TONE: Record<Difficulty, string> = {
+  Easy: "border-olive/30 bg-olive/[0.12] text-olive",
+  Medium: "border-gold/40 bg-gold/[0.13] text-gold-text",
+  Hard: "border-cognac/30 bg-cognac/[0.1] text-cognac-text",
+};
 
 export default function InterviewSim() {
   const [problemId, setProblemId] = useState(PROBLEMS[0].id);
@@ -107,62 +121,54 @@ export default function InterviewSim() {
     });
   }, [getContext, endSession]);
 
-  return (
-    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-gray-400 hover:text-white text-sm">← Home</Link>
-          <span className="text-gray-600">·</span>
-          <h1 className="text-lg font-semibold">Coding Interview</h1>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <label className="text-gray-400">Problem</label>
-          <select
-            value={problemId}
-            onChange={(e) => handleProblemChange(e.target.value)}
-            className="bg-gray-800 text-gray-200 rounded px-2 py-1 border border-gray-700 focus:outline-none focus:border-gray-500"
-          >
-            {PROBLEMS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title} · {p.difficulty}
-              </option>
-            ))}
-          </select>
-          {assessError && (
-            <span className="text-red-400 text-xs">{assessError}</span>
-          )}
-          <button
-            onClick={handleEnd}
-            disabled={assessing}
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              assessing
-                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                : "bg-indigo-600 hover:bg-indigo-500 text-white"
-            }`}
-          >
-            {assessing ? "Assessing…" : "End Interview"}
-          </button>
-        </div>
-      </header>
+  const controls = (
+    <>
+      <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+        Problem
+      </span>
+      <SelectChip
+        value={problemId}
+        onChange={(e) => handleProblemChange(e.target.value)}
+        ariaLabel="Problem"
+      >
+        {PROBLEMS.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.title} · {p.difficulty}
+          </option>
+        ))}
+      </SelectChip>
+    </>
+  );
 
-      {/* Split screen */}
-      <div className="flex-1 min-h-0 flex">
-        {/* Left: interviewer + voice */}
-        <div className="w-[38%] min-w-[320px] border-r border-gray-800 min-h-0">
+  return (
+    <>
+      <SessionFrame
+        root={{ label: "Studio", href: "/" }}
+        title="Coding Interview"
+        endLabel="End Interview"
+        endBusyLabel="Assessing…"
+        ending={assessing}
+        onEnd={handleEnd}
+        error={assessError ?? undefined}
+        controls={controls}
+      >
+        {/* Conversation */}
+        <div className="w-[466px] flex-none border-r border-section min-h-0">
           <VoiceChat sessionId={sessionId} mode="coding" getContext={getContext} />
         </div>
 
-        {/* Right: problem + editor */}
-        <div className="flex-1 min-w-0 flex flex-col min-h-0">
-          <div className="px-5 py-4 border-b border-gray-800 max-h-[38%] overflow-y-auto">
-            <div className="flex items-baseline gap-2 mb-2">
-              <h2 className="text-base font-semibold">{problem.title}</h2>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
+        {/* Work */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-editor">
+          <div className="h-[218px] flex-none overflow-y-auto border-b border-hair px-[26px] py-5">
+            <div className="mb-3 flex items-center gap-3">
+              <h2 className="font-serif text-[25px] font-semibold text-ink">{problem.title}</h2>
+              <span
+                className={`rounded-[5px] border px-2.5 py-[3px] font-sans text-[10px] font-medium uppercase tracking-[0.1em] ${DIFFICULTY_TONE[problem.difficulty]}`}
+              >
                 {problem.difficulty}
               </span>
             </div>
-            <div className="prose-invert max-w-none text-sm text-gray-300 space-y-2 markdown">
+            <div className="markdown">
               <ReactMarkdown>{problem.prompt}</ReactMarkdown>
             </div>
           </div>
@@ -177,11 +183,9 @@ export default function InterviewSim() {
             />
           </div>
         </div>
-      </div>
+      </SessionFrame>
 
-      {scorecard && (
-        <Scorecard data={scorecard} mode="coding" onClose={closeResult} />
-      )}
-    </div>
+      {scorecard && <Scorecard data={scorecard} mode="coding" onClose={closeResult} />}
+    </>
   );
 }

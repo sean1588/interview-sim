@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import CustomQuestionModal from "@/components/CustomQuestionModal";
+import SessionFrame from "@/components/session/SessionFrame";
+import { Pencil, Sun } from "@/components/session/icons";
 import type { LanguageId } from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
 
@@ -16,6 +18,16 @@ const PLACEHOLDER = `# Freestyle session — tell the coach what you'd like to w
 # a coding problem, system design, a behavioral interview, or learning
 # something new. They'll load anything you need right here.
 `;
+
+// Pre-start affordances: clicking a chip seeds the coach's opening intent (it
+// rides along as questionPrompt and shapes the kickoff). The user still taps the
+// mic to begin — the chip just decides where the conversation starts.
+const STARTERS: { label: string; intent: string }[] = [
+  { label: "A coding problem", intent: "Let's do a coding problem." },
+  { label: "System design", intent: "Let's do a system design round." },
+  { label: "A behavioral round", intent: "Let's do a behavioral interview." },
+  { label: "Learn a concept", intent: "I'd like to learn a new concept." },
+];
 
 // The agent writes python/javascript/typescript; map common aliases so a stray
 // tag still loads the code, and default anything off-spec to python.
@@ -33,6 +45,7 @@ function normalizeLanguage(lang: string): LanguageId {
 }
 
 export default function FreestyleWorkspace() {
+  const router = useRouter();
   // Freestyle has no assessment, so it doesn't use useSession — it just needs a
   // stable session id for the voice loop.
   const [sessionId] = useState(() =>
@@ -45,6 +58,9 @@ export default function FreestyleWorkspace() {
   const [code, setCode] = useState(PLACEHOLDER);
   const [language, setLanguage] = useState<LanguageId>("python");
   const lastRunRef = useRef<string | undefined>(undefined);
+
+  // The workspace is "waiting" until the coach (or the user) puts real code in it.
+  const workspaceLoaded = code !== PLACEHOLDER;
 
   // Optional: the user can type the exact thing they want to work on instead of
   // speaking it. Empty by default — when blank, freestyle behaves exactly as
@@ -82,43 +98,91 @@ export default function FreestyleWorkspace() {
     [code, language, customQuestion]
   );
 
-  return (
-    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-gray-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-gray-400 hover:text-white text-sm">← Home</Link>
-          <span className="text-gray-600">·</span>
-          <h1 className="text-lg font-semibold">Freestyle</h1>
-        </div>
-        <button
-          onClick={() => setQuestionModalOpen(true)}
-          title={customQuestion || "Optionally type your own question to start with"}
-          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-            customQuestion
-              ? "border-fuchsia-500/60 text-fuchsia-300 bg-fuchsia-500/10 hover:bg-fuchsia-500/20"
-              : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"
-          }`}
-        >
-          ✎ Custom question
-          {customQuestion && <span className="text-fuchsia-400">●</span>}
-        </button>
-      </header>
+  const controls = (
+    <button
+      onClick={() => setQuestionModalOpen(true)}
+      title={customQuestion || "Optionally type your own question to start with"}
+      className={`inline-flex items-center gap-2 rounded-[7px] border px-3.5 py-2 font-sans text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
+        customQuestion
+          ? "border-cognac/50 bg-cognac/[0.08] text-cognac-text"
+          : "border-edge bg-chip text-ink-muted hover:border-cognac/40"
+      }`}
+    >
+      <Pencil size={14} />
+      Custom question
+      {customQuestion && <span className="text-cognac">●</span>}
+    </button>
+  );
 
-      {/* Split screen */}
-      <div className="flex-1 min-h-0 flex">
-        {/* Left: coach + voice */}
-        <div className="w-[38%] min-w-[320px] border-r border-gray-800 min-h-0">
+  const prelude = (
+    <>
+      <div className="self-start max-w-[94%]">
+        <div className="mb-1.5 font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-[#a8754a]">
+          Coach
+        </div>
+        <div className="rounded-[3px_14px_14px_14px] border border-hair bg-chip px-4 py-3 font-serif text-[17px] leading-[1.5] text-ink-soft">
+          Welcome to freestyle. This is your hour — what would you like to work on
+          today?
+        </div>
+      </div>
+      <div className="self-start w-full">
+        <div className="mb-2.5 font-sans text-[10px] font-medium uppercase tracking-[0.14em] text-faint">
+          Or pick a starting point
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          {STARTERS.map((s) => (
+            <button
+              key={s.label}
+              onClick={() => setCustomQuestion(s.intent)}
+              className={`rounded-full border px-[15px] py-2.5 font-sans text-[13.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
+                customQuestion === s.intent
+                  ? "border-cognac/50 bg-cognac/[0.08] text-cognac-text"
+                  : "border-edge bg-chip text-ink-soft hover:border-cognac/40"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
+  const waitingOverlay = (
+    <div className="flex flex-col items-center gap-3.5 text-center">
+      <div className="grid h-14 w-14 place-items-center rounded-full border-2 border-dashed border-[#d6c8ad] animate-spin-slow">
+        <Sun size={22} className="text-faint" />
+      </div>
+      <div className="max-w-[300px] font-serif italic text-[19px] leading-[1.4] text-faint">
+        Your workspace is ready.
+        <br />
+        Whatever you choose appears here.
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <SessionFrame
+        root={{ label: "Studio", href: "/" }}
+        title="Freestyle"
+        endLabel="End Session"
+        onEnd={() => router.push("/")}
+        controls={controls}
+      >
+        {/* Conversation (the hero — wider) */}
+        <div className="w-[520px] flex-none border-r border-section min-h-0">
           <VoiceChat
             sessionId={sessionId}
             mode="freestyle"
             getContext={getContext}
             onEditorWrite={handleEditorWrite}
+            prelude={prelude}
           />
         </div>
 
-        {/* Right: editor (full height — the coach fills it in for you) */}
-        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        {/* Work */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-editor">
           <CodeEditor
             code={code}
             language={language}
@@ -126,9 +190,11 @@ export default function FreestyleWorkspace() {
             onCodeChange={setCode}
             onLanguageChange={setLanguage}
             onRun={handleRun}
+            canRun={workspaceLoaded}
+            overlay={workspaceLoaded ? undefined : waitingOverlay}
           />
         </div>
-      </div>
+      </SessionFrame>
 
       {questionModalOpen && (
         <CustomQuestionModal
@@ -137,6 +203,6 @@ export default function FreestyleWorkspace() {
           onClose={() => setQuestionModalOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }
