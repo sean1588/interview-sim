@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import * as ts from "typescript";
-import { runCode, transpileTypeScript, wrapTranspiledTs } from "@/lib/runner";
+import {
+  memoizeWithRetry,
+  runCode,
+  transpileTypeScript,
+  wrapTranspiledTs,
+} from "@/lib/runner";
 
 // Only the language-dispatch fallback is unit-testable without a real
 // Worker/Pyodide environment; the python/js/ts execution paths are integration
@@ -18,6 +23,32 @@ describe("runCode dispatch", () => {
     const r = await runCode("go", "package main");
     expect(r.exitCode).toBe(1);
     expect(r.output).toContain("go");
+  });
+});
+
+// The CDN loaders (Pyodide worker, TypeScript) memoize their load promise. The
+// bug was that a rejected promise stayed cached forever, so every later Run hit
+// the same failure until a page reload. memoizeWithRetry is the shared fix; its
+// retry-on-failure is the one piece of that logic testable without a real CDN.
+describe("memoizeWithRetry", () => {
+  it("loads once and caches the resolved value", async () => {
+    let calls = 0;
+    const load = memoizeWithRetry(async () => ++calls);
+    expect(await load()).toBe(1);
+    expect(await load()).toBe(1);
+    expect(calls).toBe(1);
+  });
+
+  it("drops the cache on rejection so the next call retries", async () => {
+    let calls = 0;
+    const load = memoizeWithRetry(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("CDN down");
+      return "ok";
+    });
+    await expect(load()).rejects.toThrow("CDN down");
+    await expect(load()).resolves.toBe("ok"); // retried, not stuck on the rejection
+    expect(calls).toBe(2);
   });
 });
 

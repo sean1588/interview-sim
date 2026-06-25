@@ -1,7 +1,9 @@
 // In-browser code execution. Keeps us backend-free for the spike: no execution
 // service, no API key, no per-run cost.
-//   - Python runs on Pyodide (real CPython compiled to WASM), loaded lazily
-//     from a CDN the first time the candidate hits Run.
+//   - Python runs on Pyodide (real CPython compiled to WASM) inside a Web
+//     Worker — loaded lazily from a CDN the first time the candidate hits Run,
+//     then reused across runs. Running off the main thread gives Python the same
+//     hard timeout as JS, so a stray infinite loop can't hang the page.
 //   - JavaScript runs in a sandboxed Web Worker with a hard timeout so a stray
 //     infinite loop can't hang the page.
 //   - TypeScript loads the compiler lazily from a CDN, strips types
@@ -34,56 +36,130 @@ function makeResult(parts: {
   };
 }
 
+/**
+ * Memoize a one-shot async CDN loader, but DROP the cache if it rejects so the
+ * next caller retries instead of being stuck forever on a permanently-failed
+ * promise. The `cached === p` guard makes the reset race-safe: a retry already
+ * in flight when an older attempt's rejection lands isn't clobbered. Exported
+ * for unit testing.
+ */
+export function memoizeWithRetry<T>(load: () => Promise<T>): () => Promise<T> {
+  let cached: Promise<T> | null = null;
+  return () => {
+    if (cached) return cached;
+    const p = load();
+    p.catch(() => {
+      if (cached === p) cached = null;
+    });
+    cached = p;
+    return p;
+  };
+}
+
 const PYODIDE_VERSION = "0.26.2";
 const PYODIDE_BASE = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let pyodidePromise: Promise<any> | null = null;
+// Pyodide runs inside a persistent Web Worker. The ~10MB WASM loads once (on the
+// first message) and is reused across runs — but because it's off the main
+// thread, a runaway loop can be killed with terminate(), giving Python the same
+// 5s kill switch the JS worker has. stdout/stderr come back as separate streams
+// and are combined by makeResult on the main thread, so warnings on stderr stay
+// visible without being treated as failure. The worker auto-fetches any imported
+// packages bundled for Pyodide (numpy, pandas, …) so the libraries lessons run.
+const PY_WORKER_SRC = `
+let pyReady = null;
+const ensurePy = () => {
+  if (!pyReady) {
+    pyReady = (async () => {
+      importScripts("${PYODIDE_BASE}pyodide.js");
+      return await self.loadPyodide({ indexURL: "${PYODIDE_BASE}" });
+    })();
+  }
+  return pyReady;
+};
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function loadPyodide(): Promise<any> {
-  if (pyodidePromise) return pyodidePromise;
-  pyodidePromise = new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    const boot = async () => {
-      try {
-        const py = await w.loadPyodide({ indexURL: PYODIDE_BASE });
-        resolve(py);
-      } catch (e) {
-        reject(e);
-      }
-    };
-    if (w.loadPyodide) {
-      boot();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = `${PYODIDE_BASE}pyodide.js`;
-    script.onload = boot;
-    script.onerror = () => reject(new Error("Failed to load Pyodide from CDN"));
-    document.head.appendChild(script);
-  });
-  return pyodidePromise;
-}
-
-async function runPython(code: string): Promise<RunResult> {
-  const py = await loadPyodide();
+self.onmessage = async (e) => {
+  let py;
+  try {
+    py = await ensurePy();
+  } catch (err) {
+    // Pyodide itself failed to load — the main thread drops this worker so the
+    // next Run retries the CDN (mirrors loadTypeScript's retry-on-failure).
+    self.postMessage({ loadError: String((err && err.message) || err) });
+    return;
+  }
   let stdout = "";
   let stderr = "";
-  py.setStdout({ batched: (s: string) => (stdout += s + "\n") });
-  py.setStderr({ batched: (s: string) => (stderr += s + "\n") });
+  py.setStdout({ batched: (s) => (stdout += s + "\\n") });
+  py.setStderr({ batched: (s) => (stderr += s + "\\n") });
   try {
-    // Auto-fetch any imported packages bundled for Pyodide (numpy, pandas, …)
-    // from the CDN so the libraries lessons can actually run. No-op for code
-    // that only imports the stdlib.
-    await py.loadPackagesFromImports(code);
-    await py.runPythonAsync(code);
-    return makeResult({ stdout, stderr, exitCode: stderr ? 1 : 0 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return makeResult({ stdout, stderr: stderr + msg, exitCode: 1 });
+    await py.loadPackagesFromImports(e.data.code);
+    await py.runPythonAsync(e.data.code);
+    self.postMessage({ ok: true, stdout, stderr });
+  } catch (err) {
+    self.postMessage({ ok: false, stdout, stderr, error: String((err && err.message) || err) });
   }
+};
+`;
+
+let pyWorker: Worker | null = null;
+let pyWorkerUrl: string | null = null;
+
+function getPyWorker(): Worker {
+  if (pyWorker) return pyWorker;
+  const blob = new Blob([PY_WORKER_SRC], { type: "application/javascript" });
+  pyWorkerUrl = URL.createObjectURL(blob);
+  pyWorker = new Worker(pyWorkerUrl);
+  return pyWorker;
+}
+
+function killPyWorker() {
+  pyWorker?.terminate();
+  if (pyWorkerUrl) URL.revokeObjectURL(pyWorkerUrl);
+  pyWorker = null;
+  pyWorkerUrl = null;
+}
+
+// The Run button is disabled while a run is in flight (CodeEditor), so the
+// persistent worker only ever handles one request at a time — a per-call
+// onmessage handler is enough; no request queue is needed.
+function runPython(code: string): Promise<RunResult> {
+  return new Promise((resolve) => {
+    const worker = getPyWorker();
+    const timeout = setTimeout(() => {
+      killPyWorker(); // kill the runaway loop; the next Run gets a fresh worker
+      resolve(
+        makeResult({
+          stderr: "Execution timed out (5s) — possible infinite loop.",
+          exitCode: 1,
+        })
+      );
+    }, 5000);
+
+    worker.onmessage = (e) => {
+      clearTimeout(timeout);
+      const { ok, stdout, stderr, error, loadError } = e.data;
+      if (loadError) {
+        killPyWorker(); // drop the failed worker so the next Run retries the CDN
+        resolve(makeResult({ stderr: loadError, exitCode: 1 }));
+        return;
+      }
+      // Exit code reflects whether execution *raised*, not whether stderr was
+      // written — warnings/noise on stderr surface in `output`, not as failure.
+      resolve(
+        ok
+          ? makeResult({ stdout, stderr, exitCode: 0 })
+          : makeResult({ stdout, stderr: stderr + error, exitCode: 1 })
+      );
+    };
+    worker.onerror = (e) => {
+      clearTimeout(timeout);
+      killPyWorker();
+      resolve(makeResult({ stderr: e.message, exitCode: 1 }));
+    };
+
+    worker.postMessage({ code });
+  });
 }
 
 const JS_WORKER_SRC = `
@@ -151,33 +227,30 @@ function runJavaScript(code: string): Promise<RunResult> {
 const TYPESCRIPT_VERSION = "5.9.3";
 const TYPESCRIPT_SRC = `https://cdn.jsdelivr.net/npm/typescript@${TYPESCRIPT_VERSION}/lib/typescript.js`;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let typescriptPromise: Promise<any> | null = null;
-
 // Load the TypeScript compiler from the CDN once and cache it. The UMD bundle
-// exposes a global `ts` when loaded via a <script> tag. Mirrors loadPyodide.
+// exposes a global `ts` when loaded via a <script> tag. memoizeWithRetry drops
+// the cache on failure so a flaky CDN load doesn't poison every later Run.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function loadTypeScript(): Promise<any> {
-  if (typescriptPromise) return typescriptPromise;
-  typescriptPromise = new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    if (w.ts) {
-      resolve(w.ts);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = TYPESCRIPT_SRC;
-    script.onload = () =>
-      w.ts
-        ? resolve(w.ts)
-        : reject(new Error("TypeScript compiler loaded but `ts` global is missing"));
-    script.onerror = () =>
-      reject(new Error("Failed to load the TypeScript compiler from CDN"));
-    document.head.appendChild(script);
-  });
-  return typescriptPromise;
-}
+const loadTypeScript = memoizeWithRetry<any>(
+  () =>
+    new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      if (w.ts) {
+        resolve(w.ts);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = TYPESCRIPT_SRC;
+      script.onload = () =>
+        w.ts
+          ? resolve(w.ts)
+          : reject(new Error("TypeScript compiler loaded but `ts` global is missing"));
+      script.onerror = () =>
+        reject(new Error("Failed to load the TypeScript compiler from CDN"));
+      document.head.appendChild(script);
+    })
+);
 
 /**
  * Strip types and downlevel to plain JS. `transpileModule` is single-file and
