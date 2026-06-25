@@ -3,6 +3,7 @@ import * as ts from "typescript";
 import {
   memoizeWithRetry,
   runCode,
+  shapePyMessage,
   transpileTypeScript,
   wrapTranspiledTs,
 } from "@/lib/runner";
@@ -26,9 +27,9 @@ describe("runCode dispatch", () => {
   });
 });
 
-// The CDN loaders (Pyodide worker, TypeScript) memoize their load promise. The
-// bug was that a rejected promise stayed cached forever, so every later Run hit
-// the same failure until a page reload. memoizeWithRetry is the shared fix; its
+// loadTypeScript memoizes its CDN load; the bug was that a rejected promise stayed
+// cached forever, so every later Run hit the same failure until a page reload.
+// memoizeWithRetry is that fix (the Python worker has its own equivalent). Its
 // retry-on-failure is the one piece of that logic testable without a real CDN.
 describe("memoizeWithRetry", () => {
   it("loads once and caches the resolved value", async () => {
@@ -49,6 +50,30 @@ describe("memoizeWithRetry", () => {
     await expect(load()).rejects.toThrow("CDN down");
     await expect(load()).resolves.toBe("ok"); // retried, not stuck on the rejection
     expect(calls).toBe(2);
+  });
+});
+
+// The Python worker posts {ok,stdout,stderr,error} | {loadError}; turning that into
+// a RunResult is pure, so the exit-code contract (the bug this PR fixes) is tested
+// here without a real Worker/WASM.
+describe("shapePyMessage", () => {
+  it("is exit 0 on success even when the run wrote to stderr (warnings are not failure)", () => {
+    const r = shapePyMessage({ ok: true, stdout: "ok\n", stderr: "warn\n" });
+    expect(r.exitCode).toBe(0); // would be 1 under the old `stderr ? 1 : 0`
+    expect(r.stdout).toBe("ok\n");
+    expect(r.output).toContain("warn"); // stderr stays visible, just not a failure
+  });
+
+  it("is exit 1 when the run raised, appending the traceback to stderr", () => {
+    const r = shapePyMessage({ ok: false, stdout: "", stderr: "", error: "Traceback: boom" });
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toContain("Traceback: boom");
+  });
+
+  it("is exit 1 on a load failure", () => {
+    const r = shapePyMessage({ loadError: "Failed to load Pyodide from CDN" });
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toContain("Pyodide");
   });
 });
 
