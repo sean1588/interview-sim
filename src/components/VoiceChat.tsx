@@ -53,6 +53,9 @@ interface VoiceChatProps {
   sessionId: string;
   /** Which experience this is — sent on every turn so the server uses the right system prompt. */
   mode?: SessionMode;
+  /** Tutor mode — sent on every turn so the server swaps the evaluative
+   * interviewer for a teaching persona (coding / system-design only). */
+  tutor?: boolean;
   /** Pulled fresh on each turn so the interviewer / tutor sees the latest code / notes. */
   getContext?: () => SessionContext;
   /** Freestyle: invoked when the agent pushes new contents into the editor. */
@@ -67,6 +70,7 @@ interface VoiceChatProps {
 export default function VoiceChat({
   sessionId,
   mode,
+  tutor,
   getContext,
   onEditorWrite,
   orbSize = 64,
@@ -193,6 +197,7 @@ export default function VoiceChat({
         if (mode) {
           form.append("mode", mode);
         }
+        if (tutor) form.append("tutor", "true");
 
         // Attach live context so the interviewer "sees" the candidate's state.
         // Coding: code + runs. Behavioral/System: notes + current question.
@@ -274,7 +279,7 @@ export default function VoiceChat({
         setStatus("listening");
       }
     },
-    [stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode]
+    [stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode, tutor]
   );
 
   const sendAudio = useCallback(

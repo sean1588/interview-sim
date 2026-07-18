@@ -147,6 +147,73 @@ describe("interviewer prompts and kickoffs", () => {
   });
 });
 
+describe("tutor mode", () => {
+  // Tutor mode is a persona flag orthogonal to mode: same problem bank, editor,
+  // and scorecard — only the live interviewer changes. These tests pin the
+  // contract (which modes honour the flag, and that the persona actually flips),
+  // not the coaching copy itself.
+  const TUTORABLE = ["coding", "system-design"] as const;
+
+  it("flips coding and system-design to a coaching persona", () => {
+    for (const mode of TUTORABLE) {
+      const off = getSystemPrompt(mode, { questionTitle: "Foo", questionPrompt: "Bar baz." });
+      const on = getSystemPrompt(mode, {
+        questionTitle: "Foo",
+        questionPrompt: "Bar baz.",
+        tutor: true,
+      });
+      expect(on).not.toBe(off);
+      expect(on).toMatch(/tutor/i);
+      expect(on).toMatch(/not an evaluation/i);
+      // The teaching persona hands the approach over rather than withholding it.
+      expect(on).toMatch(/do not withhold|Never withhold/i);
+      // And it keeps the voice constraints the evaluative persona has.
+      expect(on).toMatch(/1-3 sentences/);
+      expect(on).toMatch(/(never use|no) markdown/i);
+      // The question still reaches the prompt.
+      expect(on).toContain("Foo");
+      expect(on).toContain("Bar baz.");
+    }
+  });
+
+  it("still calibrates system-design to the target level, and never coding", () => {
+    const staff = getLevel("staff");
+    expect(
+      getSystemPrompt("system-design", { targetLevel: "staff", tutor: true })
+    ).toContain(staff.blurb);
+    expect(
+      getSystemPrompt("coding", { targetLevel: "staff", tutor: true })
+    ).not.toContain(staff.blurb);
+  });
+
+  it("is ignored by every other mode", () => {
+    for (const mode of ["behavioral", "learning", "freestyle"] as const) {
+      expect(getSystemPrompt(mode, { tutor: true })).toBe(getSystemPrompt(mode, {}));
+      expect(getKickoffPrompt(mode, undefined, undefined, true)).toBe(
+        getKickoffPrompt(mode)
+      );
+    }
+  });
+
+  it("opens coding and system-design with a teaching kickoff", () => {
+    for (const mode of TUTORABLE) {
+      const on = getKickoffPrompt(mode, undefined, undefined, true);
+      expect(on).not.toBe(getKickoffPrompt(mode));
+      expect(on).toMatch(/tutor/i);
+      expect(on).toMatch(/together/i);
+    }
+  });
+
+  it("is off by default — omitting the flag changes nothing", () => {
+    for (const mode of SESSION_MODES) {
+      expect(getSystemPrompt(mode, { tutor: false })).toBe(getSystemPrompt(mode));
+      expect(getKickoffPrompt(mode, undefined, undefined, false)).toBe(
+        getKickoffPrompt(mode)
+      );
+    }
+  });
+});
+
 describe("target-level calibration (interviewer)", () => {
   it("embeds the target level's expectations for behavioral and system-design", () => {
     const staff = getLevel("staff");

@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
     // Mode + common fields
     const rawMode = (formData.get("mode") as string | null) ?? "coding";
     const mode: SessionMode = isValidSessionMode(rawMode) ? rawMode : "coding";
+    // Tutor mode is orthogonal to mode: same problem and scorecard, teaching
+    // persona instead of an evaluative one. Ignored outside coding / system-design.
+    const tutor = formData.get("tutor") === "true";
 
     const code = (formData.get("code") as string | null) ?? "";
     const language = (formData.get("language") as string | null) ?? "";
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (kickoff) {
       session.history.push({
         role: "user",
-        content: getKickoffPrompt(mode, language, questionPrompt || undefined),
+        content: getKickoffPrompt(mode, language, questionPrompt || undefined, tutor),
       });
     } else {
       // Attach the live editor context (coding) and/or notes (behavioral / system-design).
@@ -81,6 +84,7 @@ export async function POST(req: NextRequest) {
         questionPrompt,
         targetLevel,
         language,
+        tutor,
       }),
     };
     const messages = [systemMsg, ...session.history];
