@@ -7,6 +7,7 @@ import CodeEditor from "@/components/CodeEditor";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
 import SessionFrame from "@/components/session/SessionFrame";
 import SelectChip from "@/components/session/SelectChip";
+import ToggleChip from "@/components/session/ToggleChip";
 import { useSession } from "@/components/useSession";
 import {
   PROBLEMS,
@@ -35,6 +36,9 @@ const DIFFICULTY_TONE: Record<Difficulty, string> = {
 export default function InterviewSim() {
   const [problemId, setProblemId] = useState(PROBLEMS[0].id);
   const [language, setLanguage] = useState<LanguageId>("python");
+  // Same problem, editor, and scorecard — only the live interviewer persona
+  // changes (evaluator -> teacher).
+  const [tutor, setTutor] = useState(false);
 
   const { sessionId, assessing, result: scorecard, error: assessError, endSession, closeResult } =
     useSession<ScorecardData>("coding");
@@ -137,6 +141,7 @@ export default function InterviewSim() {
           </option>
         ))}
       </SelectChip>
+      <ToggleChip checked={tutor} onChange={setTutor} label="Tutor mode" />
     </>
   );
 
@@ -154,7 +159,7 @@ export default function InterviewSim() {
       >
         {/* Conversation */}
         <div className="w-[466px] flex-none border-r border-section min-h-0">
-          <VoiceChat sessionId={sessionId} mode="coding" getContext={getContext} />
+          <VoiceChat sessionId={sessionId} mode="coding" tutor={tutor} getContext={getContext} />
         </div>
 
         {/* Work */}

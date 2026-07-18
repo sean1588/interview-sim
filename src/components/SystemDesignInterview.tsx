@@ -8,6 +8,7 @@ export default function SystemDesignInterview() {
       title="System Design Interview"
       questionLabel="Prompt"
       questions={SYSTEM_DESIGN_QUESTIONS}
+      allowTutor
       notesHeading="Design notes (live — interviewer sees this)"
       notesPlaceholder={
         "Requirements (functional + non-functional)\n\nHigh-level architecture (services, data stores, queues...)\n\nAPIs / data model\n\nCapacity estimates & bottlenecks\n\nTradeoffs & alternatives\n\nFailure modes & mitigation"

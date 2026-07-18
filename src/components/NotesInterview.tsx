@@ -5,6 +5,7 @@ import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
 import SessionFrame from "@/components/session/SessionFrame";
 import SelectChip from "@/components/session/SelectChip";
+import ToggleChip from "@/components/session/ToggleChip";
 import { LEVELS, type TargetLevel } from "@/lib/levels";
 import { useSession } from "@/components/useSession";
 import type { InterviewMode } from "@/lib/types/mode";
@@ -27,12 +28,16 @@ export interface NotesInterviewConfig {
   sectionChips?: string[];
   /** Optional guidance shown under the notes area. */
   notesFooter?: string;
+  /** Offer the "Tutor mode" toggle. Opt-in: system-design teaches well, a
+   * behavioral interview has no approach to hand over. */
+  allowTutor?: boolean;
 }
 
 export default function NotesInterview(cfg: NotesInterviewConfig) {
   const { mode, questions } = cfg;
   const [questionId, setQuestionId] = useState(questions[0].id);
   const [level, setLevel] = useState<TargetLevel>("senior");
+  const [tutor, setTutor] = useState(false);
   // Notes survive question switches — the candidate may want to carry ideas over.
   const [notes, setNotes] = useState("");
 
@@ -95,6 +100,9 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
           </option>
         ))}
       </SelectChip>
+      {cfg.allowTutor && (
+        <ToggleChip checked={tutor} onChange={setTutor} label="Tutor mode" />
+      )}
     </>
   );
 
@@ -112,7 +120,7 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
       >
         {/* Conversation */}
         <div className="w-[466px] flex-none border-r border-section min-h-0">
-          <VoiceChat sessionId={sessionId} mode={mode} getContext={getContext} />
+          <VoiceChat sessionId={sessionId} mode={mode} tutor={tutor} getContext={getContext} />
         </div>
 
         {/* Work: question + notes */}
