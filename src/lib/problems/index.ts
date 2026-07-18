@@ -13,6 +13,7 @@ import { dpProblems } from "./dp";
 import { backtrackingProblems } from "./backtracking";
 import { designProblems } from "./design";
 import { jsUtilProblems } from "./js-utils";
+import { practicalProblems } from "./practical";
 
 export type { Problem, LanguageId, Difficulty } from "./types";
 
@@ -28,6 +29,7 @@ export const PROBLEMS: Problem[] = [
   ...backtrackingProblems,
   ...designProblems,
   ...jsUtilProblems,
+  ...practicalProblems,
 ];
 
 export function getProblem(id: string): Problem | undefined {
