@@ -8,6 +8,7 @@ export default function BehavioralInterview() {
       title="Behavioral Interview"
       questionLabel="Scenario"
       questions={BEHAVIORAL_QUESTIONS}
+      allowTutor
       questionTip="Tip: Use the notes area to outline your STAR story (Situation, Task, Action, Result) before or during the conversation."
       notesHeading="Your notes / STAR outline (live — interviewer can see this)"
       notesPlaceholder={
