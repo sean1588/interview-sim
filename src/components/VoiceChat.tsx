@@ -5,13 +5,22 @@ import { SimpleVAD } from "@/lib/vad";
 import type { SessionMode } from "@/lib/prompts";
 import Orb, { type OrbState } from "@/components/session/Orb";
 import Equalizer from "@/components/session/Equalizer";
-import { Mic, Send } from "@/components/session/icons";
+import { Mic, MicOff, Send } from "@/components/session/icons";
 
 // "listening"/"speaking" are mic-only; "ready" is their text-mode counterpart —
-// the composer is enabled and awaiting a typed reply.
-type Status = "idle" | "listening" | "processing" | "speaking" | "ready";
+// the composer is enabled and awaiting a typed reply. "off" is the push-to-talk
+// resting state: the session is live but the mic is disarmed (released).
+type Status = "idle" | "listening" | "processing" | "speaking" | "ready" | "off";
 type InputMode = "voice" | "text";
+// How the mic engages. push-to-talk: disarmed until the user taps to arm; the
+// mic returns to its armed/disarmed state after each reply. hands-free: today's
+// continuous listening — armed on start, reopened after every reply.
+type MicMode = "push-to-talk" | "hands-free";
 type Message = { role: "user" | "assistant"; text: string };
+
+// New sessions start in push-to-talk (mic disarmed) so the mic is only live once
+// the user toggles it on. Flip this one constant to default to hands-free.
+const DEFAULT_MIC_MODE: MicMode = "push-to-talk";
 
 /** Who's on the other end of the conversation, per mode — the orb header name and
  * the caps label above interviewer/coach/tutor bubbles. Dispatch by lookup, not
@@ -32,6 +41,7 @@ const VOICE: Record<Status, { label: string; accent: string; orb: OrbState; eq: 
   processing: { label: "Thinking", accent: "#8a7d63", orb: "thinking", eq: false },
   speaking: { label: "Speaking", accent: "#b5651d", orb: "speaking", eq: true },
   ready: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+  off: { label: "Mic off", accent: "#a8997e", orb: "idle", eq: false },
 };
 
 /** Orb header treatment in text mode: no mic states, just thinking vs. ready. */
@@ -41,6 +51,7 @@ const TEXT_HEADER: Record<Status, { label: string; accent: string; orb: OrbState
   listening: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
   speaking: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
   ready: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+  off: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
 };
 
 /** Live workspace context provided on every turn. Every mode identifies its
@@ -94,6 +105,11 @@ export default function VoiceChat({
   // Voice (mic) vs. text (typed). Default voice; switchable mid-session without
   // losing the server-side history, since both modes share one sessionId.
   const [inputMode, setInputMode] = useState<InputMode>("voice");
+  // How the mic engages (push-to-talk vs. hands-free) and whether it's currently
+  // armed. `armed` is the single source of truth for "should the mic be open" —
+  // finishTurnIfIdle reopens after a reply only when it's set.
+  const [micMode, setMicMode] = useState<MicMode>(DEFAULT_MIC_MODE);
+  const [armed, setArmed] = useState(false);
   // Surfaced in the mic bar. Mic-permission failures and failed turns used to
   // reach only the (now-removed) dev log; this is the user-facing channel.
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +120,22 @@ export default function VoiceChat({
   const inputModeRef = useRef(inputMode);
   useEffect(() => {
     inputModeRef.current = inputMode;
+  });
+  const micModeRef = useRef(micMode);
+  useEffect(() => {
+    micModeRef.current = micMode;
+  });
+  // finishTurnIfIdle reads this (it's memoized with no deps) to decide whether to
+  // reopen the mic. Handlers set it directly for immediacy; the effect is backup.
+  const armedRef = useRef(armed);
+  useEffect(() => {
+    armedRef.current = armed;
+  });
+  // Lets event handlers read the live status without listing it as a dep. Used to
+  // gate arming to the settled "off" state (never over a still-playing reply).
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
   });
   // The session has begun (kickoff fired). In voice mode the VAD's presence used
   // to be this signal, but text mode has no VAD — so track it explicitly.
@@ -155,6 +187,11 @@ export default function VoiceChat({
     if (inputModeRef.current === "text") {
       // No mic to reopen — return to a composer-ready state, never "listening".
       setStatus("ready");
+      return;
+    }
+    if (!armedRef.current) {
+      // Push-to-talk, disarmed: don't force the mic back open — settle to "off".
+      setStatus("off");
       return;
     }
     vadRef.current?.unfreeze();
@@ -360,6 +397,31 @@ export default function VoiceChat({
     }
   }, [sendAudio, stopPlayback]);
 
+  // Arm the mic: acquire it (fresh VAD) and start listening. Only called from a
+  // settled state (idle/off, no playback), so there's no echo from a live reply.
+  const arm = useCallback(async () => {
+    try {
+      await startVad();
+    } catch {
+      return; // startVad surfaced the mic error
+    }
+    armedRef.current = true;
+    setArmed(true);
+  }, [startVad]);
+
+  // Disarm the mic: stop the VAD so the OS mic is genuinely released (indicator
+  // off). Re-arming builds a fresh VAD. Safe to call mid-turn — the reply keeps
+  // streaming/playing and finishTurnIfIdle settles to "off" (armed is now false).
+  const disarm = useCallback(() => {
+    vadRef.current?.stop();
+    vadRef.current = null;
+    armedRef.current = false;
+    setArmed(false);
+    // A live "listening" state has no turn to finish, so drop to "off" now;
+    // mid-turn we leave the status alone and let finishTurnIfIdle land on "off".
+    setStatus((s) => (s === "listening" ? "off" : s));
+  }, []);
+
   const startConversation = useCallback(async () => {
     if (startedRef.current) return;
     setMessages([]);
@@ -372,26 +434,63 @@ export default function VoiceChat({
       return;
     }
 
-    try {
-      await startVad();
-    } catch {
-      // startVad surfaced the mic error; leave the session unstarted for retry.
-      return;
+    // Hands-free opens the mic on start (continuous listening). Push-to-talk
+    // starts the session disarmed — arming is a separate, deliberate tap.
+    if (micModeRef.current === "hands-free") {
+      try {
+        await startVad();
+      } catch {
+        // startVad surfaced the mic error; leave the session unstarted for retry.
+        return;
+      }
+      armedRef.current = true;
+      setArmed(true);
     }
     startedRef.current = true;
-    // The interviewer opens: greet the candidate and present the problem.
+    // The interviewer opens: greet the candidate and present the problem. Under
+    // push-to-talk the mic stays off; finishTurnIfIdle settles to "off" after.
     runTurn({ kickoff: true });
   }, [startVad, runTurn]);
 
-  const stopConversation = useCallback(() => {
-    vadRef.current?.stop();
-    vadRef.current = null;
-    stopPlayback();
-    abortRef.current?.abort();
-    streamDoneRef.current = false;
-    startedRef.current = false;
-    setStatus("idle");
-  }, [stopPlayback]);
+  // Tap on the round mic button: start the session when idle, otherwise toggle
+  // the mic. Arming only happens from a settled "off" (never mid-reply).
+  const toggleMic = useCallback(() => {
+    if (!startedRef.current) {
+      startConversation();
+    } else if (armedRef.current) {
+      disarm();
+    } else if (statusRef.current === "off") {
+      // Disarmed and settled — arm. If a reply is still playing (disarmed
+      // mid-turn), ignore the tap; the mic becomes armable once it settles.
+      arm();
+    }
+  }, [startConversation, arm, disarm]);
+
+  // Switch push-to-talk ↔ hands-free, symmetrically: hands-free ensures the mic
+  // is armed (open now, or reopened at turn end if a reply is in flight);
+  // push-to-talk disarms it. Works before or during a session.
+  const switchMicMode = useCallback(
+    (next: MicMode) => {
+      if (next === micModeRef.current) return;
+      micModeRef.current = next;
+      setMicMode(next);
+      if (!startedRef.current) return; // pre-start: just changes the default
+
+      if (next === "hands-free") {
+        if (armedRef.current) return;
+        if (statusRef.current === "off") {
+          arm(); // settled: open the mic now
+        } else {
+          // Mid-turn: mark armed so finishTurnIfIdle reopens once the reply ends.
+          armedRef.current = true;
+          setArmed(true);
+        }
+      } else {
+        disarm();
+      }
+    },
+    [arm, disarm]
+  );
 
   // Flip between voice and text without dropping the session. To text: silence
   // the mic (history stays server-side). To voice: reopen the mic if the session
@@ -405,17 +504,23 @@ export default function VoiceChat({
       if (next === "text") {
         vadRef.current?.stop();
         vadRef.current = null;
+        armedRef.current = false;
+        setArmed(false);
         stopPlayback();
         // A live mic turn (listening/speaking) becomes composer-ready; a turn
         // still processing keeps going and lands on "ready" via finishTurnIfIdle.
         setStatus((s) => (s === "processing" || s === "idle" ? s : "ready"));
       } else if (startedRef.current) {
-        // Reopen the mic for an in-progress session; failure surfaces an error
-        // and the user can switch back to text.
-        startVad().catch(() => {});
+        // Back to voice mid-session: hands-free reopens the mic; push-to-talk
+        // stays disarmed ("off") until the user taps to arm.
+        if (micModeRef.current === "hands-free") {
+          arm();
+        } else {
+          setStatus("off");
+        }
       }
     },
-    [stopPlayback, startVad]
+    [stopPlayback, arm]
   );
 
   // Entering text mode before the session has begun starts it (the assistant
@@ -438,6 +543,8 @@ export default function VoiceChat({
 
   const v = inputMode === "text" ? TEXT_HEADER[status] : VOICE[status];
   const speaker = SPEAKER[mode ?? "coding"];
+  // Disarmed-and-settled: the round button flips to a muted "off" affordance.
+  const micOff = status === "off";
 
   return (
     <div className="h-full w-full min-h-0 flex flex-col bg-raised">
@@ -470,19 +577,35 @@ export default function VoiceChat({
         <div ref={chatEndRef} />
       </div>
 
-      {/* Input bar — mode toggle plus the mic (voice) or composer (text) */}
+      {/* Input bar — mode toggles plus the mic (voice) or composer (text) */}
       <div className="flex-none flex flex-col gap-3 border-t border-hair bg-frame px-5 py-4">
-        <ModeToggle mode={inputMode} onChange={switchMode} />
+        <div className="flex items-center justify-between gap-3">
+          <ModeToggle mode={inputMode} onChange={switchMode} />
+          {inputMode === "voice" && (
+            <MicModeToggle mode={micMode} onChange={switchMicMode} />
+          )}
+        </div>
 
         {inputMode === "voice" ? (
           <div className="flex items-center gap-3">
             <button
-              onClick={status === "idle" ? startConversation : stopConversation}
-              aria-label={status === "idle" ? "Start conversation" : "Stop conversation"}
-              className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
-              style={{ boxShadow: "0 3px 10px rgba(168,85,29,.35)" }}
+              onClick={toggleMic}
+              aria-label={
+                status === "idle"
+                  ? "Start conversation"
+                  : micOff
+                    ? "Turn microphone on"
+                    : "Turn microphone off"
+              }
+              aria-pressed={armed}
+              className={`grid h-11 w-11 flex-none place-items-center rounded-full transition-[transform,background-color] hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame ${
+                micOff
+                  ? "border border-edge bg-chip text-muted"
+                  : "bg-cognac text-[#fbf3e7]"
+              }`}
+              style={micOff ? undefined : { boxShadow: "0 3px 10px rgba(168,85,29,.35)" }}
             >
-              <Mic size={17} />
+              {micOff ? <MicOff size={17} /> : <Mic size={17} />}
             </button>
             <div className="flex items-center gap-2.5 min-w-0">
               {status === "listening" && !error && (
@@ -531,6 +654,39 @@ function ModeToggle({
           }`}
         >
           {m === "voice" ? "Voice" : "Text"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Two-option segmented control choosing how the mic engages: push-to-talk (tap
+ * to arm) vs. hands-free (continuous listening). Mirrors ModeToggle's treatment. */
+function MicModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: MicMode;
+  onChange: (mode: MicMode) => void;
+}) {
+  const LABEL: Record<MicMode, string> = {
+    "push-to-talk": "Push to talk",
+    "hands-free": "Hands-free",
+  };
+  return (
+    <div className="flex-none inline-flex rounded-full border border-edge bg-chip p-0.5">
+      {(["push-to-talk", "hands-free"] as const).map((m) => (
+        <button
+          key={m}
+          onClick={() => onChange(m)}
+          aria-pressed={mode === m}
+          className={`rounded-full px-3.5 py-1 font-sans text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
+            mode === m
+              ? "bg-cognac/[0.10] text-cognac-text"
+              : "text-muted hover:text-ink-soft"
+          }`}
+        >
+          {LABEL[m]}
         </button>
       ))}
     </div>
@@ -597,6 +753,7 @@ const MIC_HINT: Record<Status, string> = {
   speaking: "Speaking…",
   // Text-mode ready state; the mic bar isn't rendered then, but the map is total.
   ready: "Type your reply",
+  off: "Mic off — tap to talk",
 };
 
 /** One transcript turn. Interviewer/coach/tutor bubbles sit left with a cognac
