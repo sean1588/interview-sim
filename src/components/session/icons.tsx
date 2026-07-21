@@ -48,6 +48,18 @@ export function Mic(props: IconProps) {
   );
 }
 
+/** Mic with a slash — the disarmed / "mic off" state of the arm toggle. */
+export function MicOff(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M9 9v-3a3 3 0 0 1 5.1-2.1" />
+      <path d="M15 10.5V6" />
+      <path d="M17 11a5 5 0 0 1-.5 2.2M12 18v4M5 11a7 7 0 0 0 10.9 5.8" />
+      <line x1="3" y1="3" x2="21" y2="21" />
+    </Stroke>
+  );
+}
+
 export function Pencil(props: IconProps) {
   return (
     <Stroke {...props}>
@@ -70,6 +82,15 @@ export function Play({ size = 12, ...rest }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...rest}>
       <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+
+/** Filled square — interrupt the reply that's streaming / playing. */
+export function Stop({ size = 16, ...rest }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...rest}>
+      <rect x="6" y="6" width="12" height="12" rx="2.5" />
     </svg>
   );
 }
