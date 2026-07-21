@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { SessionMode } from "@/lib/types/mode";
+import type { InterviewMode, SessionMode } from "@/lib/types/mode";
+import type { ScorecardData } from "@/components/Scorecard";
+import { saveSession } from "@/lib/history";
+
+const GRADED_MODES = new Set<SessionMode>(["coding", "behavioral", "system-design"]);
+const isGraded = (m: SessionMode): m is InterviewMode => GRADED_MODES.has(m);
 
 /** Session id + end-of-session assessment shared by every voice workspace.
  * `endSession` posts the mode-specific context to /api/assess and surfaces the
@@ -31,6 +36,24 @@ export function useSession<T>(mode: SessionMode) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Assessment failed");
         setResult(data.result);
+
+        // Persist graded scorecards to on-device history (best-effort). Learning
+        // recaps have a different result shape and are intentionally skipped, so
+        // the history UI stays single-shape. A storage failure must never break
+        // the live session or the in-modal result — hence the try/catch.
+        if (isGraded(mode)) {
+          try {
+            saveSession({
+              id: sessionId,
+              mode,
+              questionTitle: String(context.questionTitle ?? "Untitled"),
+              createdAt: Date.now(),
+              result: data.result as ScorecardData,
+            });
+          } catch {
+            // ignore: history is non-essential
+          }
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Assessment failed");
       } finally {
