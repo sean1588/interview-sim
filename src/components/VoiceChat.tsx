@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { SimpleVAD } from "@/lib/vad";
+import { settleTurn, type TurnSettle } from "@/lib/mic-state";
 import type { SessionMode } from "@/lib/prompts";
 import Orb, { type OrbState } from "@/components/session/Orb";
 import Equalizer from "@/components/session/Equalizer";
@@ -115,6 +116,10 @@ export default function VoiceChat({
   const [error, setError] = useState<string | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
+  // finishTurnIfIdle/applySettle acquire the mic through this ref because startVad
+  // is defined later (it closes over the turn callbacks). Kept current by an
+  // effect below, mirroring the other late-bound refs.
+  const startVadRef = useRef<(() => Promise<void>) | null>(null);
   // Read inside the memoized turn callbacks so they branch on the current mode
   // without being torn down and rebuilt every time the toggle flips.
   const inputModeRef = useRef(inputMode);
@@ -177,6 +182,28 @@ export default function VoiceChat({
     audioQueueRef.current = [];
   }, []);
 
+  // Carry out a settleTurn decision. The only subtlety is reopening the armed
+  // mic: unfreeze the frozen VAD if one exists, else acquire a fresh one — the
+  // hands-free-switched-on-mid-turn case, which leaves `armed` set with no VAD.
+  // If acquisition fails, startVad has surfaced the error; drop the now-false
+  // armed state and settle to "off" rather than lie with a dead "listening".
+  const applySettle = useCallback((s: TurnSettle) => {
+    if (s.status !== "listening") {
+      setStatus(s.status);
+      return;
+    }
+    if (s.mic === "unfreeze") {
+      vadRef.current?.unfreeze();
+      setStatus("listening"); // startVad sets this itself on the acquire path
+      return;
+    }
+    startVadRef.current?.().catch(() => {
+      armedRef.current = false;
+      setArmed(false);
+      setStatus("off");
+    });
+  }, []);
+
   // The single owner of "is this turn over?". Every event that could end a turn
   // (server done, <audio> drained) calls this; it reads the turn refs and
   // reopens the mic exactly once.
@@ -184,19 +211,14 @@ export default function VoiceChat({
     if (!streamDoneRef.current) return; // server still streaming
     if (playingRef.current) return; // playback still going
     streamDoneRef.current = false;
-    if (inputModeRef.current === "text") {
-      // No mic to reopen — return to a composer-ready state, never "listening".
-      setStatus("ready");
-      return;
-    }
-    if (!armedRef.current) {
-      // Push-to-talk, disarmed: don't force the mic back open — settle to "off".
-      setStatus("off");
-      return;
-    }
-    vadRef.current?.unfreeze();
-    setStatus("listening");
-  }, []);
+    applySettle(
+      settleTurn({
+        inputMode: inputModeRef.current,
+        armed: armedRef.current,
+        hasVad: vadRef.current !== null,
+      })
+    );
+  }, [applySettle]);
 
   const playNext = useCallback(() => {
     // Local recursion so the drain loop doesn't reference the memoized callback
@@ -342,25 +364,33 @@ export default function VoiceChat({
           }
         }
       } catch (e) {
-        vadRef.current?.unfreeze();
-        // Mirror finishTurnIfIdle: text -> composer, armed voice -> mic reopens,
-        // disarmed voice -> "off" (don't strand a dead mic under push-to-talk).
-        const idleStatus: Status =
-          inputModeRef.current === "text"
-            ? "ready"
-            : armedRef.current
-              ? "listening"
-              : "off";
         if (e instanceof DOMException && e.name === "AbortError") {
-          // Interrupted by the next turn — expected, not an error.
-          setStatus(idleStatus);
+          // Interrupted by the next turn — expected, not an error. That turn owns
+          // the mic from here; just thaw any frozen VAD and set an interim status.
+          vadRef.current?.unfreeze();
+          setStatus(
+            settleTurn({
+              inputMode: inputModeRef.current,
+              armed: armedRef.current,
+              hasVad: vadRef.current !== null,
+            }).status
+          );
           return;
         }
+        // The turn genuinely failed. Settle it like a normal turn end: text ->
+        // composer, armed voice -> reopen the mic (acquiring one if hands-free was
+        // switched on mid-turn), disarmed voice -> "off".
         setError(e instanceof Error ? e.message : "Something went wrong.");
-        setStatus(idleStatus);
+        applySettle(
+          settleTurn({
+            inputMode: inputModeRef.current,
+            armed: armedRef.current,
+            hasVad: vadRef.current !== null,
+          })
+        );
       }
     },
-    [stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode, tutor]
+    [stopPlayback, enqueueAudio, finishTurnIfIdle, applySettle, sessionId, mode, tutor]
   );
 
   const sendAudio = useCallback(
@@ -402,6 +432,12 @@ export default function VoiceChat({
       throw e;
     }
   }, [sendAudio, stopPlayback]);
+
+  // Late-bind startVad so applySettle (defined above, before startVad exists) can
+  // acquire a mic through startVadRef.
+  useEffect(() => {
+    startVadRef.current = startVad;
+  });
 
   // Arm the mic: acquire it (fresh VAD) and start listening. Only called from a
   // settled state (idle/off, no playback), so there's no echo from a live reply.
@@ -487,7 +523,9 @@ export default function VoiceChat({
         if (statusRef.current === "off") {
           arm(); // settled: open the mic now
         } else {
-          // Mid-turn: mark armed so finishTurnIfIdle reopens once the reply ends.
+          // Mid-turn: opening the mic now would capture the playing reply, so just
+          // mark armed. finishTurnIfIdle reopens once the reply ends — acquiring a
+          // fresh mic here, since this branch runs with no VAD.
           armedRef.current = true;
           setArmed(true);
         }
