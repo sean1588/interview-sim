@@ -6,7 +6,7 @@ import { settleTurn, type TurnSettle } from "@/lib/mic-state";
 import type { SessionMode } from "@/lib/prompts";
 import Orb, { type OrbState } from "@/components/session/Orb";
 import Equalizer from "@/components/session/Equalizer";
-import { Mic, MicOff, Send } from "@/components/session/icons";
+import { Mic, MicOff, Send, Stop } from "@/components/session/icons";
 
 // "listening"/"speaking" are mic-only; "ready" is their text-mode counterpart —
 // the composer is enabled and awaiting a typed reply. "off" is the push-to-talk
@@ -18,6 +18,11 @@ type InputMode = "voice" | "text";
 // continuous listening — armed on start, reopened after every reply.
 type MicMode = "push-to-talk" | "hands-free";
 type Message = { role: "user" | "assistant"; text: string };
+
+/** A reply is in flight — the server is still streaming, or its audio is still
+ * playing. Opening the mic now would capture the reply's own voice, so arming is
+ * deferred to the turn's end; it's also the window where "stop" is offered. */
+const isReplying = (s: Status) => s === "processing" || s === "speaking";
 
 // New sessions start in push-to-talk (mic disarmed) so the mic is only live once
 // the user toggles it on. Flip this one constant to default to hands-free.
@@ -116,6 +121,10 @@ export default function VoiceChat({
   const [error, setError] = useState<string | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
+  // The in-flight mic acquisition, if any. `vadRef` is only assigned once
+  // getUserMedia resolves, so it can't guard against a second concurrent attempt
+  // (a double-tap) — this promise does, collapsing them onto one stream.
+  const acquireRef = useRef<Promise<void> | null>(null);
   // finishTurnIfIdle/applySettle acquire the mic through this ref because startVad
   // is defined later (it closes over the turn callbacks). Kept current by an
   // effect below, mirroring the other late-bound refs.
@@ -204,13 +213,10 @@ export default function VoiceChat({
     });
   }, []);
 
-  // The single owner of "is this turn over?". Every event that could end a turn
-  // (server done, <audio> drained) calls this; it reads the turn refs and
-  // reopens the mic exactly once.
-  const finishTurnIfIdle = useCallback(() => {
-    if (!streamDoneRef.current) return; // server still streaming
-    if (playingRef.current) return; // playback still going
-    streamDoneRef.current = false;
+  // Settle the turn from the live refs. Every way a turn can end — drained,
+  // failed, aborted, interrupted — routes through here, so they all land on the
+  // same decision.
+  const settleNow = useCallback(() => {
     applySettle(
       settleTurn({
         inputMode: inputModeRef.current,
@@ -219,6 +225,16 @@ export default function VoiceChat({
       })
     );
   }, [applySettle]);
+
+  // The single owner of "is this turn over?". Every event that could end a turn
+  // (server done, <audio> drained) calls this; it reads the turn refs and
+  // reopens the mic exactly once.
+  const finishTurnIfIdle = useCallback(() => {
+    if (!streamDoneRef.current) return; // server still streaming
+    if (playingRef.current) return; // playback still going
+    streamDoneRef.current = false;
+    settleNow();
+  }, [settleNow]);
 
   const playNext = useCallback(() => {
     // Local recursion so the drain loop doesn't reference the memoized callback
@@ -364,33 +380,23 @@ export default function VoiceChat({
           }
         }
       } catch (e) {
+        // Whoever holds abortRef owns the input now. If a newer turn replaced the
+        // controller — or interrupt() cleared it and settled itself — this turn
+        // must not touch the mic or the status on its way out.
+        const owns = abortRef.current === controller;
         if (e instanceof DOMException && e.name === "AbortError") {
-          // Interrupted by the next turn — expected, not an error. That turn owns
-          // the mic from here; just thaw any frozen VAD and set an interim status.
-          vadRef.current?.unfreeze();
-          setStatus(
-            settleTurn({
-              inputMode: inputModeRef.current,
-              armed: armedRef.current,
-              hasVad: vadRef.current !== null,
-            }).status
-          );
+          // Interrupted — expected, not an error.
+          if (owns) settleNow();
           return;
         }
         // The turn genuinely failed. Settle it like a normal turn end: text ->
         // composer, armed voice -> reopen the mic (acquiring one if hands-free was
         // switched on mid-turn), disarmed voice -> "off".
         setError(e instanceof Error ? e.message : "Something went wrong.");
-        applySettle(
-          settleTurn({
-            inputMode: inputModeRef.current,
-            armed: armedRef.current,
-            hasVad: vadRef.current !== null,
-          })
-        );
+        if (owns) settleNow();
       }
     },
-    [stopPlayback, enqueueAudio, finishTurnIfIdle, applySettle, sessionId, mode, tutor]
+    [stopPlayback, enqueueAudio, finishTurnIfIdle, settleNow, sessionId, mode, tutor]
   );
 
   const sendAudio = useCallback(
@@ -405,32 +411,50 @@ export default function VoiceChat({
 
   // Open the mic and start listening. Throws (after surfacing the error) if the
   // microphone is unavailable, so callers can decide whether to abort start.
+  // Concurrent calls share one acquisition — see acquireRef.
   const startVad = useCallback(async () => {
     if (vadRef.current) return;
-    const vad = new SimpleVAD({
-      silenceThreshold: 1.5,
-      silenceDuration: 1200,
-      preRollMs: 400,
-      onSpeechStart: () => {
-        stopPlayback();
-      },
-      onSpeechEnd: (audio: Blob) => {
-        sendAudio(audio);
-      },
-    });
-    try {
-      await vad.start();
+    if (acquireRef.current) return acquireRef.current;
+
+    const acquire = async () => {
+      const vad = new SimpleVAD({
+        silenceThreshold: 1.5,
+        silenceDuration: 1200,
+        preRollMs: 400,
+        onSpeechStart: () => {
+          stopPlayback();
+        },
+        onSpeechEnd: (audio: Blob) => {
+          sendAudio(audio);
+        },
+      });
+      try {
+        await vad.start();
+      } catch (e) {
+        setError(
+          e instanceof Error
+            ? `Microphone unavailable — ${e.message}`
+            : "Microphone unavailable — check your browser permissions."
+        );
+        throw e;
+      }
+      // Disarmed while the browser was still granting permission: release the
+      // stream instead of parking a live mic nobody asked for. Callers set
+      // `armed` before awaiting precisely so this check can see the change.
+      if (!armedRef.current) {
+        vad.stop();
+        return;
+      }
       vadRef.current = vad;
       setError(null);
       setStatus("listening");
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? `Microphone unavailable — ${e.message}`
-          : "Microphone unavailable — check your browser permissions."
-      );
-      throw e;
-    }
+    };
+
+    const pending = acquire().finally(() => {
+      acquireRef.current = null;
+    });
+    acquireRef.current = pending;
+    return pending;
   }, [sendAudio, stopPlayback]);
 
   // Late-bind startVad so applySettle (defined above, before startVad exists) can
@@ -439,21 +463,29 @@ export default function VoiceChat({
     startVadRef.current = startVad;
   });
 
-  // Arm the mic: acquire it (fresh VAD) and start listening. Only called from a
-  // settled state (idle/off, no playback), so there's no echo from a live reply.
+  // Arm the mic. `armed` flips first: it's the single source of truth the button
+  // reads, and startVad consults it to abandon an acquisition the user cancelled.
+  // From a settled state that means acquiring a mic now; over a playing reply it
+  // means flagging intent only — finishTurnIfIdle acquires once the turn settles,
+  // so the mic never hears the reply. Resolves false if the mic was unavailable.
   const arm = useCallback(async () => {
-    try {
-      await startVad();
-    } catch {
-      return; // startVad surfaced the mic error
-    }
     armedRef.current = true;
     setArmed(true);
+    if (isReplying(statusRef.current)) return true;
+    try {
+      await startVad();
+      return true;
+    } catch {
+      armedRef.current = false; // startVad surfaced the mic error
+      setArmed(false);
+      return false;
+    }
   }, [startVad]);
 
   // Disarm the mic: stop the VAD so the OS mic is genuinely released (indicator
   // off). Re-arming builds a fresh VAD. Safe to call mid-turn — the reply keeps
   // streaming/playing and finishTurnIfIdle settles to "off" (armed is now false).
+  // Also safe mid-acquisition: clearing `armed` makes startVad drop the stream.
   const disarm = useCallback(() => {
     vadRef.current?.stop();
     vadRef.current = null;
@@ -463,6 +495,17 @@ export default function VoiceChat({
     // mid-turn we leave the status alone and let finishTurnIfIdle land on "off".
     setStatus((s) => (s === "listening" ? "off" : s));
   }, []);
+
+  // Cut a reply short: drop the queued audio and abort the in-flight request.
+  // Barge-in covers this while the mic is armed; disarmed, this is the only way
+  // to stop a long answer, so it's offered as its own control. We clear abortRef
+  // and settle here, so runTurn's catch stands down (see `owns` there).
+  const interrupt = useCallback(() => {
+    stopPlayback();
+    abortRef.current?.abort();
+    abortRef.current = null;
+    settleNow();
+  }, [stopPlayback, settleNow]);
 
   const startConversation = useCallback(async () => {
     if (startedRef.current) return;
@@ -479,31 +522,30 @@ export default function VoiceChat({
     // Hands-free opens the mic on start (continuous listening). Push-to-talk
     // starts the session disarmed — arming is a separate, deliberate tap.
     if (micModeRef.current === "hands-free") {
-      try {
-        await startVad();
-      } catch {
-        // startVad surfaced the mic error; leave the session unstarted for retry.
-        return;
-      }
-      armedRef.current = true;
-      setArmed(true);
+      // arm() surfaced the mic error; leave the session unstarted for retry.
+      if (!(await arm())) return;
     }
     startedRef.current = true;
     // The interviewer opens: greet the candidate and present the problem. Under
     // push-to-talk the mic stays off; finishTurnIfIdle settles to "off" after.
     runTurn({ kickoff: true });
-  }, [startVad, runTurn]);
+  }, [arm, runTurn]);
 
-  // Tap on the round mic button: start the session when idle, otherwise toggle
-  // the mic. Arming only happens from a settled "off" (never mid-reply).
+  // Tap on the round mic button: start the session when idle, otherwise flip the
+  // armed state. Never a no-op — arm() handles the mid-reply case by deferring
+  // acquisition, so the button always means what its icon says.
   const toggleMic = useCallback(() => {
     if (!startedRef.current) {
       startConversation();
     } else if (armedRef.current) {
       disarm();
-    } else if (statusRef.current === "off") {
-      // Disarmed and settled — arm. If a reply is still playing (disarmed
-      // mid-turn), ignore the tap; the mic becomes armable once it settles.
+      // Disarming by hand *is* choosing push-to-talk; otherwise the segmented
+      // control would keep claiming "Hands-free" over a released mic.
+      if (micModeRef.current === "hands-free") {
+        micModeRef.current = "push-to-talk";
+        setMicMode("push-to-talk");
+      }
+    } else {
       arm();
     }
   }, [startConversation, arm, disarm]);
@@ -519,16 +561,7 @@ export default function VoiceChat({
       if (!startedRef.current) return; // pre-start: just changes the default
 
       if (next === "hands-free") {
-        if (armedRef.current) return;
-        if (statusRef.current === "off") {
-          arm(); // settled: open the mic now
-        } else {
-          // Mid-turn: opening the mic now would capture the playing reply, so just
-          // mark armed. finishTurnIfIdle reopens once the reply ends — acquiring a
-          // fresh mic here, since this branch runs with no VAD.
-          armedRef.current = true;
-          setArmed(true);
-        }
+        if (!armedRef.current) arm(); // opens the mic now, or at the turn's end
       } else {
         disarm();
       }
@@ -587,8 +620,10 @@ export default function VoiceChat({
 
   const v = inputMode === "text" ? TEXT_HEADER[status] : VOICE[status];
   const speaker = SPEAKER[mode ?? "coding"];
-  // Disarmed-and-settled: the round button flips to a muted "off" affordance.
-  const micOff = status === "off";
+  // The round button reads `armed` — the single source of truth — and nothing
+  // else, so its icon and label stay honest mid-reply, when the status is
+  // "processing"/"speaking" but the mic is genuinely released.
+  const micOff = !armed;
 
   return (
     <div className="h-full w-full min-h-0 flex flex-col bg-raised">
@@ -651,6 +686,15 @@ export default function VoiceChat({
             >
               {micOff ? <MicOff size={17} /> : <Mic size={17} />}
             </button>
+            {isReplying(status) && (
+              <button
+                onClick={interrupt}
+                aria-label="Stop the reply"
+                className="grid h-11 w-11 flex-none place-items-center rounded-full border border-edge bg-chip text-ink-soft transition-[transform,color] hover:scale-105 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
+              >
+                <Stop size={14} />
+              </button>
+            )}
             <div className="flex items-center gap-2.5 min-w-0">
               {status === "listening" && !error && (
                 <Equalizer color="#cdbfa3" bars={4} height={18} stagger={0.2} />
@@ -793,8 +837,8 @@ function TextComposer({
 const MIC_HINT: Record<Status, string> = {
   idle: "Tap the mic to begin",
   listening: "Listening — speak any time",
-  processing: "Thinking…",
-  speaking: "Speaking…",
+  processing: "Thinking… tap stop to cut it short",
+  speaking: "Speaking… tap stop to cut it short",
   // Text-mode ready state; the mic bar isn't rendered then, but the map is total.
   ready: "Type your reply",
   off: "Mic off — tap to talk",

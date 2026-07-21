@@ -86,6 +86,15 @@ export function Play({ size = 12, ...rest }: IconProps) {
   );
 }
 
+/** Filled square — interrupt the reply that's streaming / playing. */
+export function Stop({ size = 16, ...rest }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...rest}>
+      <rect x="6" y="6" width="12" height="12" rx="2.5" />
+    </svg>
+  );
+}
+
 /** Paper-plane for the text composer's Send button. */
 export function Send(props: IconProps) {
   return (
