@@ -20,14 +20,18 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const audioFile = formData.get("audio") as Blob | null;
+    // A typed turn (text mode) arrives as `text` instead of `audio`.
+    const text = (formData.get("text") as string | null)?.trim() ?? "";
     const sessionId = (formData.get("sessionId") as string | null) ?? "";
     const kickoff = (formData.get("kickoff") as string | null) === "true";
+    // Text turns ask the pipeline to skip TTS: no spoken audio, just streamed text.
+    const silent = formData.get("silent") === "true";
 
     if (!sessionId) {
       return Response.json({ error: "No sessionId provided" }, { status: 400 });
     }
-    if (!audioFile && !kickoff) {
-      return Response.json({ error: "No audio provided" }, { status: 400 });
+    if (!audioFile && !text && !kickoff) {
+      return Response.json({ error: "No input provided" }, { status: 400 });
     }
 
     // Mode + common fields
@@ -47,10 +51,13 @@ export async function POST(req: NextRequest) {
     const rawLevel = formData.get("level") as string | null;
     const targetLevel = isValidLevel(rawLevel) ? rawLevel : undefined;
 
-    // Kickoff starts a fresh interview; otherwise transcribe the candidate.
+    // Kickoff starts a fresh interview. A typed turn is its own transcript;
+    // otherwise transcribe the candidate's audio.
     let transcript = "";
     if (kickoff) {
       resetSession(sessionId, questionId || null);
+    } else if (text) {
+      transcript = text;
     } else {
       transcript = await transcribe(audioFile as Blob);
       if (!transcript.trim()) {
@@ -138,6 +145,9 @@ export async function POST(req: NextRequest) {
                 JSON.stringify({ type: "text", text: sentence }) + "\n"
               )
             );
+
+            // Text turns are silent: stream the words, skip speech synthesis.
+            if (silent) return;
 
             // Fire off TTS for this sentence immediately (don't await)
             const task = textToSpeechPcm(sentence)

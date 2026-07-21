@@ -73,3 +73,13 @@ export function Play({ size = 12, ...rest }: IconProps) {
     </svg>
   );
 }
+
+/** Paper-plane for the text composer's Send button. */
+export function Send(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M22 2L11 13" />
+      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+    </Stroke>
+  );
+}

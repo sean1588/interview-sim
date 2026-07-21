@@ -5,9 +5,12 @@ import { SimpleVAD } from "@/lib/vad";
 import type { SessionMode } from "@/lib/prompts";
 import Orb, { type OrbState } from "@/components/session/Orb";
 import Equalizer from "@/components/session/Equalizer";
-import { Mic } from "@/components/session/icons";
+import { Mic, Send } from "@/components/session/icons";
 
-type Status = "idle" | "listening" | "processing" | "speaking";
+// "listening"/"speaking" are mic-only; "ready" is their text-mode counterpart —
+// the composer is enabled and awaiting a typed reply.
+type Status = "idle" | "listening" | "processing" | "speaking" | "ready";
+type InputMode = "voice" | "text";
 type Message = { role: "user" | "assistant"; text: string };
 
 /** Who's on the other end of the conversation, per mode — the orb header name and
@@ -28,6 +31,16 @@ const VOICE: Record<Status, { label: string; accent: string; orb: OrbState; eq: 
   listening: { label: "Listening", accent: "#5e6b3c", orb: "listening", eq: true },
   processing: { label: "Thinking", accent: "#8a7d63", orb: "thinking", eq: false },
   speaking: { label: "Speaking", accent: "#b5651d", orb: "speaking", eq: true },
+  ready: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+};
+
+/** Orb header treatment in text mode: no mic states, just thinking vs. ready. */
+const TEXT_HEADER: Record<Status, { label: string; accent: string; orb: OrbState; eq: boolean }> = {
+  idle: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+  processing: { label: "Thinking", accent: "#8a7d63", orb: "thinking", eq: false },
+  listening: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+  speaking: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
+  ready: { label: "Ready", accent: "#a8997e", orb: "idle", eq: false },
 };
 
 /** Live workspace context provided on every turn. Every mode identifies its
@@ -78,11 +91,23 @@ export default function VoiceChat({
 }: VoiceChatProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
+  // Voice (mic) vs. text (typed). Default voice; switchable mid-session without
+  // losing the server-side history, since both modes share one sessionId.
+  const [inputMode, setInputMode] = useState<InputMode>("voice");
   // Surfaced in the mic bar. Mic-permission failures and failed turns used to
   // reach only the (now-removed) dev log; this is the user-facing channel.
   const [error, setError] = useState<string | null>(null);
 
   const vadRef = useRef<SimpleVAD | null>(null);
+  // Read inside the memoized turn callbacks so they branch on the current mode
+  // without being torn down and rebuilt every time the toggle flips.
+  const inputModeRef = useRef(inputMode);
+  useEffect(() => {
+    inputModeRef.current = inputMode;
+  });
+  // The session has begun (kickoff fired). In voice mode the VAD's presence used
+  // to be this signal, but text mode has no VAD — so track it explicitly.
+  const startedRef = useRef(false);
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
   const playingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -127,6 +152,11 @@ export default function VoiceChat({
     if (!streamDoneRef.current) return; // server still streaming
     if (playingRef.current) return; // playback still going
     streamDoneRef.current = false;
+    if (inputModeRef.current === "text") {
+      // No mic to reopen — return to a composer-ready state, never "listening".
+      setStatus("ready");
+      return;
+    }
     vadRef.current?.unfreeze();
     setStatus("listening");
   }, []);
@@ -174,7 +204,7 @@ export default function VoiceChat({
   );
 
   const runTurn = useCallback(
-    async (opts: { audio?: Blob; kickoff?: boolean }) => {
+    async (opts: { audio?: Blob; kickoff?: boolean; text?: string }) => {
       stopPlayback();
       abortRef.current?.abort();
 
@@ -192,7 +222,11 @@ export default function VoiceChat({
         const form = new FormData();
         form.append("sessionId", sessionId);
         if (opts.audio) form.append("audio", opts.audio, "audio.wav");
+        if (opts.text !== undefined) form.append("text", opts.text);
         if (opts.kickoff) form.append("kickoff", "true");
+        // Text mode is silent — including the kickoff greeting — so the server
+        // streams words but synthesizes no speech.
+        if (inputModeRef.current === "text") form.append("silent", "true");
 
         if (mode) {
           form.append("mode", mode);
@@ -248,7 +282,9 @@ export default function VoiceChat({
               } else if (msg.type === "text") {
                 responseText += (responseText ? " " : "") + msg.text;
               } else if (msg.type === "audio") {
-                enqueueAudio(msg.data);
+                // The server won't send audio when silent, but text mode must
+                // never play speech even if a stray chunk arrives.
+                if (inputModeRef.current !== "text") enqueueAudio(msg.data);
               } else if (msg.type === "done") {
                 // An editor-only turn (the agent just loaded code, said nothing)
                 // has no spoken text — don't render a blank bubble for it.
@@ -270,13 +306,15 @@ export default function VoiceChat({
         }
       } catch (e) {
         vadRef.current?.unfreeze();
+        // In text mode the ready state is the composer, not the mic.
+        const idleStatus: Status = inputModeRef.current === "text" ? "ready" : "listening";
         if (e instanceof DOMException && e.name === "AbortError") {
           // Interrupted by the next turn — expected, not an error.
-          setStatus("listening");
+          setStatus(idleStatus);
           return;
         }
         setError(e instanceof Error ? e.message : "Something went wrong.");
-        setStatus("listening");
+        setStatus(idleStatus);
       }
     },
     [stopPlayback, enqueueAudio, finishTurnIfIdle, sessionId, mode, tutor]
@@ -287,9 +325,15 @@ export default function VoiceChat({
     [runTurn]
   );
 
-  const startConversation = useCallback(async () => {
-    if (vadRef.current) return;
+  const sendText = useCallback(
+    (text: string) => runTurn({ text }),
+    [runTurn]
+  );
 
+  // Open the mic and start listening. Throws (after surfacing the error) if the
+  // microphone is unavailable, so callers can decide whether to abort start.
+  const startVad = useCallback(async () => {
+    if (vadRef.current) return;
     const vad = new SimpleVAD({
       silenceThreshold: 1.5,
       silenceDuration: 1200,
@@ -301,24 +345,43 @@ export default function VoiceChat({
         sendAudio(audio);
       },
     });
-
     try {
       await vad.start();
       vadRef.current = vad;
-      setMessages([]);
       setError(null);
       setStatus("listening");
-
-      // The interviewer opens: greet the candidate and present the problem.
-      runTurn({ kickoff: true });
     } catch (e) {
       setError(
         e instanceof Error
           ? `Microphone unavailable — ${e.message}`
           : "Microphone unavailable — check your browser permissions."
       );
+      throw e;
     }
-  }, [sendAudio, stopPlayback, runTurn]);
+  }, [sendAudio, stopPlayback]);
+
+  const startConversation = useCallback(async () => {
+    if (startedRef.current) return;
+    setMessages([]);
+    setError(null);
+
+    if (inputModeRef.current === "text") {
+      // Text mode needs no microphone — just greet the candidate.
+      startedRef.current = true;
+      runTurn({ kickoff: true });
+      return;
+    }
+
+    try {
+      await startVad();
+    } catch {
+      // startVad surfaced the mic error; leave the session unstarted for retry.
+      return;
+    }
+    startedRef.current = true;
+    // The interviewer opens: greet the candidate and present the problem.
+    runTurn({ kickoff: true });
+  }, [startVad, runTurn]);
 
   const stopConversation = useCallback(() => {
     vadRef.current?.stop();
@@ -326,8 +389,42 @@ export default function VoiceChat({
     stopPlayback();
     abortRef.current?.abort();
     streamDoneRef.current = false;
+    startedRef.current = false;
     setStatus("idle");
   }, [stopPlayback]);
+
+  // Flip between voice and text without dropping the session. To text: silence
+  // the mic (history stays server-side). To voice: reopen the mic if the session
+  // has already begun. An unstarted switch to text auto-starts via the effect below.
+  const switchMode = useCallback(
+    (next: InputMode) => {
+      if (next === inputModeRef.current) return;
+      inputModeRef.current = next;
+      setInputMode(next);
+
+      if (next === "text") {
+        vadRef.current?.stop();
+        vadRef.current = null;
+        stopPlayback();
+        // A live mic turn (listening/speaking) becomes composer-ready; a turn
+        // still processing keeps going and lands on "ready" via finishTurnIfIdle.
+        setStatus((s) => (s === "processing" || s === "idle" ? s : "ready"));
+      } else if (startedRef.current) {
+        // Reopen the mic for an in-progress session; failure surfaces an error
+        // and the user can switch back to text.
+        startVad().catch(() => {});
+      }
+    },
+    [stopPlayback, startVad]
+  );
+
+  // Entering text mode before the session has begun starts it (the assistant
+  // greets); voice mode still waits for a deliberate mic tap.
+  useEffect(() => {
+    if (inputMode === "text" && !startedRef.current) {
+      startConversation();
+    }
+  }, [inputMode, startConversation]);
 
   useEffect(() => {
     return () => {
@@ -339,7 +436,7 @@ export default function VoiceChat({
     };
   }, [stopPlayback]);
 
-  const v = VOICE[status];
+  const v = inputMode === "text" ? TEXT_HEADER[status] : VOICE[status];
   const speaker = SPEAKER[mode ?? "coding"];
 
   return (
@@ -373,29 +470,122 @@ export default function VoiceChat({
         <div ref={chatEndRef} />
       </div>
 
-      {/* Mic bar */}
-      <div className="flex-none flex items-center gap-3 border-t border-hair bg-frame px-5 py-4">
+      {/* Input bar — mode toggle plus the mic (voice) or composer (text) */}
+      <div className="flex-none flex flex-col gap-3 border-t border-hair bg-frame px-5 py-4">
+        <ModeToggle mode={inputMode} onChange={switchMode} />
+
+        {inputMode === "voice" ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={status === "idle" ? startConversation : stopConversation}
+              aria-label={status === "idle" ? "Start conversation" : "Stop conversation"}
+              className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
+              style={{ boxShadow: "0 3px 10px rgba(168,85,29,.35)" }}
+            >
+              <Mic size={17} />
+            </button>
+            <div className="flex items-center gap-2.5 min-w-0">
+              {status === "listening" && !error && (
+                <Equalizer color="#cdbfa3" bars={4} height={18} stagger={0.2} />
+              )}
+              <span
+                className={`truncate font-sans text-[13px] ${
+                  error ? "text-[#9c3b28]" : "text-[#8a7259]"
+                }`}
+              >
+                {error ?? MIC_HINT[status]}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <TextComposer
+            disabled={status === "processing"}
+            onSend={sendText}
+            error={error}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Two-option segmented control switching the input between mic and keyboard. */
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: InputMode;
+  onChange: (mode: InputMode) => void;
+}) {
+  return (
+    <div className="flex-none inline-flex self-start rounded-full border border-edge bg-chip p-0.5">
+      {(["voice", "text"] as const).map((m) => (
         <button
-          onClick={status === "idle" ? startConversation : stopConversation}
-          aria-label={status === "idle" ? "Start conversation" : "Stop conversation"}
-          className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
+          key={m}
+          onClick={() => onChange(m)}
+          aria-pressed={mode === m}
+          className={`rounded-full px-3.5 py-1 font-sans text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
+            mode === m
+              ? "bg-cognac/[0.10] text-cognac-text"
+              : "text-muted hover:text-ink-soft"
+          }`}
+        >
+          {m === "voice" ? "Voice" : "Text"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Text-mode composer: type a reply, Enter to send, Shift+Enter for a newline. */
+function TextComposer({
+  disabled,
+  onSend,
+  error,
+}: {
+  disabled: boolean;
+  onSend: (text: string) => void;
+  error: string | null;
+}) {
+  const [value, setValue] = useState("");
+  const canSend = !disabled && value.trim().length > 0;
+
+  const submit = () => {
+    if (!canSend) return;
+    onSend(value.trim());
+    setValue("");
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-end gap-2.5">
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          rows={1}
+          placeholder={disabled ? "Thinking…" : "Type your reply"}
+          aria-label="Type your reply"
+          className="min-h-[44px] max-h-32 flex-1 resize-none rounded-[14px] border border-edge bg-chip px-3.5 py-2.5 font-serif text-[15px] leading-[1.45] text-ink-soft placeholder:text-faint focus-visible:outline-none focus-visible:border-cognac/50 focus-visible:ring-2 focus-visible:ring-cognac/20"
+        />
+        <button
+          onClick={submit}
+          disabled={!canSend}
+          aria-label="Send message"
+          className="grid h-11 w-11 flex-none place-items-center rounded-full bg-cognac text-[#fbf3e7] transition-transform hover:scale-105 disabled:opacity-40 disabled:hover:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 focus-visible:ring-offset-2 focus-visible:ring-offset-frame"
           style={{ boxShadow: "0 3px 10px rgba(168,85,29,.35)" }}
         >
-          <Mic size={17} />
+          <Send size={16} />
         </button>
-        <div className="flex items-center gap-2.5 min-w-0">
-          {status === "listening" && !error && (
-            <Equalizer color="#cdbfa3" bars={4} height={18} stagger={0.2} />
-          )}
-          <span
-            className={`truncate font-sans text-[13px] ${
-              error ? "text-[#9c3b28]" : "text-[#8a7259]"
-            }`}
-          >
-            {error ?? MIC_HINT[status]}
-          </span>
-        </div>
       </div>
+      {error && (
+        <span className="truncate font-sans text-[13px] text-[#9c3b28]">{error}</span>
+      )}
     </div>
   );
 }
@@ -405,6 +595,8 @@ const MIC_HINT: Record<Status, string> = {
   listening: "Listening — speak any time",
   processing: "Thinking…",
   speaking: "Speaking…",
+  // Text-mode ready state; the mic bar isn't rendered then, but the map is total.
+  ready: "Type your reply",
 };
 
 /** One transcript turn. Interviewer/coach/tutor bubbles sit left with a cognac
