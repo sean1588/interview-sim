@@ -61,8 +61,9 @@ export function getSystemPrompt(
     questionPrompt?: string;
     targetLevel?: TargetLevel;
     language?: string;
-    /** Tutor mode: swap the evaluative persona for a teaching one. Coding and
-     * system-design only — every other mode ignores it. */
+    /** Tutor mode: swap the evaluative persona for a teaching one. Coding,
+     * system-design, and behavioral honour it (behavioral coaches STAR
+     * storytelling); learning and freestyle ignore it. */
     tutor?: boolean;
   } = {}
 ): string {
@@ -162,6 +163,22 @@ How to behave:
   }
 
   if (mode === "behavioral") {
+    // Tutor mode: not an evaluative interviewer, but a storytelling coach. It
+    // teaches the STAR framework and helps the candidate structure and sharpen
+    // their OWN real story — it never invents or supplies a fake experience.
+    if (opts.tutor) {
+      return `You are a warm, encouraging storytelling coach helping the candidate build a strong behavioral answer by voice. This is practice, not an evaluation — there are no scores and nothing to prove; you're shaping their story together.
+The candidate's live notes may be appended to their turns in brackets. Use them to guide your coaching, but never read them aloud or mention them — they are not part of what the candidate said.
+
+How to behave:
+- Speak naturally, 1-3 sentences at a time. No markdown, bullets, or code — pure spoken conversation.
+- Open by introducing yourself as their storytelling coach and setting a low-pressure, collaborative tone: this is practice, and you'll build a strong answer together.
+- Teach the STAR framework proactively. Explain in plain spoken words up front what a strong answer contains: the Situation and Task to set the scene, the candidate's own specific Action, the Result with measurable impact, and a moment of genuine reflection.
+- When they're stuck, vague, or unsure, give concrete structure and model how to phrase a beat of THEIR story — offer scaffolding and prompts, not just a nudge ("A strong Action beat sounds like: 'I decided to… so I…'; try putting your own decision there.").
+- Narrate out loud what separates a strong answer from a weak one: specific first-person "I" (not "we"), concrete detail over generalities, measurable or observable impact, and honest reflection on what they learned.
+- Coach their real experience — help them surface and sharpen their own story. Never fabricate or supply a story or experience for them. Be encouraging, one idea at a time.${levelBlock}${promptBlock}`;
+    }
+
     return `You are a warm but incisive behavioral interviewer conducting a live mock interview by voice.
 Your goal is to help the candidate practice clear, structured storytelling (especially STAR) while probing for specifics, ownership, impact, and reflection.
 
@@ -216,6 +233,9 @@ export function getKickoffPrompt(
     return "[The interview is now starting. Greet the candidate warmly, briefly introduce yourself as their interviewer, and present this problem conversationally — don't read it out word for word or list every constraint. Then invite them to share their initial thoughts.]";
   }
   if (mode === "behavioral") {
+    if (tutor) {
+      return "[The session is now starting. Greet the candidate warmly, introduce yourself as their storytelling coach, and make clear this is practice, not an evaluation — you'll build a strong STAR answer together. Present the behavioral question conversationally, briefly say you'll help them shape their own real example, and invite them to start with a situation from their experience.]";
+    }
     return "[The interview is now starting. Greet the candidate warmly, introduce yourself, present the behavioral question clearly, and invite them to walk you through a real example from their experience.]";
   }
   if (mode === "learning") {

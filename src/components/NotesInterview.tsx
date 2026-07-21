@@ -28,8 +28,9 @@ export interface NotesInterviewConfig {
   sectionChips?: string[];
   /** Optional guidance shown under the notes area. */
   notesFooter?: string;
-  /** Offer the "Tutor mode" toggle. Opt-in: system-design teaches well, a
-   * behavioral interview has no approach to hand over. */
+  /** Offer the "Tutor mode" toggle. Opt-in per mode: system-design hands over
+   * the approach; behavioral coaches STAR storytelling (shaping the
+   * candidate's own story rather than handing over an answer). */
   allowTutor?: boolean;
 }
 

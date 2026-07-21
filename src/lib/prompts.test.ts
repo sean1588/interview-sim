@@ -187,7 +187,7 @@ describe("tutor mode", () => {
   });
 
   it("is ignored by every other mode", () => {
-    for (const mode of ["behavioral", "learning", "freestyle"] as const) {
+    for (const mode of ["learning", "freestyle"] as const) {
       expect(getSystemPrompt(mode, { tutor: true })).toBe(getSystemPrompt(mode, {}));
       expect(getKickoffPrompt(mode, undefined, undefined, true)).toBe(
         getKickoffPrompt(mode)
@@ -202,6 +202,30 @@ describe("tutor mode", () => {
       expect(on).toMatch(/tutor/i);
       expect(on).toMatch(/together/i);
     }
+  });
+
+  it("flips behavioral to a STAR-coaching persona (not a coding-style hand-over)", () => {
+    const off = getSystemPrompt("behavioral", { questionTitle: "Foo", questionPrompt: "Bar baz." });
+    const on = getSystemPrompt("behavioral", {
+      questionTitle: "Foo",
+      questionPrompt: "Bar baz.",
+      tutor: true,
+    });
+    expect(on).not.toBe(off);
+    // Distinctive behavioral-coaching language: STAR framework, coaching, practice.
+    expect(on).toMatch(/STAR/i);
+    expect(on).toMatch(/not an evaluation|coach/i);
+    // Keeps the voice constraints the evaluative persona has.
+    expect(on).toMatch(/1-3 sentences/);
+    expect(on).toMatch(/(never use|no) markdown/i);
+    // The question still reaches the prompt.
+    expect(on).toContain("Foo");
+    expect(on).toContain("Bar baz.");
+  });
+
+  it("opens behavioral with a coaching kickoff", () => {
+    const on = getKickoffPrompt("behavioral", undefined, undefined, true);
+    expect(on).not.toBe(getKickoffPrompt("behavioral"));
   });
 
   it("is off by default — omitting the flag changes nothing", () => {
