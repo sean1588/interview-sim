@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as ts from "typescript";
-import { PROBLEMS, getProblem } from "./index";
+import { PROBLEMS, PROBLEM_GROUPS, getProblem } from "./index";
 import { transpileTypeScript } from "@/lib/runner";
 
 const DIFFICULTIES = new Set(["Easy", "Medium", "Hard"]);
@@ -56,6 +56,19 @@ describe("problem bank invariants", () => {
       // throws SyntaxError on a malformed starter, without running it.
       const js = transpileTypeScript(ts, tsCode);
       expect(() => new Function(js), `${p.id} TS`).not.toThrow();
+    }
+  });
+
+  it("PROBLEM_GROUPS covers every problem exactly once", () => {
+    const grouped = PROBLEM_GROUPS.flatMap((g) => g.problems);
+    // Same size as the derived flat list — no problem is dropped or duplicated.
+    expect(grouped.length).toBe(PROBLEMS.length);
+    // Ids are unique across all groups.
+    const ids = grouped.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    // No empty group would render a bare topic header.
+    for (const g of PROBLEM_GROUPS) {
+      expect(g.problems.length, `${g.topic} empty`).toBeGreaterThan(0);
     }
   });
 

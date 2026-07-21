@@ -11,6 +11,7 @@ import ToggleChip from "@/components/session/ToggleChip";
 import { useSession } from "@/components/useSession";
 import {
   PROBLEMS,
+  PROBLEM_GROUPS,
   getProblem,
   type Difficulty,
   type LanguageId,
@@ -26,6 +27,9 @@ function languagesFor(problem: Problem): LanguageId[] {
   return RUNNABLE_LANGUAGES.filter((l) => l in problem.starterCode);
 }
 
+// Options for the picker's difficulty filter, in display order.
+const DIFFICULTY_FILTERS: (Difficulty | "All")[] = ["All", "Easy", "Medium", "Hard"];
+
 // Difficulty tags carry their own warm tone: olive (Easy) → gold (Medium) → cognac (Hard).
 const DIFFICULTY_TONE: Record<Difficulty, string> = {
   Easy: "border-olive/30 bg-olive/[0.12] text-olive",
@@ -36,6 +40,8 @@ const DIFFICULTY_TONE: Record<Difficulty, string> = {
 export default function InterviewSim() {
   const [problemId, setProblemId] = useState(PROBLEMS[0].id);
   const [language, setLanguage] = useState<LanguageId>("python");
+  // Narrows the problem picker; "All" shows every difficulty.
+  const [difficulty, setDifficulty] = useState<Difficulty | "All">("All");
   // Same problem, editor, and scorecard — only the live interviewer persona
   // changes (evaluator -> teacher).
   const [tutor, setTutor] = useState(false);
@@ -45,6 +51,20 @@ export default function InterviewSim() {
 
   const problem = useMemo(() => getProblem(problemId)!, [problemId]);
   const availableLanguages = useMemo(() => languagesFor(problem), [problem]);
+
+  // Groups (with their problems) matching the active difficulty. Empty groups
+  // are dropped so the picker shows no bare topic headers.
+  const visibleGroups = useMemo(
+    () =>
+      PROBLEM_GROUPS.map((g) => ({
+        topic: g.topic,
+        problems:
+          difficulty === "All"
+            ? g.problems
+            : g.problems.filter((p) => p.difficulty === difficulty),
+      })).filter((g) => g.problems.length > 0),
+    [difficulty]
+  );
 
   // Code is tracked per (problem, language) so switching either restores the
   // right buffer. Initialised lazily from each problem's starter scaffold.
@@ -96,6 +116,23 @@ export default function InterviewSim() {
     [language, ensureBuffer]
   );
 
+  const handleDifficultyChange = useCallback(
+    (next: Difficulty | "All") => {
+      setDifficulty(next);
+      // If the current problem is filtered out, drop to the first still-visible
+      // one (routing through handleProblemChange resets buffer + language). If
+      // nothing matches, keep the selection.
+      const visible =
+        next === "All"
+          ? PROBLEMS
+          : PROBLEMS.filter((p) => p.difficulty === next);
+      if (visible.length > 0 && !visible.some((p) => p.id === problemId)) {
+        handleProblemChange(visible[0].id);
+      }
+    },
+    [problemId, handleProblemChange]
+  );
+
   const handleRun = useCallback((result: RunResult) => {
     const text = result.output || result.stderr || "(no output)";
     lastRunRef.current = `exit ${result.exitCode}\n${text}`.slice(0, 2000);
@@ -135,9 +172,27 @@ export default function InterviewSim() {
         onChange={(e) => handleProblemChange(e.target.value)}
         ariaLabel="Problem"
       >
-        {PROBLEMS.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.title} · {p.difficulty}
+        {visibleGroups.map((g) => (
+          <optgroup key={g.topic} label={g.topic}>
+            {g.problems.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title} · {p.difficulty}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </SelectChip>
+      <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+        Difficulty
+      </span>
+      <SelectChip
+        value={difficulty}
+        onChange={(e) => handleDifficultyChange(e.target.value as Difficulty | "All")}
+        ariaLabel="Difficulty"
+      >
+        {DIFFICULTY_FILTERS.map((d) => (
+          <option key={d} value={d}>
+            {d}
           </option>
         ))}
       </SelectChip>

@@ -17,20 +17,25 @@ import { practicalProblems } from "./practical";
 
 export type { Problem, LanguageId, Difficulty } from "./types";
 
-export const PROBLEMS: Problem[] = [
-  ...arraysProblems,
-  ...stringsProblems,
-  ...searchingProblems,
-  ...linkedListProblems,
-  ...treeProblems,
-  ...graphProblems,
-  ...heapProblems,
-  ...dpProblems,
-  ...backtrackingProblems,
-  ...designProblems,
-  ...jsUtilProblems,
-  ...practicalProblems,
+// Topic taxonomy lives here, in the file that already owns the per-topic
+// arrays — no `topic` field is added to the ~70 individual problems. The flat
+// PROBLEMS list is derived from this so the two can't drift.
+export const PROBLEM_GROUPS: { topic: string; problems: Problem[] }[] = [
+  { topic: "Arrays", problems: arraysProblems },
+  { topic: "Strings", problems: stringsProblems },
+  { topic: "Searching", problems: searchingProblems },
+  { topic: "Linked Lists", problems: linkedListProblems },
+  { topic: "Trees", problems: treeProblems },
+  { topic: "Graphs", problems: graphProblems },
+  { topic: "Heap", problems: heapProblems },
+  { topic: "Dynamic Programming", problems: dpProblems },
+  { topic: "Backtracking", problems: backtrackingProblems },
+  { topic: "Design", problems: designProblems },
+  { topic: "JS Utilities", problems: jsUtilProblems },
+  { topic: "Practical", problems: practicalProblems },
 ];
+
+export const PROBLEMS: Problem[] = PROBLEM_GROUPS.flatMap((g) => g.problems);
 
 export function getProblem(id: string): Problem | undefined {
   return PROBLEMS.find((p) => p.id === id);
