@@ -343,8 +343,14 @@ export default function VoiceChat({
         }
       } catch (e) {
         vadRef.current?.unfreeze();
-        // In text mode the ready state is the composer, not the mic.
-        const idleStatus: Status = inputModeRef.current === "text" ? "ready" : "listening";
+        // Mirror finishTurnIfIdle: text -> composer, armed voice -> mic reopens,
+        // disarmed voice -> "off" (don't strand a dead mic under push-to-talk).
+        const idleStatus: Status =
+          inputModeRef.current === "text"
+            ? "ready"
+            : armedRef.current
+              ? "listening"
+              : "off";
         if (e instanceof DOMException && e.name === "AbortError") {
           // Interrupted by the next turn — expected, not an error.
           setStatus(idleStatus);
