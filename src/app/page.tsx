@@ -108,8 +108,18 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="mt-12 text-center font-serif text-[14px] italic text-muted">
-          Voice-driven, ephemeral, and entirely on your machine.
+        <div className="mt-12 flex justify-center">
+          <Link
+            href="/history"
+            className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-chip px-4 py-1.5 font-sans text-[12px] font-medium text-ink-muted transition hover:border-cognac/40 hover:text-cognac-text focus:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
+          >
+            <span aria-hidden>🗂️</span> Past sessions
+          </Link>
+        </div>
+
+        <div className="mt-8 text-center font-serif text-[14px] italic text-muted">
+          Voice-driven and entirely on your machine — graded sessions are saved
+          locally and can be cleared any time.
         </div>
       </div>
     </div>
