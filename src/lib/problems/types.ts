@@ -1,7 +1,7 @@
 // Shared types for the coding problem bank. The bank itself is split by topic
 // under this directory and assembled in index.ts.
 
-export type LanguageId = "python" | "javascript" | "typescript";
+export type LanguageId = "python" | "javascript" | "typescript" | "go";
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 

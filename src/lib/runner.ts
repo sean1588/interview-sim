@@ -339,6 +339,19 @@ async function runTypeScript(code: string): Promise<RunResult> {
   return runJavaScript(wrapTranspiledTs(transpileTypeScript(ts, code)));
 }
 
+/**
+ * Whether a language can execute in-browser. The learning courses include Go,
+ * which has no lightweight in-browser runtime (no Pyodide-equivalent), so its
+ * editor is a scratchpad the voice tutor reviews rather than a Run target. The
+ * editor consults this to hide its Run button; `runCode` below is the matching
+ * safety net if something calls it anyway.
+ */
+export function isRunnable(language: string): boolean {
+  return (
+    language === "python" || language === "javascript" || language === "typescript"
+  );
+}
+
 export async function runCode(
   language: string,
   code: string

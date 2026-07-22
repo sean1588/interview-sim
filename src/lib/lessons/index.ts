@@ -1,17 +1,18 @@
 // The learning-mode course registry. Each course lives in its own folder
-// (python/, typescript/) and bundles its modules + lessons into a Course;
+// (python/, typescript/, go/) and bundles its modules + lessons into a Course;
 // this module assembles them and resolves courses/lessons by id. Public import
 // path: "@/lib/lessons". Mirrors the shape of "@/lib/problems".
 
 import type { Course, Lesson } from "./types";
 import { pythonCourse } from "./python";
 import { typescriptCourse } from "./typescript";
+import { goCourse } from "./go";
 
 export type { Course, Lesson, Exercise, Module } from "./types";
 export { buildLessonScript } from "./script";
 
 /** Ordered course list — drives the /learn picker and the home "Learn" section. */
-export const COURSES: Course[] = [pythonCourse, typescriptCourse];
+export const COURSES: Course[] = [pythonCourse, typescriptCourse, goCourse];
 
 export function getCourse(id: string): Course | undefined {
   return COURSES.find((c) => c.id === id);

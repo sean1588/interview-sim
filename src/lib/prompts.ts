@@ -44,6 +44,11 @@ const TUTOR_PROFILE: Record<LanguageId, { lang: string; known: string; analogy: 
     known: "a typed or compiled language like Java, C#, Go, or Python",
     analogy: "this is JavaScript's looser, more dynamic take on what you'd write in a typed language",
   },
+  go: {
+    lang: "Go",
+    known: "a typed language like Java, C#, or TypeScript, and maybe Python",
+    analogy: "a Go interface is satisfied implicitly, more like TypeScript's structural typing than Java's explicit implements",
+  },
 };
 
 function tutorProfile(language?: string) {

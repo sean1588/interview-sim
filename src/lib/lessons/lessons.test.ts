@@ -6,8 +6,8 @@ import { transpileTypeScript } from "@/lib/runner";
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 describe("learning courses — cross-course invariants", () => {
-  it("registers the python and typescript courses", () => {
-    expect(COURSES.map((c) => c.id)).toEqual(["python", "typescript"]);
+  it("registers the python, typescript, and go courses", () => {
+    expect(COURSES.map((c) => c.id)).toEqual(["python", "typescript", "go"]);
   });
 
   it("has globally unique, kebab-case lesson ids across all courses", () => {
@@ -25,6 +25,7 @@ describe("learning courses — cross-course invariants", () => {
   it("resolves known courses and rejects unknown ones", () => {
     expect(getCourse("python")?.id).toBe("python");
     expect(getCourse("typescript")?.id).toBe("typescript");
+    expect(getCourse("go")?.id).toBe("go");
     expect(getCourse("does-not-exist")).toBeUndefined();
   });
 });

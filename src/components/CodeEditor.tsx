@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { LanguageId } from "@/lib/problems";
-import { runCode, type RunResult } from "@/lib/runner";
+import { runCode, isRunnable, type RunResult } from "@/lib/runner";
 import { Play, ChevronDown } from "@/components/session/icons";
 
 interface CodeEditorProps {
@@ -25,6 +25,7 @@ const LANGUAGE_LABELS: Record<LanguageId, string> = {
   python: "Python",
   javascript: "JavaScript",
   typescript: "TypeScript",
+  go: "Go",
 };
 
 // Languages whose first run pays a one-time CDN load; shown while running so the
@@ -99,6 +100,10 @@ export default function CodeEditor({
 
   const fixedLanguage = languages.length <= 1;
   const runnable = canRun && !running;
+  // Some learning languages (Go) have no in-browser runtime — the editor is a
+  // scratchpad the voice tutor reviews, so we drop the Run button and the
+  // output console entirely rather than offer a button that always errors.
+  const executable = isRunnable(language);
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-editor">
@@ -127,18 +132,24 @@ export default function CodeEditor({
             />
           )}
         </div>
-        <button
-          onClick={run}
-          disabled={!runnable}
-          className={`inline-flex items-center gap-2 rounded-[7px] px-4 py-2 font-sans text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
-            runnable
-              ? "bg-olive text-[#f3f1e4] hover:bg-olive/90"
-              : "cursor-not-allowed bg-[#cdbfa3] text-[#f3f1e4]"
-          }`}
-        >
-          <Play size={12} />
-          {running ? "Running…" : "Run"}
-        </button>
+        {executable ? (
+          <button
+            onClick={run}
+            disabled={!runnable}
+            className={`inline-flex items-center gap-2 rounded-[7px] px-4 py-2 font-sans text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
+              runnable
+                ? "bg-olive text-[#f3f1e4] hover:bg-olive/90"
+                : "cursor-not-allowed bg-[#cdbfa3] text-[#f3f1e4]"
+            }`}
+          >
+            <Play size={12} />
+            {running ? "Running…" : "Run"}
+          </button>
+        ) : (
+          <span className="font-sans text-[12px] text-faint">
+            {LANGUAGE_LABELS[language]} runs on your machine — your tutor reviews your code here
+          </span>
+        )}
       </div>
 
       {/* Editor */}
@@ -174,19 +185,21 @@ export default function CodeEditor({
         />
       </div>
 
-      {/* Output console */}
-      <div className="h-[122px] flex-none flex flex-col border-t border-hair bg-inset">
-        <div className="flex-none border-b border-hair px-[18px] py-[9px] font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
-          Output
+      {/* Output console — omitted for non-runnable languages (nothing to show). */}
+      {executable && (
+        <div className="h-[122px] flex-none flex flex-col border-t border-hair bg-inset">
+          <div className="flex-none border-b border-hair px-[18px] py-[9px] font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
+            Output
+          </div>
+          <pre className="flex-1 min-h-0 overflow-auto px-[18px] py-3 font-mono text-[12.5px] whitespace-pre-wrap text-ink-body">
+            {result
+              ? result.output || result.stderr || "(no output)"
+              : running
+                ? FIRST_RUN_HINT[language] ?? "Running…"
+                : <span className="text-faint">Press Run to execute your code.</span>}
+          </pre>
         </div>
-        <pre className="flex-1 min-h-0 overflow-auto px-[18px] py-3 font-mono text-[12.5px] whitespace-pre-wrap text-ink-body">
-          {result
-            ? result.output || result.stderr || "(no output)"
-            : running
-              ? FIRST_RUN_HINT[language] ?? "Running…"
-              : <span className="text-faint">Press Run to execute your code.</span>}
-        </pre>
-      </div>
+      )}
     </div>
   );
 }
