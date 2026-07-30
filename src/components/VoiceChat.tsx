@@ -14,8 +14,9 @@ import { Mic, MicOff, Send, Stop } from "@/components/session/icons";
 type Status = "idle" | "listening" | "processing" | "speaking" | "ready" | "off";
 type InputMode = "voice" | "text";
 // How the mic engages. push-to-talk: disarmed until the user taps to arm; the
-// mic returns to its armed/disarmed state after each reply. hands-free: today's
-// continuous listening — armed on start, reopened after every reply.
+// mic then captures — through pauses — until they tap it off, which sends the
+// whole take. hands-free: continuous listening — armed on start, utterances
+// sent after each pause in speech, reopened after every reply.
 type MicMode = "push-to-talk" | "hands-free";
 type Message = { role: "user" | "assistant"; text: string };
 
@@ -421,6 +422,10 @@ export default function VoiceChat({
         silenceThreshold: 1.5,
         silenceDuration: 1200,
         preRollMs: 400,
+        // Hands-free sends an utterance after each pause; push-to-talk keeps
+        // capturing through pauses until the user taps the mic off (toggleMic
+        // flushes the take).
+        endOnSilence: micModeRef.current === "hands-free",
         onSpeechStart: () => {
           stopPlayback();
         },
@@ -538,6 +543,10 @@ export default function VoiceChat({
     if (!startedRef.current) {
       startConversation();
     } else if (armedRef.current) {
+      // Push-to-talk: tapping off IS the send gesture — flush the captured
+      // take into a turn before the mic is released. (Hands-free tap-off just
+      // drops any half-utterance, as ever.)
+      if (micModeRef.current === "push-to-talk") vadRef.current?.flush();
       disarm();
       // Disarming by hand *is* choosing push-to-talk; otherwise the segmented
       // control would keep claiming "Hands-free" over a released mic.
@@ -558,6 +567,9 @@ export default function VoiceChat({
       if (next === micModeRef.current) return;
       micModeRef.current = next;
       setMicMode(next);
+      // A live capture follows the new mode at once: hands-free resumes
+      // sending on silence, push-to-talk holds the take until tap-off.
+      vadRef.current?.setEndOnSilence(next === "hands-free");
       if (!startedRef.current) return; // pre-start: just changes the default
 
       if (next === "hands-free") {
@@ -704,7 +716,10 @@ export default function VoiceChat({
                   error ? "text-[#9c3b28]" : "text-[#8a7259]"
                 }`}
               >
-                {error ?? MIC_HINT[status]}
+                {error ??
+                  (status === "listening" && micMode === "push-to-talk"
+                    ? "Listening — tap the mic off to send"
+                    : MIC_HINT[status])}
               </span>
             </div>
           </div>
@@ -749,7 +764,8 @@ function ModeToggle({
 }
 
 /** Two-option segmented control choosing how the mic engages: push-to-talk (tap
- * to arm) vs. hands-free (continuous listening). Mirrors ModeToggle's treatment. */
+ * to talk, tap off to send) vs. hands-free (continuous listening, sends on
+ * pauses). Mirrors ModeToggle's treatment. */
 function MicModeToggle({
   mode,
   onChange,
