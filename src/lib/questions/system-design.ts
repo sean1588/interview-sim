@@ -66,6 +66,12 @@ export const SYSTEM_DESIGN_QUESTIONS: SystemDesignQuestion[] = [
       "Design a file storage and sync service. Users can upload, download, share, and sync files/folders across devices. Support very large files, versioning, concurrent edits (at least conflict detection), permissions, and search. Key challenges: chunking + deduplication, storage tiering, metadata vs blob storage, and handling billions of files with strong durability.",
   },
   {
+    id: "dropbox-sync",
+    title: "Dropbox (file sync across devices)",
+    prompt:
+      "Design the sync engine for Dropbox. A user edits files on one device and the changes appear on their other devices and shared folders within seconds. Focus on the client-server sync protocol: detecting local changes, delta sync (uploading only changed blocks), resuming interrupted transfers, and offline edits that reconcile on reconnect. Handle conflicting edits from two devices (conflict copies vs merging), sync of huge folders with millions of small files, shared folders where one member's change fans out to thousands of others, and keeping battery/bandwidth cost low on laptops and phones.",
+  },
+  {
     id: "web-crawler",
     title: "Web Crawler",
     prompt:
@@ -160,5 +166,41 @@ export const SYSTEM_DESIGN_QUESTIONS: SystemDesignQuestion[] = [
     title: "Unique ID Generator (Snowflake)",
     prompt:
       "Design a distributed unique ID generation service like Twitter Snowflake. IDs must be unique across many data centers, roughly sortable by time, and generated at millions per second with very low latency. Consider the ID layout (timestamp/machine/sequence bits), clock skew and clocks moving backwards, coordinated vs coordination-free schemes, and the tradeoffs versus UUIDs or database sequences.",
+  },
+  {
+    id: "ticket-booking",
+    title: "Ticketmaster (flash-sale booking)",
+    prompt:
+      "Design a ticket booking system like Ticketmaster for high-demand events. When sales open, hundreds of thousands of users compete for a fixed set of seats; the system must never sell the same seat twice and never strand inventory. Consider seat holds with expiry during checkout, database contention on hot events (locking vs reservation queues), a waiting room / virtual queue to absorb the thundering herd, payment failures releasing inventory, and keeping seat-map views reasonably fresh without melting the backend.",
+  },
+  {
+    id: "stock-exchange",
+    title: "Stock Exchange (matching engine)",
+    prompt:
+      "Design a stock exchange. Traders submit buy/sell orders (market and limit); a matching engine pairs them by price-time priority and publishes market data. Requirements: microsecond-level matching latency, strict fairness in ordering, no lost or duplicated orders even across crashes. Consider the order book data structure, single-threaded matching vs partitioning by symbol, durability via event sourcing / replicated logs, fan-out of market data to thousands of subscribers, and how to fail over without reordering or replaying trades incorrectly.",
+  },
+  {
+    id: "recommendation-system",
+    title: "Recommendation System (TikTok For You)",
+    prompt:
+      "Design the recommendation system behind a feed like TikTok's For You page or Netflix suggestions. Every scroll requests fresh, personalized content selected from hundreds of millions of items. Consider the multi-stage funnel (candidate generation, filtering, ranking), embeddings and approximate nearest-neighbor retrieval, a feature store serving online features at low latency, incorporating real-time signals (a video you just skipped) vs batch-trained models, exploration vs exploitation for new content, and evaluating whether the system is actually working.",
+  },
+  {
+    id: "distributed-lock",
+    title: "Distributed Lock / Coordination (Zookeeper)",
+    prompt:
+      "Design a distributed coordination service like Zookeeper or Chubby that other systems use for locks, leader election, and configuration. Clients acquire locks and must be safe even when processes pause (GC), clocks drift, or the network partitions. Consider consensus for the replicated core (Paxos/Raft), leases and session timeouts, fencing tokens to protect against zombie lock holders, watch/notification semantics, read scaling vs linearizability, and why 'just use Redis SETNX' falls short.",
+  },
+  {
+    id: "ad-click-aggregation",
+    title: "Ad Click Aggregation & Billing",
+    prompt:
+      "Design the system that counts ad clicks and bills advertisers. Billions of click events per day stream in from around the world; advertisers are charged per click and see near-real-time spend dashboards, and campaigns must stop when budgets are exhausted. Consider exactly-once aggregation despite retries and duplicate events, late and out-of-order events with watermarks, fraud/bot click filtering, stream vs batch reconciliation for the billing source of truth, stopping over-delivery on exhausted budgets within seconds, and auditability when an advertiser disputes their bill.",
+  },
+  {
+    id: "hotel-booking",
+    title: "Hotel Booking (Airbnb search + reserve)",
+    prompt:
+      "Design a hotel/home booking platform like Airbnb or Booking.com. Users search listings by location, dates, and filters, then book a stay; a listing must never be double-booked for overlapping dates. Consider modeling availability over date ranges (calendar tables vs interval checks), geospatial + filtered search over millions of listings, the consistency boundary between eventually-consistent search results and the transactional booking path, holds during checkout, cancellations and modifications, and price/availability caching that goes stale gracefully.",
   },
 ];
