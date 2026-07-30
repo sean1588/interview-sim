@@ -147,6 +147,17 @@
   margin: 0.9rem 0 0.4rem;
   line-height: 1.2;
 }
+/* Inline cross-references (library articles link to each other). */
+.markdown a {
+  color: var(--color-cognac-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-cognac) 35%, transparent);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 150ms;
+}
+.markdown a:hover {
+  text-decoration-color: var(--color-cognac);
+}
 .markdown code {
   background: var(--color-raised);
   padding: 1px 6px;

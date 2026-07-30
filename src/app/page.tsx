@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { COURSES } from "@/lib/lessons";
+import { ARTICLES, LIBRARY_SECTIONS } from "@/lib/library";
 
 type ModeCardProps = {
   href: string;
@@ -105,6 +106,33 @@ export default function Home() {
               icon={course.icon}
               cta="Open course"
             />
+          ))}
+        </div>
+
+        <div className="mt-12">
+          <SectionLabel>Library</SectionLabel>
+        </div>
+        <p className="mb-3 font-serif text-[16px] text-ink-body">
+          Concept notes on the ideas the system design exercises are built on — the
+          mechanism, the tradeoff it makes, the numbers that justify it, and the move to
+          make when it comes up.
+        </p>
+        <ModeCard
+          href="/library"
+          title="System Design Library"
+          description={`${ARTICLES.length} notes across ${LIBRARY_SECTIONS.length} areas, from estimation and consistency models to sharding, streaming, coordination, and the specialized structures behind geo, search, and ranking.`}
+          icon="📚"
+          cta="Browse library"
+        />
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {LIBRARY_SECTIONS.map((section) => (
+            <Link
+              key={section.id}
+              href={`/library#${section.id}`}
+              className="rounded-full border border-edge bg-chip px-3 py-1 font-sans text-[12px] text-ink-muted transition hover:border-cognac/40 hover:text-cognac-text focus:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
+            >
+              {section.title}
+            </Link>
           ))}
         </div>
 
