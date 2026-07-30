@@ -42,7 +42,7 @@ export async function chatStream(
   messages: ChatMessage[]
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await openrouterPost("/chat/completions", {
-    model: "anthropic/claude-sonnet-4-6",
+    model: "google/gemini-3.1-pro-preview",
     messages,
     stream: true,
   });
@@ -55,7 +55,7 @@ export async function chatComplete(
   opts?: { jsonMode?: boolean; temperature?: number }
 ): Promise<string> {
   const res = await openrouterPost("/chat/completions", {
-    model: "anthropic/claude-sonnet-4-6",
+    model: "google/gemini-3.1-pro-preview",
     messages,
     stream: false,
     temperature: opts?.temperature ?? 0.3,

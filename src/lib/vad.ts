@@ -4,6 +4,9 @@ export interface VADOptions {
   silenceThreshold?: number;
   silenceDuration?: number;
   preRollMs?: number;
+  /** End an utterance after sustained silence (the default). When false, the
+   * capture runs through pauses until flush() — push-to-talk's tap-off. */
+  endOnSilence?: boolean;
   onSpeechStart?: () => void;
   onSpeechEnd?: (audio: Blob) => void;
 }
@@ -24,6 +27,7 @@ export class SimpleVAD {
 
   private silenceThreshold: number;
   private silenceDuration: number;
+  private endOnSilence: boolean;
   private preRollMs: number;
   private preRollSamples = 0;
   private onSpeechStart: () => void;
@@ -43,6 +47,7 @@ export class SimpleVAD {
     // Threshold is on RMS * 100 scale
     this.silenceThreshold = options.silenceThreshold ?? 1.5;
     this.silenceDuration = options.silenceDuration ?? 1200;
+    this.endOnSilence = options.endOnSilence ?? true;
     this.onSpeechStart = options.onSpeechStart ?? (() => {});
     this.onSpeechEnd = options.onSpeechEnd ?? (() => {});
     // preRollSamples is computed in start(), once we know the sample rate.
@@ -95,6 +100,24 @@ export class SimpleVAD {
     this.frozen = false;
   }
 
+  /** Switch silence handling on a live capture (the mic-mode toggle mid-take).
+   * The silence clock restarts, so a pause already underway doesn't end the
+   * utterance the instant this flips on. */
+  setEndOnSilence(value: boolean) {
+    this.endOnSilence = value;
+    this.silenceStart = 0;
+  }
+
+  /** Emit everything captured so far as one utterance — push-to-talk's tap-off.
+   * No-op if nothing has been spoken since the last emit, so a silent
+   * arm-then-disarm sends nothing. */
+  flush() {
+    if (this.speechSamples.length === 0) return;
+    this.isSpeaking = false;
+    this.silenceStart = 0;
+    this.emitUtterance();
+  }
+
   private process(e: AudioProcessingEvent) {
     if (!this.active || this.frozen) return;
 
@@ -120,6 +143,7 @@ export class SimpleVAD {
       this.silenceStart = 0;
     } else if (this.isSpeaking) {
       this.speechSamples.push(samples);
+      if (!this.endOnSilence) return; // capture runs until flush()
       if (this.silenceStart === 0) {
         this.silenceStart = Date.now();
       } else if (Date.now() - this.silenceStart > this.silenceDuration) {
