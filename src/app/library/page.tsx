@@ -16,7 +16,7 @@ export default function LibraryHome() {
           <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
             Library
           </h1>
-          <p className="mt-3 font-serif text-[18px] leading-[1.55] text-ink-body">
+          <p className="mt-3 font-serif text-[18px] font-medium leading-[1.55] text-ink-body">
             {ARTICLES.length} concept notes covering the ideas the{" "}
             {SYSTEM_DESIGN_QUESTIONS.length} system design exercises are built on — what
             each mechanism is, the tradeoff it makes, the numbers that justify it, and the
@@ -44,7 +44,9 @@ export default function LibraryHome() {
                   <span className="mr-2 text-faint">{i + 1}.</span>
                   {section.title}
                 </h2>
-                <p className="mt-1 font-serif text-[15px] text-ink-muted">{section.blurb}</p>
+                <p className="mt-1 font-serif text-[15px] font-medium text-ink-muted">
+                  {section.blurb}
+                </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {articlesForSection(section.id).map((article) => (
@@ -56,7 +58,7 @@ export default function LibraryHome() {
                     <h3 className="font-serif text-[17px] font-semibold text-ink transition group-hover:text-cognac-text">
                       {article.title}
                     </h3>
-                    <p className="mt-1 font-serif text-[14px] leading-[1.5] text-ink-muted">
+                    <p className="mt-1 font-serif text-[14px] font-medium leading-[1.5] text-ink-body">
                       {article.blurb}
                     </p>
                   </Link>

@@ -24,7 +24,7 @@ export default async function CoursePage({
           <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
             Learn {course.title}
           </h1>
-          <p className="mt-3 font-serif text-[18px] leading-[1.55] text-ink-body">
+          <p className="mt-3 font-serif text-[18px] font-medium leading-[1.55] text-ink-body">
             {course.tagline} {course.lessons.length} lessons across{" "}
             {course.modules.length} modules, each taught live by a voice tutor who
             watches your code as you go.
@@ -41,7 +41,9 @@ export default async function CoursePage({
                     <span className="mr-2 text-faint">{i + 1}.</span>
                     {mod.title}
                   </h2>
-                  <p className="mt-1 font-serif text-[15px] text-ink-muted">{mod.blurb}</p>
+                  <p className="mt-1 font-serif text-[15px] font-medium text-ink-muted">
+                    {mod.blurb}
+                  </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {lessons.map((lesson) => (
@@ -53,7 +55,7 @@ export default async function CoursePage({
                       <h3 className="font-serif text-[17px] font-semibold text-ink transition group-hover:text-cognac-text">
                         {lesson.title}
                       </h3>
-                      <p className="mt-1 font-serif text-[14px] leading-[1.5] text-ink-muted">
+                      <p className="mt-1 font-serif text-[14px] font-medium leading-[1.5] text-ink-body">
                         {lesson.blurb}
                       </p>
                     </Link>
