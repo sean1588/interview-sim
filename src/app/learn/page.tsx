@@ -15,7 +15,7 @@ export default function LearnHome() {
           <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
             Learn
           </h1>
-          <p className="mt-3 font-serif text-[18px] leading-[1.55] text-ink-body">
+          <p className="mt-3 font-serif text-[18px] font-medium leading-[1.55] text-ink-body">
             Guided courses for experienced programmers, each taught live by a voice
             tutor who watches your code as you go. Pick a language to start.
           </p>
@@ -34,7 +34,7 @@ export default function LearnHome() {
                   <h2 className="font-serif text-[22px] font-semibold text-ink transition group-hover:text-cognac-text">
                     Learn {course.title}
                   </h2>
-                  <p className="mt-1.5 font-serif text-[16px] leading-[1.55] text-ink-body">
+                  <p className="mt-1.5 font-serif text-[16px] font-medium leading-[1.55] text-ink-body">
                     {course.tagline}
                   </p>
                   <p className="mt-3 font-sans text-[12px] text-faint">

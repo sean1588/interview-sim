@@ -42,12 +42,15 @@ export default async function ArticlePage({
           <h1 className="mt-2 font-serif text-[38px] font-semibold leading-[1.15] tracking-tight text-ink">
             {article.title}
           </h1>
-          <p className="mt-3 font-serif text-[17px] italic leading-[1.55] text-muted">
+          <p className="mt-3 font-serif text-[17px] font-medium italic leading-[1.55] text-ink-muted">
             {article.blurb}
           </p>
         </header>
 
-        <article className="markdown">
+        {/* Long-form prose sits on the ivory work surface, the way lesson notes and
+            problem statements do — the sand page background is too dark to read
+            17px serif against for a full article. */}
+        <article className="markdown rounded-[10px] border border-hair bg-editor px-7 py-6">
           <ReactMarkdown>{article.content}</ReactMarkdown>
         </article>
 
@@ -57,7 +60,7 @@ export default async function ArticlePage({
           </h2>
           <ul className="mt-3 space-y-1.5">
             {questions.map((q) => (
-              <li key={q.id} className="font-serif text-[16px] leading-[1.5] text-ink-body">
+              <li key={q.id} className="font-serif text-[16px] font-medium leading-[1.5] text-ink-body">
                 {q.title}
               </li>
             ))}

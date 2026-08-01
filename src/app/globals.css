@@ -124,6 +124,10 @@
    ========================================================================== */
 .markdown {
   font-family: var(--font-serif);
+  /* Cormorant's 400 is optically a light weight — thin strokes and a small
+     x-height. Body copy needs 500 to hold the page; headings and strong step
+     up to 700 so the hierarchy still reads against it. */
+  font-weight: 500;
   color: var(--color-ink-body);
 }
 .markdown p {
@@ -133,7 +137,7 @@
 }
 .markdown strong {
   color: var(--color-ink);
-  font-weight: 600;
+  font-weight: 700;
 }
 .markdown em {
   color: var(--color-ink);
@@ -143,7 +147,7 @@
 .markdown h3,
 .markdown h4 {
   color: var(--color-ink);
-  font-weight: 600;
+  font-weight: 700;
   margin: 0.9rem 0 0.4rem;
   line-height: 1.2;
 }

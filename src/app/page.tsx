@@ -22,7 +22,7 @@ function ModeCard({ href, title, description, icon, cta = "Start practice" }: Mo
           <h3 className="font-serif text-[22px] font-semibold text-ink transition group-hover:text-cognac-text">
             {title}
           </h3>
-          <p className="mt-1.5 font-serif text-[16px] leading-[1.55] text-ink-body">
+          <p className="mt-1.5 font-serif text-[16px] font-medium leading-[1.55] text-ink-body">
             {description}
           </p>
           <div className="mt-4 inline-flex items-center gap-1 font-sans text-[13px] font-medium text-cognac-text">
@@ -92,7 +92,7 @@ export default function Home() {
         <div className="mt-12">
           <SectionLabel>Learn</SectionLabel>
         </div>
-        <p className="mb-3 font-serif text-[16px] text-ink-body">
+        <p className="mb-3 font-serif text-[16px] font-medium text-ink-body">
           Guided courses for experienced programmers, each taught live by a voice
           tutor who watches your code, with hands-on exercises you run as you go.
         </p>
@@ -112,7 +112,7 @@ export default function Home() {
         <div className="mt-12">
           <SectionLabel>Library</SectionLabel>
         </div>
-        <p className="mb-3 font-serif text-[16px] text-ink-body">
+        <p className="mb-3 font-serif text-[16px] font-medium text-ink-body">
           Concept notes on the ideas the system design exercises are built on — the
           mechanism, the tradeoff it makes, the numbers that justify it, and the move to
           make when it comes up.
