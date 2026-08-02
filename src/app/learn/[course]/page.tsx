@@ -26,8 +26,7 @@ export default async function CoursePage({
           </h1>
           <p className="mt-3 font-serif text-[18px] font-medium leading-[1.55] text-ink-body">
             {course.tagline} {course.lessons.length} lessons across{" "}
-            {course.modules.length} modules, each taught live by a voice tutor who
-            watches your code as you go.
+            {course.modules.length} modules, each taught live by a voice tutor.
           </p>
         </header>
 

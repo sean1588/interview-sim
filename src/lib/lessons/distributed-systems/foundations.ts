@@ -69,7 +69,7 @@ They're not trivia. Each one is a bug you will actually ship.
 
 **"The network is reliable."** You write \`client.post(url)\` with no timeout, no retry, no idempotency key. A packet drops; the call hangs for the OS default (on Linux, TCP retransmits can hold you for ~15 minutes) and a thread pool fills behind it.
 
-**"Latency is zero."** A loop that calls a service once per item is fine at ten items and a 30-second page load at a thousand. This is the N+1 problem with a network in the middle: 1000 × 1ms is a second of pure waiting.
+**"Latency is zero."** A loop that calls a service once per item is fine at ten items and a one-second page load at a thousand. This is the N+1 problem with a network in the middle: even at a fast 1ms per call, 1000 × 1ms is a second of pure waiting.
 
 **"Bandwidth is infinite."** \`SELECT *\` across a service boundary ships a megabyte where 200 bytes were needed. Serialization and gzip of that payload also cost CPU on both ends.
 
@@ -140,7 +140,7 @@ L1 cache reference                        1 ns              1×
 Main memory reference                   100 ns            100×
 Read 1 MB sequentially from memory       20 µs
 SSD random read                         100 µs        100,000×
-Read 1 MB sequentially from SSD         500 µs
+Read 1 MB sequentially from NVMe SSD    500 µs
 Round trip within the same datacenter   500 µs
 Disk (spinning) seek                     10 ms
 Round trip US East <-> US West           60 ms
@@ -164,12 +164,12 @@ Rough arithmetic kills bad designs early:
 
 \`\`\`
 Page needs 50 sequential service calls, 1ms each, same DC   -> 50ms   plausible
-Same 50 calls, but one is cross-region (80ms each)          -> 4s     no
-1 KB rows, 10M rows, full scan from SSD @ 500 MB/s          -> ~20s   no, needs an index
+Same 50 calls, but each is cross-region (80ms)              -> 4s     no
+1 KB rows, 10M rows, full scan from NVMe SSD @ 2 GB/s       -> ~5s    no, needs an index
 100M writes/day = ~1,200/s average, ~5,000/s at peak        -> one node's worth, if it fits
 \`\`\`
 
-Two more worth memorizing: a single modern disk sustains roughly **500 MB/s** sequentially but only a few thousand random IOPS; and **1 Gbps ≈ 125 MB/s**, which is about 8 seconds to move a gigabyte.
+Two more worth memorizing: a single NVMe SSD sustains roughly **2 GB/s** sequentially but only ~10,000 random reads per second at queue depth 1 (a SATA SSD is closer to 500 MB/s); and **1 Gbps ≈ 125 MB/s**, which is about 8 seconds to move a gigabyte.
 
 ## Tail latency, not average
 
