@@ -45,6 +45,21 @@ console.log(isValid("()[]{}")); // expected: true
 console.log(isValid("([)]"));   // expected: false
 `,
     },
+    tests: {
+      entryPoint: { python: "is_valid", javascript: "isValid", typescript: "isValid" },
+      cases: [
+        { args: ["()[]{}"], expected: true },
+        { args: ["(]"], expected: false },
+        { args: ["([)]"], expected: false },
+        { args: ["{[]}"], expected: true },
+        { args: [""], expected: true },
+        // An unclosed opener and a stray closer are the two ways a stack can be
+        // left in the wrong state.
+        { args: ["(("], expected: false },
+        { args: [")"], expected: false },
+        { args: ["(){}}{"], expected: false },
+      ],
+    },
   },
   {
     id: "group-anagrams",
@@ -86,6 +101,27 @@ console.log(groupAnagrams(["eat", "tea", "tan", "ate", "nat", "bat"]));
 console.log(groupAnagrams(["eat", "tea", "tan", "ate", "nat", "bat"]));
 // expected: [["eat", "tea", "ate"], ["tan", "nat"], ["bat"]]
 `,
+    },
+    // Groups come back in any order, but each group is expected in input order —
+    // what a straightforward hash-map-of-lists solution produces.
+    tests: {
+      entryPoint: {
+        python: "group_anagrams",
+        javascript: "groupAnagrams",
+        typescript: "groupAnagrams",
+      },
+      unordered: true,
+      cases: [
+        {
+          args: [["eat", "tea", "tan", "ate", "nat", "bat"]],
+          expected: [["eat", "tea", "ate"], ["tan", "nat"], ["bat"]],
+        },
+        { args: [["abc", "bca", "cab", "xyz"]], expected: [["abc", "bca", "cab"], ["xyz"]] },
+        { args: [["ab", "ba", "abc"]], expected: [["ab", "ba"], ["abc"]] },
+        { args: [[""]], expected: [[""]] },
+        { args: [["a"]], expected: [["a"]] },
+        { args: [[]], expected: [] },
+      ],
     },
   },
   {
@@ -132,6 +168,18 @@ console.log(isAnagram("anagram", "nagaram")); // expected: true
 console.log(isAnagram("rat", "car"));         // expected: false
 `,
     },
+    tests: {
+      entryPoint: { python: "is_anagram", javascript: "isAnagram", typescript: "isAnagram" },
+      cases: [
+        { args: ["anagram", "nagaram"], expected: true },
+        { args: ["rat", "car"], expected: false },
+        { args: ["ab", "ba"], expected: true },
+        { args: ["a", "ab"], expected: false },
+        // Same character set, different frequencies — catches a set-based solution.
+        { args: ["aacc", "ccac"], expected: false },
+        { args: ["", ""], expected: true },
+      ],
+    },
   },
   {
     id: "longest-substring-without-repeating-characters",
@@ -175,6 +223,23 @@ console.log(lengthOfLongestSubstring("pwwkew"));   // expected: 3
 console.log(lengthOfLongestSubstring("abcabcbb")); // expected: 3
 console.log(lengthOfLongestSubstring("pwwkew"));   // expected: 3
 `,
+    },
+    tests: {
+      entryPoint: {
+        python: "length_of_longest_substring",
+        javascript: "lengthOfLongestSubstring",
+        typescript: "lengthOfLongestSubstring",
+      },
+      cases: [
+        { args: ["abcabcbb"], expected: 3 },
+        { args: ["pwwkew"], expected: 3 },
+        { args: ["bbbbb"], expected: 1 },
+        { args: [""], expected: 0 },
+        // "dvdf" and "abba" both punish a window whose left pointer moves backwards.
+        { args: ["dvdf"], expected: 3 },
+        { args: ["abba"], expected: 2 },
+        { args: [" "], expected: 1 },
+      ],
     },
   },
   {
@@ -221,6 +286,20 @@ console.log(minWindow("adobecodebanc", "abc")); // expected: banc
 console.log(minWindow("abc", "abc"));           // expected: abc
 `,
     },
+    tests: {
+      entryPoint: { python: "min_window", javascript: "minWindow", typescript: "minWindow" },
+      cases: [
+        { args: ["adobecodebanc", "abc"], expected: "banc" },
+        { args: ["abc", "abc"], expected: "abc" },
+        { args: ["a", "a"], expected: "a" },
+        // t needs two a's but s has one — catches counting distinct characters
+        // instead of frequencies.
+        { args: ["a", "aa"], expected: "" },
+        { args: ["aa", "aa"], expected: "aa" },
+        { args: ["a", "b"], expected: "" },
+        { args: ["bba", "ab"], expected: "ba" },
+      ],
+    },
   },
   {
     id: "valid-palindrome",
@@ -264,6 +343,23 @@ console.log(isPalindrome("race a car"));                     // expected: false
 console.log(isPalindrome("A man, a plan, a canal: Panama")); // expected: true
 console.log(isPalindrome("race a car"));                     // expected: false
 `,
+    },
+    tests: {
+      entryPoint: {
+        python: "is_palindrome",
+        javascript: "isPalindrome",
+        typescript: "isPalindrome",
+      },
+      cases: [
+        { args: ["A man, a plan, a canal: Panama"], expected: true },
+        { args: ["race a car"], expected: false },
+        { args: [""], expected: true },
+        { args: [" "], expected: true },
+        // "0P" only reads as a palindrome if digits get case-folded too.
+        { args: ["0P"], expected: false },
+        { args: ["ab_a"], expected: true },
+        { args: ["12321"], expected: true },
+      ],
     },
   },
   {
@@ -309,6 +405,22 @@ console.log(hammingDistance("10101", "10011"));     // expected: 2
 console.log(hammingDistance("karolin", "kathrin")); // expected: 3
 console.log(hammingDistance("10101", "10011"));     // expected: 2
 `,
+    },
+    tests: {
+      entryPoint: {
+        python: "hamming_distance",
+        javascript: "hammingDistance",
+        typescript: "hammingDistance",
+      },
+      cases: [
+        { args: ["karolin", "kathrin"], expected: 3 },
+        { args: ["10101", "10011"], expected: 2 },
+        { args: ["abc", "abc"], expected: 0 },
+        { args: ["abc", "xyz"], expected: 3 },
+        { args: ["", ""], expected: 0 },
+        { args: ["abc", "abcd"], expected: -1 },
+        { args: ["a", ""], expected: -1 },
+      ],
     },
   },
   {
@@ -379,5 +491,7 @@ console.log(hammingDecode([0, 1, 1, 0, 0, 1, 1]));
 // expected: data [1, 0, 1, 1], errorPos 0
 `,
     },
+    // No `tests`: the problem has two entry points (encode and decode), and a spec
+    // names exactly one.
   },
 ];

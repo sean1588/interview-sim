@@ -15,7 +15,7 @@ import { designProblems } from "./design";
 import { jsUtilProblems } from "./js-utils";
 import { practicalProblems } from "./practical";
 
-export type { Problem, LanguageId, Difficulty } from "./types";
+export type { Problem, LanguageId, Difficulty, TestCase, TestSpec } from "./types";
 
 // Topic taxonomy lives here, in the file that already owns the per-topic
 // arrays — no `topic` field is added to the ~70 individual problems. The flat

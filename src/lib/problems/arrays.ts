@@ -42,6 +42,19 @@ console.log(twoSum([2, 7, 11, 15], 9)); // expected: [0, 1]
 console.log(twoSum([2, 7, 11, 15], 9)); // expected: [0, 1]
 `,
     },
+    // "You can return the answer in any order" — hence `unordered`.
+    tests: {
+      entryPoint: { python: "two_sum", javascript: "twoSum", typescript: "twoSum" },
+      unordered: true,
+      cases: [
+        { args: [[2, 7, 11, 15], 9], expected: [0, 1] },
+        { args: [[3, 2, 4], 6], expected: [1, 2] },
+        { args: [[3, 3], 6], expected: [0, 1] },
+        { args: [[-1, -2, -3, -4, -5], -8], expected: [2, 4] },
+        { args: [[0, 4, 3, 0], 0], expected: [0, 3] },
+        { args: [[1, 5, 3, 7], 12], expected: [1, 3] },
+      ],
+    },
   },
   {
     id: "merge-intervals",
@@ -79,6 +92,19 @@ console.log(merge([[1, 3], [2, 6], [8, 10], [15, 18]])); // expected: [[1, 6], [
 
 console.log(merge([[1, 3], [2, 6], [8, 10], [15, 18]])); // expected: [[1, 6], [8, 10], [15, 18]]
 `,
+    },
+    tests: {
+      entryPoint: { python: "merge", javascript: "merge", typescript: "merge" },
+      cases: [
+        { args: [[[1, 3], [2, 6], [8, 10], [15, 18]]], expected: [[1, 6], [8, 10], [15, 18]] },
+        { args: [[[1, 4], [4, 5]]], expected: [[1, 5]] },
+        { args: [[[1, 4], [0, 4]]], expected: [[0, 4]] },
+        { args: [[[1, 4], [2, 3]]], expected: [[1, 4]] },
+        { args: [[[6, 8], [1, 9], [2, 4], [4, 7]]], expected: [[1, 9]] },
+        { args: [[[1, 2], [3, 4], [5, 6]]], expected: [[1, 2], [3, 4], [5, 6]] },
+        { args: [[[5, 7]]], expected: [[5, 7]] },
+        { args: [[]], expected: [] },
+      ],
     },
   },
   {
@@ -120,6 +146,22 @@ console.log(threeSum([-1, 0, 1, 2, -1, -4])); // expected: [[-1, -1, 2], [-1, 0,
 console.log(threeSum([-1, 0, 1, 2, -1, -4])); // expected: [[-1, -1, 2], [-1, 0, 1]]
 `,
     },
+    // Triplets may come back in any order, but each triplet is expected in ascending
+    // order — the form the prompt's example shows and every sort-then-two-pointer
+    // solution produces.
+    tests: {
+      entryPoint: { python: "three_sum", javascript: "threeSum", typescript: "threeSum" },
+      unordered: true,
+      cases: [
+        { args: [[-1, 0, 1, 2, -1, -4]], expected: [[-1, -1, 2], [-1, 0, 1]] },
+        { args: [[-1, 0, 1]], expected: [[-1, 0, 1]] },
+        { args: [[0, 1, 1]], expected: [] },
+        { args: [[0, 0, 0]], expected: [[0, 0, 0]] },
+        { args: [[0, 0, 0, 0]], expected: [[0, 0, 0]] },
+        { args: [[-2, 0, 1, 1, 2]], expected: [[-2, 0, 2], [-2, 1, 1]] },
+        { args: [[1, 2, 3]], expected: [] },
+      ],
+    },
   },
   {
     id: "product-except-self",
@@ -159,6 +201,21 @@ console.log(productExceptSelf([1, 2, 3, 4])); // expected: [24, 12, 8, 6]
 console.log(productExceptSelf([1, 2, 3, 4])); // expected: [24, 12, 8, 6]
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "product_except_self",
+        javascript: "productExceptSelf",
+        typescript: "productExceptSelf",
+      },
+      cases: [
+        { args: [[1, 2, 3, 4]], expected: [24, 12, 8, 6] },
+        { args: [[-1, 1, 0, -3, 3]], expected: [0, 0, 9, 0, 0] },
+        { args: [[2, 3]], expected: [3, 2] },
+        { args: [[0, 0]], expected: [0, 0] },
+        { args: [[1, 1, 1, 1]], expected: [1, 1, 1, 1] },
+        { args: [[5, 2, -4]], expected: [-8, -20, 10] },
+      ],
+    },
   },
   {
     id: "top-k-frequent",
@@ -196,6 +253,23 @@ console.log(topKFrequent([1, 1, 1, 2, 2, 3], 2)); // expected: [1, 2]
 
 console.log(topKFrequent([1, 1, 1, 2, 2, 3], 2)); // expected: [1, 2]
 `,
+    },
+    // "You may return the answer in any order" — hence `unordered`.
+    tests: {
+      entryPoint: {
+        python: "top_k_frequent",
+        javascript: "topKFrequent",
+        typescript: "topKFrequent",
+      },
+      unordered: true,
+      cases: [
+        { args: [[1, 1, 1, 2, 2, 3], 2], expected: [1, 2] },
+        { args: [[1], 1], expected: [1] },
+        { args: [[1, 2, 3, 4], 4], expected: [1, 2, 3, 4] },
+        { args: [[4, 4, 4, 5, 5, 6], 1], expected: [4] },
+        { args: [[-1, -1, 2, 2, 3], 2], expected: [-1, 2] },
+        { args: [[7, 7, 8, 8, 9], 3], expected: [7, 8, 9] },
+      ],
     },
   },
   {
@@ -235,6 +309,22 @@ console.log(longestConsecutive([100, 4, 200, 1, 3, 2])); // expected: 4
 console.log(longestConsecutive([100, 4, 200, 1, 3, 2])); // expected: 4
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "longest_consecutive",
+        javascript: "longestConsecutive",
+        typescript: "longestConsecutive",
+      },
+      cases: [
+        { args: [[100, 4, 200, 1, 3, 2]], expected: 4 },
+        { args: [[0, 3, 7, 2, 5, 8, 4, 6, 0, 1]], expected: 9 },
+        { args: [[]], expected: 0 },
+        { args: [[1]], expected: 1 },
+        { args: [[5, 5, 5]], expected: 1 },
+        { args: [[-3, -2, -1, 0, 1]], expected: 5 },
+        { args: [[10, 20, 30]], expected: 1 },
+      ],
+    },
   },
   {
     id: "sock-merchant",
@@ -273,6 +363,21 @@ console.log(sockMerchant(9, [10, 20, 20, 10, 10, 30, 50, 10, 20])); // expected:
 console.log(sockMerchant(9, [10, 20, 20, 10, 10, 30, 50, 10, 20])); // expected: 3
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "sock_merchant",
+        javascript: "sockMerchant",
+        typescript: "sockMerchant",
+      },
+      cases: [
+        { args: [9, [10, 20, 20, 10, 10, 30, 50, 10, 20]], expected: 3 },
+        { args: [0, []], expected: 0 },
+        { args: [1, [1]], expected: 0 },
+        { args: [4, [1, 1, 1, 1]], expected: 2 },
+        { args: [6, [1, 2, 1, 2, 1, 2]], expected: 2 },
+        { args: [5, [3, 3, 3, 3, 3]], expected: 2 },
+      ],
+    },
   },
   {
     id: "array-left-rotation",
@@ -310,6 +415,17 @@ console.log(rotLeft([1, 2, 3, 4, 5], 2)); // expected: [3, 4, 5, 1, 2]
 
 console.log(rotLeft([1, 2, 3, 4, 5], 2)); // expected: [3, 4, 5, 1, 2]
 `,
+    },
+    tests: {
+      entryPoint: { python: "rot_left", javascript: "rotLeft", typescript: "rotLeft" },
+      cases: [
+        { args: [[1, 2, 3, 4, 5], 2], expected: [3, 4, 5, 1, 2] },
+        { args: [[1, 2, 3, 4, 5], 0], expected: [1, 2, 3, 4, 5] },
+        { args: [[1, 2, 3, 4, 5], 5], expected: [1, 2, 3, 4, 5] },
+        { args: [[1, 2, 3, 4, 5], 4], expected: [5, 1, 2, 3, 4] },
+        { args: [[1, 2], 1], expected: [2, 1] },
+        { args: [[1], 0], expected: [1] },
+      ],
     },
   },
   {
@@ -385,6 +501,73 @@ const grid = [
 console.log(hourglassSum(grid)); // expected: 19
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "hourglass_sum",
+        javascript: "hourglassSum",
+        typescript: "hourglassSum",
+      },
+      cases: [
+        {
+          args: [[
+            [1, 1, 1, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0],
+            [1, 1, 1, 0, 0, 0],
+            [0, 0, 2, 4, 4, 0],
+            [0, 0, 0, 2, 0, 0],
+            [0, 0, 1, 2, 4, 0],
+          ]],
+          expected: 19,
+        },
+        {
+          args: [[
+            [-9, -9, -9, 1, 1, 1],
+            [0, -9, 0, 4, 3, 2],
+            [-9, -9, -9, 1, 2, 3],
+            [0, 0, 8, 6, 6, 0],
+            [0, 0, 0, -2, 0, 0],
+            [0, 0, 1, 2, 4, 0],
+          ]],
+          expected: 28,
+        },
+        {
+          // Every hourglass is negative — catches a `max` seeded at 0.
+          args: [[
+            [-1, -1, 0, -9, -2, -2],
+            [-2, -1, -6, -8, -2, -5],
+            [-1, -1, -1, -2, -3, -4],
+            [-1, -9, -2, -4, -4, -5],
+            [-7, -3, -3, -2, -9, -9],
+            [-1, -3, -1, -2, -4, -5],
+          ]],
+          expected: -6,
+        },
+        {
+          args: [[
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+          ]],
+          expected: 0,
+        },
+        {
+          // Best hourglass sits in the bottom-right corner — catches a loop that
+          // stops one row or column early.
+          args: [[
+            [1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 9, 9],
+            [1, 1, 1, 1, 9, 1],
+            [1, 1, 1, 1, 9, 9],
+          ]],
+          expected: 47,
+        },
+      ],
+    },
   },
   {
     id: "two-movies-on-flight",
@@ -425,6 +608,25 @@ console.log(twoMoviesOnFlight([90, 85, 75, 60, 120, 150, 125], 250)); // expecte
 console.log(twoMoviesOnFlight([90, 85, 75, 60, 120, 150, 125], 250)); // expected: [125, 90]
 `,
     },
+    // The two durations come back in either order — hence `unordered`.
+    tests: {
+      entryPoint: {
+        python: "two_movies_on_flight",
+        javascript: "twoMoviesOnFlight",
+        typescript: "twoMoviesOnFlight",
+      },
+      unordered: true,
+      cases: [
+        { args: [[90, 85, 75, 60, 120, 150, 125], 250], expected: [125, 90] },
+        // 10+90 and 50+50 both hit the 100 limit; the tie-break picks the pair
+        // holding the longest single movie.
+        { args: [[10, 90, 50, 50], 130], expected: [90, 10] },
+        { args: [[30, 30, 30], 90], expected: [30, 30] },
+        { args: [[40, 50], 120], expected: [50, 40] },
+        { args: [[100, 105, 110], 180], expected: null },
+        { args: [[1, 2], 10], expected: null },
+      ],
+    },
   },
   {
     id: "stock-span",
@@ -463,6 +665,19 @@ console.log(stockSpan([100, 80, 60, 70, 60, 75, 85])); // expected: [1, 1, 1, 2,
 
 console.log(stockSpan([100, 80, 60, 70, 60, 75, 85])); // expected: [1, 1, 1, 2, 1, 4, 6]
 `,
+    },
+    tests: {
+      entryPoint: { python: "stock_span", javascript: "stockSpan", typescript: "stockSpan" },
+      cases: [
+        { args: [[100, 80, 60, 70, 60, 75, 85]], expected: [1, 1, 1, 2, 1, 4, 6] },
+        { args: [[10, 4, 5, 90, 120, 80]], expected: [1, 1, 2, 4, 5, 1] },
+        // Equal prices count toward the span ("less than or equal to").
+        { args: [[5, 5, 5]], expected: [1, 2, 3] },
+        { args: [[1, 2, 3, 4]], expected: [1, 2, 3, 4] },
+        { args: [[4, 3, 2, 1]], expected: [1, 1, 1, 1] },
+        { args: [[5]], expected: [1] },
+        { args: [[]], expected: [] },
+      ],
     },
   },
 ];

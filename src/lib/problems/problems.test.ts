@@ -72,6 +72,39 @@ describe("problem bank invariants", () => {
     }
   });
 
+  // The authoring failure mode is a spec that silently never grades: an entry
+  // point naming a function the starter doesn't declare, or a language with a
+  // starter but no entry point. Both look fine in review and both produce
+  // "tests didn't run" in the editor, so they're pinned here instead.
+  it("every tests spec lines up with its starter code", () => {
+    for (const p of PROBLEMS) {
+      if (!p.tests) continue;
+      for (const [lang, starter] of Object.entries(p.starterCode)) {
+        const entry = p.tests.entryPoint[lang as keyof typeof p.tests.entryPoint];
+        expect(entry, `${p.id}: no entryPoint for ${lang}`).toBeTruthy();
+        expect(starter, `${p.id}:${lang} does not declare ${entry}`).toContain(entry!);
+      }
+    }
+  });
+
+  it("every tests spec has enough JSON-able cases", () => {
+    for (const p of PROBLEMS) {
+      if (!p.tests) continue;
+      expect(p.tests.cases.length, `${p.id} case count`).toBeGreaterThanOrEqual(4);
+      p.tests.cases.forEach((c, i) => {
+        expect(Array.isArray(c.args), `${p.id} case ${i + 1} args`).toBe(true);
+        // The harness ships args and returns values as JSON; anything that
+        // doesn't survive the round-trip can never compare equal.
+        for (const [what, value] of [["args", c.args], ["expected", c.expected]] as const) {
+          expect(
+            JSON.parse(JSON.stringify(value)),
+            `${p.id} case ${i + 1} ${what} is not JSON-stable`
+          ).toEqual(value);
+        }
+      });
+    }
+  });
+
   it("getProblem resolves known ids and rejects unknown ones", () => {
     expect(getProblem(PROBLEMS[0].id)?.id).toBe(PROBLEMS[0].id);
     expect(getProblem("does-not-exist")).toBeUndefined();
