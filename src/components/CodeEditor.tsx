@@ -2,8 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
-import type { LanguageId } from "@/lib/problems";
+import type { LanguageId, TestSpec } from "@/lib/problems";
 import { runCode, isRunnable, type RunResult } from "@/lib/runner";
+import { runTests, failureLines, type TestSummary } from "@/lib/test-harness";
 import { Play, ChevronDown } from "@/components/session/icons";
 
 interface CodeEditorProps {
@@ -13,8 +14,13 @@ interface CodeEditorProps {
   languages: LanguageId[];
   onCodeChange: (code: string) => void;
   onLanguageChange: (language: LanguageId) => void;
+  /**
+   * Cases to grade the run against. Absent (the freestyle and lesson editors) ⇒
+   * Run behaves exactly as it always has: execute, show output, nothing else.
+   */
+  tests?: TestSpec;
   /** Called with the run result so the parent can forward it to the interviewer. */
-  onRun?: (result: RunResult) => void;
+  onRun?: (result: RunResult, tests?: TestSummary) => void;
   /** When false, the Run button is disabled (freestyle's waiting state). */
   canRun?: boolean;
   /** Non-interactive content laid over the editor canvas (freestyle empty state). */
@@ -70,20 +76,31 @@ export default function CodeEditor({
   languages,
   onCodeChange,
   onLanguageChange,
+  tests,
   onRun,
   canRun = true,
   overlay,
 }: CodeEditorProps) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [summary, setSummary] = useState<TestSummary | null>(null);
+
+  // The entry point the spec names for the current language: its presence is what
+  // decides whether this run is graded, and it labels failures once it is.
+  const entryPoint = tests?.entryPoint[language];
+  const spec = tests && entryPoint && isRunnable(language) ? tests : null;
 
   const run = async () => {
     setRunning(true);
     setResult(null);
+    setSummary(null);
     try {
-      const r = await runCode(language, code);
-      setResult(r);
-      onRun?.(r);
+      const graded = spec
+        ? await runTests(language, code, spec)
+        : { run: await runCode(language, code), tests: null };
+      setResult(graded.run);
+      setSummary(graded.tests);
+      onRun?.(graded.run, graded.tests ?? undefined);
     } catch (e) {
       const r: RunResult = {
         stdout: "",
@@ -104,6 +121,8 @@ export default function CodeEditor({
   // scratchpad the voice tutor reviews, so we drop the Run button and the
   // output console entirely rather than offer a button that always errors.
   const executable = isRunnable(language);
+  // Failing cases, shown above the raw output so the verdict reads before the noise.
+  const failures = summary ? failureLines(summary, entryPoint ?? "solution") : [];
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-editor">
@@ -188,15 +207,35 @@ export default function CodeEditor({
       {/* Output console — omitted for non-runnable languages (nothing to show). */}
       {executable && (
         <div className="h-[122px] flex-none flex flex-col border-t border-hair bg-inset">
-          <div className="flex-none border-b border-hair px-[18px] py-[9px] font-sans text-[10px] font-medium uppercase tracking-[0.16em] text-faint">
-            Output
+          <div className="flex-none flex items-baseline justify-between gap-3 border-b border-hair px-[18px] py-[9px] font-sans text-[10px] font-medium uppercase tracking-[0.16em]">
+            <span className="text-faint">Output</span>
+            {summary && (
+              <span
+                className={
+                  !summary.didNotRun && summary.passed === summary.total
+                    ? "text-olive"
+                    : "text-cognac-text"
+                }
+              >
+                {summary.didNotRun
+                  ? "Tests didn't run"
+                  : `${summary.passed} / ${summary.total} cases passed`}
+              </span>
+            )}
           </div>
           <pre className="flex-1 min-h-0 overflow-auto px-[18px] py-3 font-mono text-[12.5px] whitespace-pre-wrap text-ink-body">
-            {result
-              ? result.output || result.stderr || "(no output)"
-              : running
-                ? FIRST_RUN_HINT[language] ?? "Running…"
-                : <span className="text-faint">Press Run to execute your code.</span>}
+            {result ? (
+              <>
+                {failures.length > 0 && (
+                  <span className="text-cognac-text">{failures.join("\n")}{"\n\n"}</span>
+                )}
+                {result.output || result.stderr || "(no output)"}
+              </>
+            ) : running ? (
+              FIRST_RUN_HINT[language] ?? "Running…"
+            ) : (
+              <span className="text-faint">Press Run to execute your code.</span>
+            )}
           </pre>
         </div>
       )}

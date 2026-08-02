@@ -38,6 +38,21 @@ console.log(climbStairs(3)); // expected: 3
 console.log(climbStairs(3)); // expected: 3
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "climb_stairs",
+        javascript: "climbStairs",
+        typescript: "climbStairs",
+      },
+      cases: [
+        { args: [1], expected: 1 },
+        { args: [2], expected: 2 },
+        { args: [3], expected: 3 },
+        { args: [4], expected: 5 },
+        { args: [5], expected: 8 },
+        { args: [20], expected: 10946 },
+      ],
+    },
   },
   {
     id: "word-break",
@@ -77,6 +92,19 @@ console.log(wordBreak("leetcode", ["leet", "code"])); // expected: true
 console.log(wordBreak("leetcode", ["leet", "code"])); // expected: true
 `,
     },
+    tests: {
+      entryPoint: { python: "word_break", javascript: "wordBreak", typescript: "wordBreak" },
+      cases: [
+        { args: ["leetcode", ["leet", "code"]], expected: true },
+        { args: ["applepenapple", ["apple", "pen"]], expected: true },
+        // Greedy longest-first matching takes "cats" and strands "andog".
+        { args: ["catsandog", ["cats", "dog", "sand", "and", "cat"]], expected: false },
+        { args: ["cars", ["car", "ca", "rs"]], expected: true },
+        { args: ["aaaaaaa", ["aaa", "aaaa"]], expected: true },
+        { args: ["a", ["b"]], expected: false },
+        { args: ["", ["a"]], expected: true },
+      ],
+    },
   },
   {
     id: "maximum-subarray",
@@ -114,6 +142,22 @@ console.log(maxSubArray([-2, 1, -3, 4, -1, 2, 1, -5, 4])); // expected: 6
 
 console.log(maxSubArray([-2, 1, -3, 4, -1, 2, 1, -5, 4])); // expected: 6
 `,
+    },
+    tests: {
+      entryPoint: {
+        python: "max_subarray",
+        javascript: "maxSubArray",
+        typescript: "maxSubArray",
+      },
+      cases: [
+        { args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], expected: 6 },
+        { args: [[1]], expected: 1 },
+        { args: [[5, 4, -1, 7, 8]], expected: 23 },
+        // All-negative input — catches a running max seeded at 0.
+        { args: [[-1]], expected: -1 },
+        { args: [[-2, -1, -3]], expected: -1 },
+        { args: [[0, -1, 2, -1, 3]], expected: 4 },
+      ],
     },
   },
   {
@@ -155,6 +199,19 @@ console.log(rob([2, 7, 9, 3, 1])); // expected: 12
 console.log(rob([2, 7, 9, 3, 1])); // expected: 12
 `,
     },
+    tests: {
+      entryPoint: { python: "rob", javascript: "rob", typescript: "rob" },
+      cases: [
+        { args: [[2, 7, 9, 3, 1]], expected: 12 },
+        { args: [[1, 2, 3, 1]], expected: 4 },
+        // Alternating-house greed loses here: 2+1 beats neither 1+2 nor 2+2.
+        { args: [[2, 1, 1, 2]], expected: 4 },
+        { args: [[2, 7, 9, 3, 1, 10]], expected: 21 },
+        { args: [[2, 1]], expected: 2 },
+        { args: [[5]], expected: 5 },
+        { args: [[]], expected: 0 },
+      ],
+    },
   },
   {
     id: "coin-change",
@@ -195,6 +252,18 @@ console.log(coinChange([1, 2, 5], 11)); // expected: 3
 console.log(coinChange([1, 2, 5], 11)); // expected: 3
 `,
     },
+    tests: {
+      entryPoint: { python: "coin_change", javascript: "coinChange", typescript: "coinChange" },
+      cases: [
+        { args: [[1, 2, 5], 11], expected: 3 },
+        { args: [[2], 3], expected: -1 },
+        { args: [[1], 0], expected: 0 },
+        // Greedy takes 4+1+1; the optimum is 3+3.
+        { args: [[1, 3, 4], 6], expected: 2 },
+        { args: [[2, 5, 10, 1], 27], expected: 4 },
+        { args: [[5], 3], expected: -1 },
+      ],
+    },
   },
   {
     id: "unique-paths",
@@ -233,6 +302,17 @@ console.log(uniquePaths(3, 7)); // expected: 28
 
 console.log(uniquePaths(3, 7)); // expected: 28
 `,
+    },
+    tests: {
+      entryPoint: { python: "unique_paths", javascript: "uniquePaths", typescript: "uniquePaths" },
+      cases: [
+        { args: [3, 7], expected: 28 },
+        { args: [7, 3], expected: 28 },
+        { args: [3, 2], expected: 3 },
+        { args: [1, 1], expected: 1 },
+        { args: [1, 10], expected: 1 },
+        { args: [10, 10], expected: 48620 },
+      ],
     },
   },
   {
@@ -273,6 +353,23 @@ console.log(lengthOfLIS([10, 9, 2, 5, 3, 7, 101, 18])); // expected: 4
 console.log(lengthOfLIS([10, 9, 2, 5, 3, 7, 101, 18])); // expected: 4
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "length_of_lis",
+        javascript: "lengthOfLIS",
+        typescript: "lengthOfLIS",
+      },
+      cases: [
+        { args: [[10, 9, 2, 5, 3, 7, 101, 18]], expected: 4 },
+        { args: [[0, 1, 0, 3, 2, 3]], expected: 4 },
+        // Strictly increasing, so a run of equal values counts once.
+        { args: [[7, 7, 7, 7, 7, 7, 7]], expected: 1 },
+        { args: [[1, 3, 6, 7, 9, 4, 10, 5, 6]], expected: 6 },
+        { args: [[5, 4, 3, 2, 1]], expected: 1 },
+        { args: [[1]], expected: 1 },
+        { args: [[]], expected: 0 },
+      ],
+    },
   },
   {
     id: "longest-common-subsequence",
@@ -312,6 +409,22 @@ console.log(longestCommonSubsequence("abcde", "ace")); // expected: 3
 console.log(longestCommonSubsequence("abcde", "ace")); // expected: 3
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "longest_common_subsequence",
+        javascript: "longestCommonSubsequence",
+        typescript: "longestCommonSubsequence",
+      },
+      cases: [
+        { args: ["abcde", "ace"], expected: 3 },
+        { args: ["abc", "abc"], expected: 3 },
+        { args: ["abc", "def"], expected: 0 },
+        { args: ["bsbininm", "jmjkbkjkv"], expected: 1 },
+        { args: ["oxcpqrsvwf", "shmtulqrypy"], expected: 2 },
+        { args: ["a", ""], expected: 0 },
+        { args: ["", ""], expected: 0 },
+      ],
+    },
   },
   {
     id: "edit-distance",
@@ -350,6 +463,22 @@ console.log(minDistance("horse", "ros")); // expected: 3
 
 console.log(minDistance("horse", "ros")); // expected: 3
 `,
+    },
+    tests: {
+      entryPoint: {
+        python: "min_distance",
+        javascript: "minDistance",
+        typescript: "minDistance",
+      },
+      cases: [
+        { args: ["horse", "ros"], expected: 3 },
+        { args: ["intention", "execution"], expected: 5 },
+        { args: ["sunday", "saturday"], expected: 3 },
+        { args: ["abc", "abc"], expected: 0 },
+        { args: ["abc", ""], expected: 3 },
+        { args: ["", "abc"], expected: 3 },
+        { args: ["", ""], expected: 0 },
+      ],
     },
   },
 ];

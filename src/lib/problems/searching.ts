@@ -37,6 +37,22 @@ console.log(binarySearch([1, 2, 3, 4, 5], 3)); // expected: 2
 console.log(binarySearch([1, 2, 3, 4, 5], 3)); // expected: 2
 `,
     },
+    tests: {
+      entryPoint: {
+        python: "binary_search",
+        javascript: "binarySearch",
+        typescript: "binarySearch",
+      },
+      cases: [
+        { args: [[1, 2, 3, 4, 5], 3], expected: 2 },
+        { args: [[1, 2, 3, 4, 5], 1], expected: 0 },
+        { args: [[1, 2, 3, 4, 5], 5], expected: 4 },
+        { args: [[1, 2, 3, 4, 5], 6], expected: -1 },
+        { args: [[2], 2], expected: 0 },
+        { args: [[], 1], expected: -1 },
+        { args: [[-5, -3, 0, 7], -3], expected: 1 },
+      ],
+    },
   },
   {
     id: "search-rotated-sorted-array",
@@ -74,6 +90,19 @@ console.log(search([4, 5, 6, 7, 0, 1, 2], 0)); // expected: 4
 console.log(search([4, 5, 6, 7, 0, 1, 2], 0)); // expected: 4
 `,
     },
+    tests: {
+      entryPoint: { python: "search", javascript: "search", typescript: "search" },
+      cases: [
+        { args: [[4, 5, 6, 7, 0, 1, 2], 0], expected: 4 },
+        { args: [[4, 5, 6, 7, 0, 1, 2], 3], expected: -1 },
+        // Not rotated at all, and rotated by one — the two boundary shapes.
+        { args: [[1, 2, 3, 4, 5], 5], expected: 4 },
+        { args: [[5, 1, 2, 3, 4], 1], expected: 1 },
+        { args: [[3, 1], 1], expected: 1 },
+        { args: [[1], 1], expected: 0 },
+        { args: [[1], 0], expected: -1 },
+      ],
+    },
   },
   {
     id: "median-two-sorted-arrays",
@@ -110,6 +139,24 @@ console.log(findMedianSortedArrays([1, 3], [2])); // expected: 2.0
 
 console.log(findMedianSortedArrays([1, 3], [2])); // expected: 2.0
 `,
+    },
+    // Medians of integers are whole or half numbers, which survive the JSON hop
+    // exactly — so this one grades despite returning a float.
+    tests: {
+      entryPoint: {
+        python: "find_median_sorted_arrays",
+        javascript: "findMedianSortedArrays",
+        typescript: "findMedianSortedArrays",
+      },
+      cases: [
+        { args: [[1, 3], [2]], expected: 2 },
+        { args: [[1, 2], [3, 4]], expected: 2.5 },
+        { args: [[], [1]], expected: 1 },
+        { args: [[2], []], expected: 2 },
+        { args: [[0, 0], [0, 0]], expected: 0 },
+        { args: [[1, 2, 3], [4, 5, 6]], expected: 3.5 },
+        { args: [[1, 1, 1], [2, 2, 2]], expected: 1.5 },
+      ],
     },
   },
 ];

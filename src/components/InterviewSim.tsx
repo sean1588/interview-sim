@@ -18,6 +18,7 @@ import {
   type Problem,
 } from "@/lib/problems";
 import type { RunResult } from "@/lib/runner";
+import { failureLines, type TestSummary } from "@/lib/test-harness";
 
 // Languages the editor can actually run, in display order. A problem is offered
 // in the intersection of these and the languages it provides a starter for.
@@ -133,10 +134,26 @@ export default function InterviewSim() {
     [problemId, handleProblemChange]
   );
 
-  const handleRun = useCallback((result: RunResult) => {
-    const text = result.output || result.stderr || "(no output)";
-    lastRunRef.current = `exit ${result.exitCode}\n${text}`.slice(0, 2000);
-  }, []);
+  // The interviewer reads the run through `lastRun`, so the grade has to ride in
+  // the same text — folding it in here keeps turn-context.ts (and its marker
+  // contract with the assess route) untouched.
+  const handleRun = useCallback(
+    (result: RunResult, tests?: TestSummary) => {
+      const text = result.output || result.stderr || "(no output)";
+      const verdict = tests
+        ? tests.didNotRun
+          ? ["Tests: did not run (code raised before the harness)"]
+          : [
+              `Tests: ${tests.passed}/${tests.total} cases passed`,
+              ...failureLines(tests, problem.tests?.entryPoint[language] ?? "solution"),
+            ]
+        : [];
+      lastRunRef.current = [`exit ${result.exitCode}`, ...verdict, text]
+        .join("\n")
+        .slice(0, 2000);
+    },
+    [problem, language]
+  );
 
   // Pulled fresh by VoiceChat on each turn.
   const getContext = useCallback(
@@ -239,6 +256,7 @@ export default function InterviewSim() {
               languages={availableLanguages}
               onCodeChange={setCode}
               onLanguageChange={handleLanguageChange}
+              tests={problem.tests}
               onRun={handleRun}
             />
           </div>
