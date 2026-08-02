@@ -43,8 +43,12 @@ export interface Module {
 export interface Course {
   /** Kebab-case, globally unique — the /learn/[course] route segment. */
   id: string;
-  /** Editor + runner language, and the tutor-persona key. */
-  language: LanguageId;
+  /**
+   * Editor + runner language, and the tutor-persona key. Omitted by *concept*
+   * courses (e.g. distributed systems), which teach an idea rather than a
+   * language: those are conversational only — no exercises, no editor.
+   */
+  language?: LanguageId;
   /** Display name, e.g. "Python" / "TypeScript". */
   title: string;
   /** One-liner for the picker and the course overview header. */

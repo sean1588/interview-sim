@@ -17,7 +17,9 @@ export default function LearnHome() {
           </h1>
           <p className="mt-3 font-serif text-[18px] font-medium leading-[1.55] text-ink-body">
             Guided courses for experienced programmers, each taught live by a voice
-            tutor who watches your code as you go. Pick a language to start.
+            tutor — the language courses come with hands-on exercises you run as
+            you go, and the concept courses are pure conversation. Pick one to
+            start.
           </p>
         </header>
 

@@ -18,6 +18,11 @@ export default function LessonWorkspace({
   lesson: Lesson;
 }) {
   const hasExercises = lesson.exercises.length > 0;
+  // The editor needs a language to run and highlight, so it belongs only to a
+  // course that declares one. A concept course (no language) is conversational
+  // throughout — its lessons carry no exercises either. Holding the language
+  // rather than a boolean is what lets CodeEditor's props narrow below.
+  const editorLanguage = hasExercises ? course.language : undefined;
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const exercise = hasExercises ? lesson.exercises[exerciseIndex] : null;
 
@@ -65,7 +70,8 @@ export default function LessonWorkspace({
       questionPrompt: buildLessonScript(lesson, exerciseIndex),
       code: hasExercises ? code : undefined,
       // Always sent (even on conversational lessons) so the tutor persona is the
-      // course's language; with no code, the editor annotation is a no-op.
+      // course's language; with no code, the editor annotation is a no-op. A
+      // concept course sends undefined, which selects the concept persona.
       language: course.language,
       lastRun: lastRunRef.current,
     }),
@@ -97,7 +103,7 @@ export default function LessonWorkspace({
           <VoiceChat sessionId={sessionId} mode="learning" getContext={getContext} orbSize={56} />
         </div>
 
-        {hasExercises && exercise ? (
+        {editorLanguage && exercise ? (
           <>
             {/* Lesson material — tabbed Notes / Exercise */}
             <div className="w-[440px] flex-none border-r border-hair min-h-0">
@@ -117,8 +123,8 @@ export default function LessonWorkspace({
             <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-editor">
               <CodeEditor
                 code={code}
-                language={course.language}
-                languages={[course.language]}
+                language={editorLanguage}
+                languages={[editorLanguage]}
                 onCodeChange={setCode}
                 onLanguageChange={() => {}}
                 onRun={handleRun}
