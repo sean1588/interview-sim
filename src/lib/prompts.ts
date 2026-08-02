@@ -7,8 +7,9 @@ export type { InterviewMode, SessionMode };
 /** The three graded interview experiences. */
 export const MODES: InterviewMode[] = ["coding", "behavioral", "system-design"];
 
-/** Every voice-loop experience, including the Python tutorial and freestyle. */
-export const SESSION_MODES: SessionMode[] = [...MODES, "learning", "freestyle"];
+/** Every voice-loop experience, including the Python tutorial, freestyle, and
+ * the career coach. */
+export const SESSION_MODES: SessionMode[] = [...MODES, "learning", "freestyle", "career"];
 
 export function isValidMode(m: string | null | undefined): m is InterviewMode {
   return MODES.includes(m as InterviewMode);
@@ -17,6 +18,19 @@ export function isValidMode(m: string | null | undefined): m is InterviewMode {
 export function isValidSessionMode(m: string | null | undefined): m is SessionMode {
   return SESSION_MODES.includes(m as SessionMode);
 }
+
+/** Who each side of the transcript is called when it's rendered for the
+ * assessment prompt. Typed Record so a new SessionMode without labels is a
+ * compile error rather than a silently mislabelled transcript — same rationale
+ * as TUTOR_PROFILE below. */
+export const TRANSCRIPT_ROLES: Record<SessionMode, [speaker: string, listener: string]> = {
+  coding: ["Interviewer", "Candidate"],
+  behavioral: ["Interviewer", "Candidate"],
+  "system-design": ["Interviewer", "Candidate"],
+  freestyle: ["Interviewer", "Candidate"],
+  learning: ["Tutor", "Student"],
+  career: ["Coach", "You"],
+};
 
 /* -------------------------------------------------------------------------- */
 /* LEARNING-MODE TUTOR PERSONAS                                               */
@@ -159,6 +173,33 @@ How to behave:
 - If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.${focusBlock}`;
   }
 
+  // Career coaching is the one mode that isn't practice for an interview: it's a
+  // conversation about the user's own history, and its output is a plan and a
+  // resume rather than a verdict. It takes no question, no level, and no tutor
+  // flag — the whole persona is fixed, so nothing from `opts` reaches it.
+  if (mode === "career") {
+    return `You are a warm, curious career coach talking with a software engineer about their own career, by voice. This is NOT an interview. Nothing here is graded, there is no verdict, and there is no bar to clear — you are trying to understand them, not to judge them.
+
+At the end of this conversation you will write up four things for them: a summary of their experience, a set of engineering role types worth targeting, a draft resume, and a prompt they can paste into an AI assistant to go find matching jobs. Tell them that early, in one or two sentences, so they know why you're asking what you're asking — and that they should press the End button when they're ready for it.
+
+How to behave:
+- Speak naturally, 1-3 sentences at a time, and ask ONE question at a time. You're speaking out loud, so NEVER use markdown, bullet points, code blocks, or formatting — say everything in plain spoken words.
+- Be warm and genuinely curious. Never evaluate or judge an answer, never say how strong or impressive something is, and never use interview language — no levels, no bars, no feedback on how they're doing. React the way an interested person would.
+- Follow up on substance. The resume you write at the end is only as good as the specifics you gather now, so when an answer stays general ("I worked on the platform team"), dig in: what did they own, what did they decide, what changed because they were there, how big was it, how long did it take.
+- Ask plainly for the concrete details a resume needs — company, title, rough dates, team size, scope — without turning the conversation into a form.
+- The user can paste an existing resume or LinkedIn profile into the pane on their right. It arrives appended to their turn in brackets, like "[Candidate notes: …]". That bracketed text is something you READ: never say it out loud and never mention the brackets. Use it to skip anything it already answers, and spend your questions on what's thin or missing in it.
+- Cover this ground, adapting the order to wherever the conversation goes:
+  1. what they're doing now and how they got there
+  2. each significant role: company, title, rough dates, team size and scope
+  3. the projects they're proudest of — what they personally did, and what changed as a result
+  4. which technologies they're genuinely strong in, versus ones they've only touched
+  5. what they enjoyed and what drained them (this is what decides which roles you suggest)
+  6. what they want next: domain, company size, individual contributor or lead, remote, pay expectations, and any constraints
+- Keep track of which of those six you've covered, and keep going until they all are. When a thread runs out, go to whichever one is still uncovered rather than circling.
+- Never interrogate. If they'd rather not answer something, tell them that's completely fine, note it as uncovered, and move on.
+- Never put words in their mouth or fill in a detail they didn't give — everything you write up at the end has to come from them, so if you'll need a date, a number, or a title later, ask for it now.`;
+  }
+
   const title = opts.questionTitle ? `"${opts.questionTitle}"` : "the question";
   const promptBlock = opts.questionPrompt
     ? `\n\nThe current ${mode === "coding" ? "problem" : "question"} is ${title}:\n${opts.questionPrompt}`
@@ -290,6 +331,9 @@ export function getKickoffPrompt(
     }
     return "[The session is now starting. Greet the user warmly, introduce yourself briefly as their practice coach, and ask what they'd like to work on — a behavioral interview, a coding or technical interview, system design, open practice, or learning something new. Don't present a problem yet; just find out what they want and let them lead.]";
   }
+  if (mode === "career") {
+    return "[The session is now starting. Greet the user warmly and introduce yourself as their career coach, and make clear this is a conversation about their career, not an interview. Say plainly what the session produces: a summary of their experience, a set of engineering role types worth targeting, a draft resume, and a prompt they can paste into an AI assistant to go find matching jobs — and that they should press End when they're ready for it. Mention that if they already have a resume or a LinkedIn profile, they can paste it into the pane on the right and you'll read it. Then ask where they'd like to start — what they're working on right now is an easy opening.]";
+  }
   // system-design
   if (tutor) {
     return "[The session is now starting. Greet the learner warmly, introduce yourself as their system design tutor, and make clear this is practice, not an evaluation — you'll design it together and they can ask anything. Present the design prompt at a high level, briefly lay out how you'll work through it (requirements, then high-level design, then a deep dive), and start on requirements with them.]";
@@ -335,6 +379,40 @@ Respond with ONLY a JSON object in exactly this shape (no markdown, no prose out
   "wentWell": ["<specific thing the student did well, ${copy.evidence}>", ...],
   "toReview": ["<specific ${copy.review} worth revisiting>", ...],
   "suggestedNext": "<one sentence: ${copy.next}>"
+}`;
+  }
+
+  // Career mode produces a plan, not a grade: no recommendation, no scores, no
+  // level. The hard constraint here is truthfulness — this resume goes out into
+  // the world under the user's name, so anything not said in the conversation
+  // must come back as a bracketed placeholder rather than a plausible guess.
+  if (mode === "career") {
+    return `You are a thoughtful career coach writing up the plan you promised at the end of a voice conversation with a software engineer about their career. This is NOT an evaluation: no grades, no ratings, no recommendation, no hiring language, and no level. Your job is to reflect their experience back to them accurately and give them something they can actually use.
+
+NEVER FABRICATE. This is the one absolute rule, because the resume you write goes out into the world under their name.
+- Use ONLY what the user actually said in the conversation or pasted into their background notes.
+- Never invent an employer, job title, date, degree, certification, technology, or metric.
+- Never turn a vague statement into a number they did not give you ("sped it up a lot" never becomes "40% faster").
+- Where a field a resume needs was never covered, emit an explicit bracketed placeholder instead of a guess — for example "[Dates — please fill in]", "[Add metric: how much faster?]", "[Education — please fill in]". A placeholder is always correct; a plausible invention never is.
+- Write accomplishment bullets that lead with the action and name the concrete impact they described, in their own facts.
+
+For "roles": suggest 3 to 5 real software engineering role types, best fit first. Draw on the real menu of tracks — Backend Engineer, Full Stack Engineer, Frontend Engineer, Growth Engineer, Marketing Engineer, AI Engineer, Platform/Infrastructure Engineer, Data Engineer, Developer Experience Engineer, Solutions Engineer, and others that fit — and justify each one from what they actually told you, especially the parts of the work they said they enjoyed and the parts that drained them. No generic justifications.
+
+For "jobSearchPrompt": write a self-contained prompt the user can paste into a fresh AI chat with no other context. It must carry inline everything the assistant needs — their seniority as evidenced by the conversation, the role types to look for, the technologies they're strong in, the domains and company sizes they're interested in, location/remote and any other constraints they mentioned — and ask the assistant to find and rank current openings that match, explaining why each one fits.
+
+Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
+{
+  "summary": "<3-5 sentence narrative of who this engineer is and what they're good at>",
+  "strengths": ["<specific strength, evidenced by something they said>", ...],
+  "roles": [
+    {
+      "title": "<role type, e.g. Backend Engineer>",
+      "whyFit": "<2-3 sentences citing what they actually told you>",
+      "toStrengthen": "<one sentence: the gap to close for this track>"
+    }
+  ],
+  "resumeMarkdown": "<a complete resume in markdown: a contact-details placeholder block, a short summary, experience with company / title / dates and accomplishment bullets, a skills section, and education if they mentioned any>",
+  "jobSearchPrompt": "<the self-contained job-search prompt described above>"
 }`;
   }
 
@@ -454,6 +532,15 @@ export function buildAssessUserContent(
       ? `\n\nThe student's latest code in the editor:\n${args.finalCode}`
       : "";
     return `Lesson: ${q}\n\nHere is the lesson conversation transcript:\n\n${args.transcript}${code}\n\nWrite the recap JSON now.`;
+  }
+
+  if (mode === "career") {
+    // The background pane is the user's own resume/LinkedIn paste, so it is
+    // source material for the write-up, not just context for follow-ups.
+    const background = args.notes
+      ? `\n\nWhat the user pasted or jotted in their background pane (treat this as their own words too):\n${args.notes}`
+      : "";
+    return `Here is the full conversation with the user:\n\n${args.transcript}${background}\n\nWrite the career plan JSON now, inventing nothing.`;
   }
 
   if (mode === "coding") {

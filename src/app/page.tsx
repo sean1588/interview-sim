@@ -90,6 +90,17 @@ export default function Home() {
         </div>
 
         <div className="mt-12">
+          <SectionLabel>Career</SectionLabel>
+        </div>
+        <ModeCard
+          href="/career"
+          title="Career Coach"
+          description="Not an interview — a conversation about your own career. The coach asks about your roles, projects, and what you actually want next, then writes up four things: a summary of your experience, the engineering roles worth targeting, a resume draft, and a job-search prompt to paste into an AI assistant."
+          icon="🧭"
+          cta="Start session"
+        />
+
+        <div className="mt-12">
           <SectionLabel>Learn</SectionLabel>
         </div>
         <p className="mb-3 font-serif text-[16px] font-medium text-ink-body">
