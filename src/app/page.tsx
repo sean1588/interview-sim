@@ -94,7 +94,8 @@ export default function Home() {
         </div>
         <p className="mb-3 font-serif text-[16px] font-medium text-ink-body">
           Guided courses for experienced programmers, each taught live by a voice
-          tutor who watches your code, with hands-on exercises you run as you go.
+          tutor — the language courses come with hands-on exercises you run as
+          you go, and the concept courses are pure conversation.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           {COURSES.map((course) => (

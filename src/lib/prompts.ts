@@ -51,8 +51,22 @@ const TUTOR_PROFILE: Record<LanguageId, { lang: string; known: string; analogy: 
   },
 };
 
-function tutorProfile(language?: string) {
-  return (language && TUTOR_PROFILE[language as LanguageId]) || TUTOR_PROFILE.python;
+/**
+ * Which teaching persona a learning session runs. Language courses carry a
+ * `language`; *concept* courses (distributed systems) carry none and have no
+ * editor at all, so their persona must never mention one. One discriminated
+ * selector keeps that branch in a single place rather than at each call site.
+ */
+type LearningProfile =
+  | { kind: "language"; lang: string; known: string; analogy: string }
+  | { kind: "concept" };
+
+function learningProfile(language?: string): LearningProfile {
+  if (!language) return { kind: "concept" };
+  // A non-LanguageId string can only arrive from a stale/bogus client payload;
+  // fall back to Python rather than silently dropping into the concept persona.
+  const profile = TUTOR_PROFILE[language as LanguageId] ?? TUTOR_PROFILE.python;
+  return { kind: "language", ...profile };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -74,10 +88,27 @@ export function getSystemPrompt(
 ): string {
   // Learning mode is a tutorial, not an interview: the whole lesson script
   // arrives as questionPrompt and is appended verbatim. No level, no rubric.
-  // The course language selects the tutor persona.
+  // The course language selects the tutor persona; a course with no language is
+  // a concept course, taught conversationally with no editor on screen.
   if (mode === "learning") {
-    const { lang, known, analogy } = tutorProfile(opts.language);
+    const profile = learningProfile(opts.language);
     const lessonBlock = opts.questionPrompt ? `\n\n${opts.questionPrompt}` : "";
+
+    if (profile.kind === "concept") {
+      return `You are a sharp, curious distributed systems tutor running a live lesson by voice.
+Your student is an EXPERIENCED programmer who writes good code but has never operated a system at scale. Teach to that level: skip what a server or a database is, and focus on what actually happens when one machine becomes many — what breaks, and the mechanism that exists to stop it breaking.
+You can SEE the lesson notes, provided below. Do not read them aloud; use them to guide the lesson and point the student at the diagrams, numbers, and links on screen.
+
+How to behave:
+- Speak naturally, 1-3 sentences at a time, like a real tutor sitting beside them. You're speaking out loud, so NEVER use markdown, code blocks, bullet points, or formatting. Say any names, numbers, or pseudocode in plain words.
+- Teach the MECHANISM, not interview tactics. Explain how Raft actually elects a leader, or why a vector clock can detect two concurrent writes when a wall clock can't. Never coach them on what to say in an interview.
+- Be Socratic. Before you explain a mechanism, describe the situation and ask them to predict what goes wrong — a dropped message, a clock that jumps backwards, two nodes that both think they're the leader — then build the answer from what they said.
+- One idea per turn. Concrete numbers and specific failures beat adjectives; if something takes a millisecond or a hundred, say which.
+- This lesson is conversation only: there is no editor, no code to write, and no exercises. Never ask them to run, type, or submit anything, and never tell them to hit Next when their code works.
+- Be encouraging and genuinely interested, one concept or question at a time.${lessonBlock}`;
+    }
+
+    const { lang, known, analogy } = profile;
     return `You are a friendly, sharp ${lang} tutor running a live lesson by voice.
 Your student is an EXPERIENCED programmer (they know ${known}) who is new to ${lang}. Teach to that level: skip what programming is, and focus on ${lang}'s syntax, idioms, and how things differ from the languages they already know.
 You can SEE the lesson notes (provided below) and the student's editor — their current code and latest run output are appended to each of their messages in brackets. Do not read the notes or that bracketed context aloud; use them to guide the lesson.
@@ -244,7 +275,11 @@ export function getKickoffPrompt(
     return "[The interview is now starting. Greet the candidate warmly, introduce yourself, present the behavioral question clearly, and invite them to walk you through a real example from their experience.]";
   }
   if (mode === "learning") {
-    const { lang } = tutorProfile(language);
+    const profile = learningProfile(language);
+    if (profile.kind === "concept") {
+      return `[The lesson is now starting. Greet the learner warmly as their distributed systems tutor, briefly say what this lesson covers, and point them to the lesson notes on screen. Then open on the first idea — ideally by describing a situation and asking them to predict what breaks. Assume they're an experienced programmer who has not run a system at scale, so skip the basics of servers and databases. There is no editor and no exercises in this lesson, so don't mention writing or running code.]`;
+    }
+    const { lang } = profile;
     return `[The lesson is now starting. Greet the learner warmly as their ${lang} tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise (or, if this lesson has none, the first idea). Assume they're an experienced programmer who is new to ${lang}, so skip programming basics and focus on the ${lang}-specific ideas.]`;
   }
   if (mode === "freestyle") {
@@ -272,16 +307,34 @@ export function getAssessSystemPrompt(
   language?: string
 ): string {
   if (mode === "learning") {
-    const { lang } = tutorProfile(language);
-    return `You are a warm, encouraging ${lang} tutor writing a short recap of a lesson you just guided a student through by voice. This is NOT a graded evaluation — there are no scores, no pass/fail, and no hiring language. Focus on what they practiced and what is worth reinforcing, in a supportive tone.
+    const profile = learningProfile(language);
+    // Only the framing copy varies by course kind — the JSON keys below are the
+    // contract RecapCard renders and are identical for every course.
+    const copy =
+      profile.kind === "concept"
+        ? {
+            who: "distributed systems",
+            focus: "the mechanisms they worked through and which ones are worth revisiting",
+            evidence: "citing a question they asked or a prediction they made",
+            review: "concept or mechanism",
+            next: "which idea to explore next or which mechanism to go deeper on",
+          }
+        : {
+            who: profile.lang,
+            focus: "what they practiced and what is worth reinforcing",
+            evidence: "citing their code or questions",
+            review: "concept or idiom",
+            next: "what to practice next or which idea to build on",
+          };
+    return `You are a warm, encouraging ${copy.who} tutor writing a short recap of a lesson you just guided a student through by voice. This is NOT a graded evaluation — there are no scores, no pass/fail, and no hiring language. Focus on ${copy.focus}, in a supportive tone.
 
 Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
 {
   "summary": "<2-3 sentence encouraging recap of the lesson and how it went>",
   "conceptsCovered": ["<concept practiced>", ...],
-  "wentWell": ["<specific thing the student did well, citing their code or questions>", ...],
-  "toReview": ["<specific concept or idiom worth revisiting>", ...],
-  "suggestedNext": "<one sentence: what to practice next or which idea to build on>"
+  "wentWell": ["<specific thing the student did well, ${copy.evidence}>", ...],
+  "toReview": ["<specific ${copy.review} worth revisiting>", ...],
+  "suggestedNext": "<one sentence: ${copy.next}>"
 }`;
   }
 

@@ -238,6 +238,76 @@ describe("tutor mode", () => {
   });
 });
 
+describe("learning personas", () => {
+  // Learning mode serves both language courses (editor + exercises) and concept
+  // courses, which declare no `language` and have no editor at all. These pin
+  // which persona each gets — a concept course being told to watch an editor
+  // would have the tutor inventing exercises that don't exist.
+  it("uses the course's language persona when a language is given", () => {
+    const go = getSystemPrompt("learning", { language: "go" });
+    expect(go).toMatch(/\bGo tutor\b/);
+    expect(go).toMatch(/editor/i);
+    expect(go).toMatch(/exercise/i);
+    expect(getSystemPrompt("learning", { language: "typescript" })).toMatch(/TypeScript tutor/);
+  });
+
+  it("falls back to the Python persona for a bogus language string", () => {
+    // A stale or hand-rolled client could send anything; that must not be read
+    // as "concept course".
+    const bogus = getSystemPrompt("learning", { language: "cobol" });
+    expect(bogus).toBe(getSystemPrompt("learning", { language: "python" }));
+    expect(bogus).toMatch(/Python tutor/);
+    expect(getKickoffPrompt("learning", "cobol")).toBe(getKickoffPrompt("learning", "python"));
+  });
+
+  it("uses the concept persona with no language, and never mentions an editor", () => {
+    const concept = getSystemPrompt("learning");
+    expect(concept).toMatch(/distributed systems tutor/i);
+    expect(concept).not.toBe(getSystemPrompt("learning", { language: "python" }));
+    // A concept course has no editor and no exercises. The persona says so
+    // explicitly — silence would let the model fall back on the far more common
+    // language-lesson shape and invent exercises the learner can't see.
+    expect(concept).toMatch(/there is no editor/i);
+    expect(concept).toMatch(/no exercises/i);
+    expect(concept).toMatch(/never tell them to hit Next/i);
+    expect(concept).not.toMatch(/watch their code|in the editor|run output/i);
+    // Keeps the voice constraints every persona has.
+    expect(concept).toMatch(/1-3 sentences/);
+    expect(concept).toMatch(/(never use|no) markdown/i);
+  });
+
+  it("treats an empty language as absent — that's how a concept course arrives", () => {
+    // VoiceChat omits falsy context fields and /api/chat coalesces a missing
+    // language to "", so "" is the wire form of "this course has no language".
+    expect(getSystemPrompt("learning", { language: "" })).toBe(getSystemPrompt("learning"));
+    expect(getKickoffPrompt("learning", "")).toBe(getKickoffPrompt("learning"));
+    expect(getAssessSystemPrompt("learning", undefined, "")).toBe(
+      getAssessSystemPrompt("learning")
+    );
+  });
+
+  it("opens and recaps a concept lesson without an editor either", () => {
+    const kickoff = getKickoffPrompt("learning");
+    expect(kickoff).toMatch(/distributed systems tutor/i);
+    expect(kickoff).not.toBe(getKickoffPrompt("learning", "go"));
+
+    // The recap JSON shape is shared with the language courses — RecapCard
+    // parses it — so only the framing copy may differ.
+    const recap = getAssessSystemPrompt("learning");
+    expect(recap).toMatch(/distributed systems tutor/i);
+    for (const key of ["summary", "conceptsCovered", "wentWell", "toReview", "suggestedNext"]) {
+      expect(recap, `recap must request "${key}"`).toContain(`"${key}"`);
+      expect(getAssessSystemPrompt("learning", undefined, "go")).toContain(`"${key}"`);
+    }
+  });
+
+  it("still embeds the lesson script for both kinds of course", () => {
+    const script = "LESSON: Vector clocks\n…notes…";
+    expect(getSystemPrompt("learning", { questionPrompt: script })).toContain(script);
+    expect(getSystemPrompt("learning", { language: "go", questionPrompt: script })).toContain(script);
+  });
+});
+
 describe("target-level calibration (interviewer)", () => {
   it("embeds the target level's expectations for behavioral and system-design", () => {
     const staff = getLevel("staff");

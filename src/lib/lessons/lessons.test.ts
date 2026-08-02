@@ -2,12 +2,20 @@ import { describe, it, expect } from "vitest";
 import * as ts from "typescript";
 import { COURSES, ALL_LESSONS, getCourse, getLesson, lessonsForModule } from "./index";
 import { transpileTypeScript } from "@/lib/runner";
+import { ARTICLES } from "@/lib/library";
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** Every /library/<id> href appearing in a lesson card. */
+const LIBRARY_HREF = /\/library\/([a-z0-9-]+)/g;
 
 describe("learning courses — cross-course invariants", () => {
-  it("registers the python, typescript, and go courses", () => {
-    expect(COURSES.map((c) => c.id)).toEqual(["python", "typescript", "go"]);
+  it("registers the three language courses plus the distributed systems course", () => {
+    expect(COURSES.map((c) => c.id)).toEqual([
+      "python",
+      "typescript",
+      "go",
+      "distributed-systems",
+    ]);
   });
 
   it("has globally unique, kebab-case lesson ids across all courses", () => {
@@ -26,7 +34,19 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("python")?.id).toBe("python");
     expect(getCourse("typescript")?.id).toBe("typescript");
     expect(getCourse("go")?.id).toBe("go");
+    expect(getCourse("distributed-systems")?.id).toBe("distributed-systems");
     expect(getCourse("does-not-exist")).toBeUndefined();
+  });
+
+  it("links only to library articles that exist", () => {
+    // Lesson cards cross-link the concept library instead of restating it; a
+    // renamed article must not leave a dead link in a lesson.
+    const ids = new Set(ARTICLES.map((a) => a.id));
+    for (const l of ALL_LESSONS) {
+      for (const [, articleId] of l.content.matchAll(LIBRARY_HREF)) {
+        expect(ids.has(articleId), `${l.id} links to unknown article ${articleId}`).toBe(true);
+      }
+    }
   });
 });
 
@@ -60,10 +80,50 @@ describe.each(COURSES)("course: $id", (course) => {
     }
   });
 
+  // A course's `language` decides its whole shape: with one it gets an editor
+  // and hands-on exercises; without one it is a concept course, taught purely
+  // by voice against the notes (LessonWorkspace renders no editor at all).
+  it("matches its exercises to whether it declares a language", () => {
+    const exercises = course.lessons.flatMap((l) => l.exercises);
+    if (course.language) {
+      expect(exercises.length, `${course.id} is a language course with no exercises`).toBeGreaterThan(0);
+    } else {
+      expect(exercises, `${course.id} is a concept course but ships exercises`).toEqual([]);
+    }
+  });
+
   it("getLesson resolves this course's lessons and rejects unknown ones", () => {
     const first = course.lessons[0];
     expect(getLesson(course.id, first.id)?.id).toBe(first.id);
     expect(getLesson(course.id, "does-not-exist")).toBeUndefined();
+  });
+});
+
+// The distributed systems course is the first concept course: no language, no
+// editor, and its reason to exist is that it teaches the mechanism where the
+// library gives the interview answer. These pin that shape.
+describe("distributed systems course", () => {
+  const course = getCourse("distributed-systems")!;
+
+  it("is a concept course — no language, so no editor", () => {
+    expect(course.language).toBeUndefined();
+  });
+
+  it("covers six modules of real depth", () => {
+    expect(course.modules.length).toBe(6);
+    expect(course.lessons.length).toBeGreaterThanOrEqual(18);
+    for (const m of course.modules) {
+      expect(lessonsForModule(course, m.id).length, `${m.id}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("cross-links the concept library from every module", () => {
+    for (const m of course.modules) {
+      const links = lessonsForModule(course, m.id)
+        .flatMap((l) => [...l.content.matchAll(LIBRARY_HREF)])
+        .map(([, id]) => id);
+      expect(links.length, `${m.id} links to no library article`).toBeGreaterThan(0);
+    }
   });
 });
 
