@@ -38,6 +38,7 @@ const SPEAKER: Record<SessionMode, { name: string; label: string }> = {
   "system-design": { name: "The Interviewer", label: "Interviewer" },
   freestyle: { name: "Your Coach", label: "Coach" },
   learning: { name: "Your Tutor", label: "Tutor" },
+  career: { name: "Your Career Coach", label: "Coach" },
 };
 
 /** The orb header treatment per voice-engine status: label, accent (state label +

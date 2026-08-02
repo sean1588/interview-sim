@@ -8,6 +8,7 @@ import {
   buildAssessUserContent,
   getSystemPrompt,
   getKickoffPrompt,
+  TRANSCRIPT_ROLES,
 } from "./prompts";
 import { SCORE_LABELS } from "./score-labels";
 import { getLevel, describeLevelLadder } from "./levels";
@@ -395,5 +396,164 @@ describe("freestyle mode", () => {
       expect(getSystemPrompt("freestyle", { questionPrompt: messy })).toContain(messy);
       expect(getKickoffPrompt("freestyle", undefined, messy)).toContain(messy);
     });
+  });
+});
+
+describe("transcript role labels", () => {
+  it("covers every session mode (the Record is the exhaustiveness check)", () => {
+    for (const mode of SESSION_MODES) {
+      const [speaker, listener] = TRANSCRIPT_ROLES[mode];
+      expect(speaker.length, `${mode} speaker`).toBeGreaterThan(0);
+      expect(listener.length, `${mode} listener`).toBeGreaterThan(0);
+    }
+    expect(Object.keys(TRANSCRIPT_ROLES).sort()).toEqual([...SESSION_MODES].sort());
+  });
+
+  it("keeps the labels each mode had before the table replaced the ternary", () => {
+    for (const mode of [...MODES, "freestyle"] as const) {
+      expect(TRANSCRIPT_ROLES[mode]).toEqual(["Interviewer", "Candidate"]);
+    }
+    expect(TRANSCRIPT_ROLES.learning).toEqual(["Tutor", "Student"]);
+    expect(TRANSCRIPT_ROLES.career).toEqual(["Coach", "You"]);
+  });
+});
+
+describe("career mode", () => {
+  it("is a valid session mode but not a graded interview mode", () => {
+    expect(SESSION_MODES).toContain("career");
+    expect(isValidSessionMode("career")).toBe(true);
+    expect(MODES).not.toContain("career");
+    expect(isValidMode("career")).toBe(false);
+  });
+
+  describe("the coach persona", () => {
+    const p = getSystemPrompt("career");
+
+    it("is never evaluative — no grading, scoring, or hiring language", () => {
+      // The whole point of the mode: the user is being helped, not assessed.
+      // Word-boundary matches so ordinary words that merely contain these
+      // ("generating", "higher") don't produce a phantom failure.
+      expect(p).not.toMatch(/\bscores?\b|\bscored?\b|\bscoring\b|\bscorecard\b/i);
+      expect(p).not.toMatch(/\bhire\b|no[-\s]hire|\bhiring\b/i);
+      expect(p).not.toMatch(/\bratings?\b|\brate\b|\brated\b/i);
+      expect(p).not.toMatch(/\bcandidate\b(?!\snotes)/i);
+      expect(p).toMatch(/not an interview/i);
+      expect(p).toMatch(/never evaluate|not to judge|understand them/i);
+    });
+
+    it("keeps the spoken-voice constraints every persona has", () => {
+      expect(p).toMatch(/1-3 sentences/);
+      expect(p).toMatch(/(never use|no) markdown/i);
+      expect(p).toMatch(/one question at a time/i);
+    });
+
+    it("reads the background pane without reading it aloud", () => {
+      expect(p).toContain("[Candidate notes:");
+      expect(p).toMatch(/never say it out loud/i);
+    });
+
+    it("covers the six-part arc and follows up on thin answers", () => {
+      for (const beat of [
+        /doing now/i,
+        /company, title, rough dates/i,
+        /proudest/i,
+        /technologies/i,
+        /enjoyed/i,
+        /want next/i,
+      ]) {
+        expect(p, `arc must cover ${beat}`).toMatch(beat);
+      }
+      expect(p).toMatch(/dig in|follow up on substance/i);
+      expect(p).toMatch(/keep going until/i);
+    });
+
+    it("takes no question, no level, and no tutor flag", () => {
+      const staff = getLevel("staff");
+      expect(
+        getSystemPrompt("career", {
+          questionTitle: "Foo",
+          questionPrompt: "Bar baz.",
+          targetLevel: "staff",
+          tutor: true,
+          language: "go",
+        })
+      ).toBe(p);
+      expect(p).not.toContain(staff.blurb);
+    });
+
+    it("opens by saying what the session produces", () => {
+      const k = getKickoffPrompt("career");
+      expect(k.length).toBeGreaterThan(20);
+      expect(k).toMatch(/career coach/i);
+      expect(k).toMatch(/resume/i);
+      expect(k).toMatch(/paste/i);
+      expect(k).toMatch(/End/);
+      // Distinct from every other mode's opener.
+      for (const mode of SESSION_MODES.filter((m) => m !== "career")) {
+        expect(k).not.toBe(getKickoffPrompt(mode));
+      }
+    });
+  });
+
+  describe("the plan (assessment) prompt", () => {
+    const a = getAssessSystemPrompt("career");
+
+    it("requests exactly the five keys CareerPlanCard renders", () => {
+      expect(a).toContain("ONLY a JSON object");
+      for (const key of ["summary", "strengths", "roles", "resumeMarkdown", "jobSearchPrompt"]) {
+        expect(a, `career plan must request "${key}"`).toContain(`"${key}"`);
+      }
+      for (const key of ["title", "whyFit", "toStrengthen"]) {
+        expect(a, `each role must carry "${key}"`).toContain(`"${key}"`);
+      }
+      expect(a).toMatch(/3 to 5|3-5/);
+      expect(a).toMatch(/best fit first|ranked/i);
+    });
+
+    it("carries the no-fabrication rule, with bracketed placeholders as the escape hatch", () => {
+      expect(a).toMatch(/NEVER FABRICATE/);
+      expect(a).toMatch(/only what the user actually said/i);
+      expect(a).toMatch(/never invent an employer/i);
+      expect(a).toContain("[Dates — please fill in]");
+      expect(a).toMatch(/placeholder/i);
+    });
+
+    it("requires a self-contained job-search prompt", () => {
+      expect(a).toMatch(/self-contained/i);
+      expect(a).toMatch(/seniority/i);
+      expect(a).toMatch(/constraints/i);
+      expect(a).toMatch(/rank/i);
+    });
+
+    it("produces no grade — no recommendation, scores, or level", () => {
+      expect(a).not.toContain('"recommendation"');
+      expect(a).not.toContain('"scores"');
+      expect(a).not.toContain('"performedAtLevel"');
+      // A level or language passed by the shared route must change nothing.
+      expect(getAssessSystemPrompt("career", "staff", "go")).toBe(a);
+    });
+
+    it("feeds the transcript and the pasted background to the writer", () => {
+      const transcript = "Coach: Where are you now?\nYou: Platform team at Acme.";
+      const notes = "PASTED_RESUME_SENTINEL";
+      expect(buildAssessUserContent("career", { transcript })).toContain(transcript);
+      expect(buildAssessUserContent("career", { transcript })).not.toContain(notes);
+      expect(buildAssessUserContent("career", { transcript, notes })).toContain(notes);
+    });
+  });
+
+  it("leaves the other five modes' prompts uncontaminated", () => {
+    const others = SESSION_MODES.filter((m) => m !== "career");
+    for (const mode of others) {
+      // No career keys leaked into another mode's rubric…
+      for (const key of ["roles", "resumeMarkdown", "jobSearchPrompt"]) {
+        expect(getAssessSystemPrompt(mode), `${mode} must not request "${key}"`).not.toContain(
+          `"${key}"`
+        );
+      }
+      // …and career's own prompts are its own.
+      expect(getSystemPrompt(mode)).not.toBe(getSystemPrompt("career"));
+      expect(getAssessSystemPrompt(mode)).not.toBe(getAssessSystemPrompt("career"));
+    }
   });
 });
