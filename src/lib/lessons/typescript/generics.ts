@@ -119,6 +119,44 @@ console.log("first of p:", p[0]); // string
 `,
     },
     ],
+    quiz: [
+      {
+        id: "generic-functions-q1",
+        prompt: "Why is `function identity<T>(x: T): T` better than `function id(x: any): any`?",
+        options: [
+          "The generic preserves and relates types — the return is tied to the argument, while `any` throws the information away",
+          "The generic is faster at runtime because it avoids boxing",
+          "`any` is deprecated in modern TypeScript",
+          "The generic adds a runtime check that the types match",
+        ],
+        answer: 0,
+        explanation: "With `any`, the result can be used as anything — errors and all. With a generic, `identity(5)` is `number` and `identity(\"hi\")` is `string`: the type flows through.",
+      },
+      {
+        id: "generic-functions-q2",
+        prompt: "Why does `function longest<T extends { length: number }>` need the constraint?",
+        options: [
+          "Constraints are required on every type parameter",
+          "Without it `T` is opaque and `.length` won't compile — the constraint unlocks members inside the body",
+          "Without it the function can't be called with strings",
+          "Without it TypeScript can't infer `T` from the arguments",
+        ],
+        answer: 1,
+        explanation: "`extends` says \"T must be at least this shape.\" Note that unlike Java/C#, the constraint is satisfied *structurally* — anything with a numeric `length` fits, with no declaration needed.",
+      },
+      {
+        id: "generic-functions-q3",
+        prompt: "How do TypeScript generics compare to C# generics at runtime?",
+        options: [
+          "Both are reified and support runtime type arguments",
+          "TS reifies generics but only under `strict` mode",
+          "TS generics are fully erased — no `new T()`, no `typeof T`, no reflection — whereas C# reifies them",
+          "Both are erased, so neither supports `new T()`",
+        ],
+        answer: 2,
+        explanation: "TS is like Java here — the type parameter simply doesn't exist at runtime. C# generics are reified, which is why C# can do things with type parameters that TypeScript structurally cannot.",
+      },
+    ],
   },
   {
     id: "generic-types",
@@ -252,6 +290,44 @@ console.log("popped:", s.pop()); // expected "c" once push/pop are implemented
 console.log("size:  ", s.size);
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "generic-types-q1",
+        prompt: "What does `keyof User` produce for `type User = { name: string; age: number }`?",
+        options: [
+          "An array `[\"name\", \"age\"]` available at runtime",
+          "The type `string`, since keys are strings",
+          "The union `\"name\" | \"age\"`",
+          "The union `string | number` of the property types",
+        ],
+        answer: 2,
+        explanation: "`keyof` turns an object type into the union of its keys. Paired with indexed access `T[K]` — which looks up a property's *type* by key — it gives you the classic safe accessor.",
+      },
+      {
+        id: "generic-types-q2",
+        prompt: "In `function get<T, K extends keyof T>(obj: T, key: K): T[K]`, what does `get(u, \"nope\")` do?",
+        options: [
+          "Returns `undefined` with type `any`",
+          "Returns `undefined` with type `never`",
+          "Compiles, and fails at runtime",
+          "Compile error — `K extends keyof T` constrains the key to real keys of `u`",
+        ],
+        answer: 3,
+        explanation: "In plain JS, `get(obj, key)` returns `any` and a typo'd key fails silently at runtime. With `keyof` plus `T[K]` the key is validated *and* the result is specifically typed — the relationship between input and output is captured in the type itself.",
+      },
+      {
+        id: "generic-types-q3",
+        prompt: "What is a generic type, conceptually?",
+        options: [
+          "A type-level function — feed it type arguments, get a concrete type back",
+          "A runtime factory that constructs typed instances",
+          "A shorthand for a union of every type it could hold",
+          "An interface that defers checking until instantiation",
+        ],
+        answer: 0,
+        explanation: "Interfaces, type aliases, and classes all parameterize this way. `Box<number>` is the concrete type you get by applying `Box` to `number`, and that mental model is what makes mapped and conditional types make sense later.",
+      },
     ],
   },
   {
@@ -397,6 +473,44 @@ console.log("greeting:", names.get("greeting")); // expected "hello"
 console.log("missing:", scores.get("nope"));     // undefined
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "generics-in-practice-q1",
+        prompt: "In `const ok = <T>(value: T): Result<T, never> => ...`, why `never` for the error type?",
+        options: [
+          "`never` forces the caller to supply an explicit error type",
+          "It marks the function as one that cannot throw",
+          "It's a placeholder that TypeScript replaces at the call site",
+          "A success has no error type, and `never` slots into any `Result<T, E>`",
+        ],
+        answer: 3,
+        explanation: "`never` is the bottom type, so it's assignable to every type — which is exactly what a success value needs in the error slot. Checking `r.ok` then narrows the union so `r.value` and `r.error` are each available only on the right branch.",
+      },
+      {
+        id: "generics-in-practice-q2",
+        prompt: "When is a generic type parameter decorative rather than useful?",
+        options: [
+          "When `T` appears once in the signature and never flows to the output or another parameter",
+          "When the function has more than two type parameters",
+          "When the type parameter has a constraint",
+          "When inference supplies it rather than the caller",
+        ],
+        answer: 0,
+        explanation: "A generic earns its keep when a type *flows through* — the output depends on the input, or two parameters must agree. If `T` never appears again, a plain type or `unknown` is simpler. Don't parameterize for its own sake.",
+      },
+      {
+        id: "generics-in-practice-q3",
+        prompt: "What's the throughline argument for generics over `any`?",
+        options: [
+          "`any` can't be used with classes or interfaces",
+          "`any` discards type information at the boundary; a generic carries it across, preserving safety and relating the pieces",
+          "`any` is slower because the compiler must check every use",
+          "Generics produce smaller output because the types are inlined",
+        ],
+        answer: 1,
+        explanation: "This is the same principle behind `unknown` at the boundary: one `any` at an edge silently disables the checker downstream, while a generic keeps the relationship intact all the way through.",
+      },
     ],
   },
 ];

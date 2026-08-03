@@ -110,6 +110,44 @@ console.log(greet(pet));
 `,
     },
     ],
+    quiz: [
+      {
+        id: "union-types-q1",
+        prompt: "Given `x: string | number`, what can you access before narrowing?",
+        options: [
+          "Only the members of the first arm listed",
+          "Nothing at all until you narrow",
+          "Only what every arm has in common — the intersection of the members",
+          "Everything from both arms; TS checks at runtime",
+        ],
+        answer: 2,
+        explanation: "`x.toUpperCase()` is an error because `number` has no such method, but `String(x)` is fine because it works for both. To use arm-specific members you must first prove which arm you have.",
+      },
+      {
+        id: "union-types-q2",
+        prompt: "How does `type Color = \"red\" | \"green\" | \"blue\"` compare to a Java/C# enum at runtime?",
+        options: [
+          "It compiles to a frozen object with the three members",
+          "It compiles to numeric constants with reverse mappings",
+          "It creates a runtime `Symbol` per member",
+          "It's just plain strings — the type is erased and there is no enum object",
+        ],
+        answer: 3,
+        explanation: "A literal union models a finite set far more tightly than a bare `string`, with zero emitted machinery. TypeScript's own `enum` is the one type construct that *does* emit runtime JavaScript, which is why modern style usually prefers `as const` plus a derived union.",
+      },
+      {
+        id: "union-types-q3",
+        prompt: "Why write `type Result = Ok | Err` with distinct object shapes rather than one shape with optional fields?",
+        options: [
+          "The union makes illegal states unrepresentable and lets a tag narrow to exactly one shape",
+          "The union is smaller in the emitted JavaScript",
+          "Optional fields aren't allowed in unions",
+          "Unions are checked at runtime; optional fields are not",
+        ],
+        answer: 0,
+        explanation: "With everything optional, each field is `T | undefined` everywhere, so you litter the code with `!` and null checks — and nothing stops a nonsensical combination. This is the argument the discriminated-unions lesson develops in full.",
+      },
+    ],
   },
   {
     id: "narrowing",
@@ -218,6 +256,44 @@ console.log(safeUpper("world"));
 console.log(safeUpper(null));
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "narrowing-q1",
+        prompt: "Why is narrowing safer than an `as` assertion?",
+        options: [
+          "It produces a clearer error message when it fails",
+          "It's not safer; it's just more verbose",
+          "It's backed by a real runtime check, so the compiler's refinement matches what actually happens",
+          "It's checked twice — once at compile time and once at runtime",
+        ],
+        answer: 2,
+        explanation: "The clever part of narrowing is that these are the same runtime checks you'd write in JavaScript anyway — TypeScript's control-flow analysis just also refines the static type along each branch. An `as` asserts a belief with nothing behind it.",
+      },
+      {
+        id: "narrowing-q2",
+        prompt: "Which operator narrows an object union by which property exists?",
+        options: [
+          "`typeof`, which reports the property set",
+          "`instanceof`, which checks the prototype chain",
+          "`hasOwnProperty`, which TS special-cases",
+          "`in` — as in `if (\"swim\" in a) a.swim()`",
+        ],
+        answer: 3,
+        explanation: "`typeof` narrows primitives, `instanceof` narrows classes, and `in` narrows by property presence. Truthiness guards remove `null`/`undefined`, and `===` against a literal narrows a union member — which is what makes discriminated unions work.",
+      },
+      {
+        id: "narrowing-q3",
+        prompt: "In `function pad(x: string | number)`, after `if (typeof x === \"string\") { ... return; }`, what is `x` on the following line?",
+        options: [
+          "`number` — the compiler knows the only remaining arm",
+          "`string | number` — narrowing applies only inside the `if`",
+          "`unknown`, since the check consumed the type information",
+          "`never`, because both arms were handled",
+        ],
+        answer: 0,
+        explanation: "Control-flow analysis tracks what's still possible along each path, not just inside the branch. That's why the else path — or the code after an early return — gets the remaining arm for free.",
+      },
     ],
   },
   {
@@ -332,6 +408,44 @@ console.log(describe({ type: "click", x: 10, y: 20 }));
 console.log(describe({ type: "keypress", key: "Enter" }));
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "discriminated-unions-q1",
+        prompt: "What makes a union *discriminated*?",
+        options: [
+          "Every member carries a shared field whose value is a distinct literal type",
+          "Every member is an object rather than a primitive",
+          "The members are declared with `interface` rather than `type`",
+          "A type guard function is defined for each member",
+        ],
+        answer: 0,
+        explanation: "A field like `kind` or `type` with a distinct string literal per member lets a `switch` narrow to exactly one member per case. It's the single most useful modeling tool in TypeScript.",
+      },
+      {
+        id: "discriminated-unions-q2",
+        prompt: "What's the concrete problem with modeling shapes as one interface with every field optional?",
+        options: [
+          "TypeScript rejects interfaces where all fields are optional",
+          "Every field is `T | undefined` everywhere, and nothing stops a nonsensical `{ kind: \"circle\", side: 3 }`",
+          "Optional fields can't be narrowed by any type guard",
+          "The emitted JavaScript is larger",
+        ],
+        answer: 1,
+        explanation: "The discriminated union makes illegal states unrepresentable — a `circle` simply cannot carry a `side`. The optional-field version pushes that burden onto every read site as `!` or null checks.",
+      },
+      {
+        id: "discriminated-unions-q3",
+        prompt: "What does a discriminated union replace, coming from Java or C#?",
+        options: [
+          "Abstract classes with template methods",
+          "Reflection over annotated types",
+          "Sealed classes plus the visitor pattern — but with plain data and no dispatch object",
+          "Generic interfaces with bounded type parameters",
+        ],
+        answer: 2,
+        explanation: "It fills the same role as an F# or Rust `enum`. There is no class hierarchy and no dispatch object — the data is plain, the `switch` is the visitor, and the tag is an ordinary string at runtime because the type is erased.",
+      },
     ],
   },
   {
@@ -464,6 +578,44 @@ console.log(describe({ name: "Root", permissions: ["read", "write"] }));
 console.log(describe({ name: "Visitor" }));
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "type-guards-exhaustiveness-q1",
+        prompt: "What does the return type `x is string` do on `function isString(x: unknown)`?",
+        options: [
+          "It's a type predicate — when the function returns true, the compiler narrows the argument at the call site",
+          "It asserts at runtime and throws when false",
+          "It's documentation only; TS ignores it",
+          "It constrains the parameter so only strings can be passed",
+        ],
+        answer: 0,
+        explanation: "Without the predicate, `vals.filter(isString)` would still hand back `unknown[]`. The predicate is what teaches `filter` the result type — it's how you extend narrowing beyond the built-in `typeof`/`in`/`instanceof` checks.",
+      },
+      {
+        id: "type-guards-exhaustiveness-q2",
+        prompt: "How does `default: return assertNever(shape)` catch a missing switch case?",
+        options: [
+          "The compiler special-cases any function named `assertNever`",
+          "If every member is handled, `shape` narrows to `never` and the call type-checks; an unhandled member makes it non-`never` and errors",
+          "It throws at runtime, which surfaces the gap during testing",
+          "`assertNever` uses reflection to enumerate the union's members",
+        ],
+        answer: 1,
+        explanation: "This is the real payoff of discriminated unions. Adding a new variant and forgetting a switch somewhere turns from a runtime bug into a compile error pointing right at it — the discipline sealed classes give you, achieved with plain data and one helper.",
+      },
+      {
+        id: "type-guards-exhaustiveness-q3",
+        prompt: "What does an `asserts cond` return type do?",
+        options: [
+          "It narrows only inside the asserting function's body",
+          "It requires the caller to wrap the call in a try/catch",
+          "After the call, the compiler treats the condition as true for the rest of the scope",
+          "It converts a thrown error into a typed result",
+        ],
+        answer: 2,
+        explanation: "It's the throwing counterpart to a boolean type guard. After `assert(x != null, ...)`, `x` is non-null for everything that follows — control-flow analysis knows the alternative would have thrown.",
+      },
     ],
   },
 ];

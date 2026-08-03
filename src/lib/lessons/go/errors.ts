@@ -193,6 +193,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-errors-q1",
+        prompt: "What does wrapping an error with `%w` in `fmt.Errorf` give you?",
+        options: [
+          "A formatted message with the cause discarded",
+          "Added context while keeping the original reachable through the chain for `errors.Is` and `errors.As`",
+          "A stack trace attached to the error",
+          "Automatic retry of the failing operation",
+        ],
+        answer: 1,
+        explanation: "`fmt.Errorf(\"load config: %w\", err)` builds a chain like `\"load config: open config.json: file does not exist\"`. Using `%v` instead would flatten it to a string and lose the cause.",
+      },
+      {
+        id: "go-errors-q2",
+        prompt: "You need to check whether a deeply wrapped error is `os.ErrNotExist`. What do you use?",
+        options: [
+          "`errors.As(err, &os.ErrNotExist)`",
+          "A type assertion `err.(*os.PathError)`",
+          "`errors.Is(err, os.ErrNotExist)` — it walks the whole chain",
+          "`err == os.ErrNotExist`",
+        ],
+        answer: 2,
+        explanation: "`errors.Is` finds a sentinel value anywhere in the chain; `errors.As` finds a specific error *type* and binds it so you can read its fields. Both beat `==` and type assertions, which only see the outermost error.",
+      },
+      {
+        id: "go-errors-q3",
+        prompt: "What is the `error` interface?",
+        options: [
+          "A built-in struct with a message and a cause field",
+          "An alias for `string` with special compiler support",
+          "An interface with `Error() string` and `Unwrap() error`",
+          "An interface with a single method, `Error() string` — so any type with that method is an error",
+        ],
+        answer: 3,
+        explanation: "One method, and that's it. A sentinel is a package-level error value callers compare against; a custom error type is any type with `Error() string`, useful when the error carries data. `Unwrap` is optional and is what makes wrapping chains work.",
+      },
+    ],
   },
   {
     id: "go-defer-panic-recover",
@@ -317,6 +355,44 @@ func main() {
 	run(true)  // panicking path
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-defer-panic-recover-q1",
+        prompt: "When should you reach for `panic` rather than returning an error?",
+        options: [
+          "For any failure the caller can't retry",
+          "For I/O failures, since they're outside your control",
+          "Whenever an error would need to be wrapped more than twice",
+          "For programmer bugs and unrecoverable states — a violated invariant, an impossible switch case",
+        ],
+        answer: 3,
+        explanation: "Panic is not Go's error-handling mechanism. If a caller might reasonably handle it, return an error. The runtime panics on its own for nil-pointer dereferences and out-of-range indexes — the same category of bug.",
+      },
+      {
+        id: "go-defer-panic-recover-q2",
+        prompt: "Where must `recover` be called to actually stop a panic?",
+        options: [
+          "Directly from a deferred function",
+          "Anywhere in the panicking function, before the panic",
+          "In the caller of the panicking function",
+          "In a goroutine started by the panicking function",
+        ],
+        answer: 0,
+        explanation: "Deferred calls run as the stack unwinds, which is exactly what makes recover possible. The idiom pairs it with a *named* return value so the deferred closure can assign the error — one of the few places named returns really earn their keep.",
+      },
+      {
+        id: "go-defer-panic-recover-q3",
+        prompt: "Where is `recover` genuinely appropriate?",
+        options: [
+          "In `main`, to keep the program alive no matter what",
+          "At a process boundary — a web server recovering per request so one bad handler doesn't kill the server",
+          "Around every call that might fail, as a safety net",
+          "Inside library functions, converting all errors to panics for brevity",
+        ],
+        answer: 1,
+        explanation: "Sparingly, and usually at a boundary: a per-request recover, or a worker that must survive a misbehaving job. Recovering to paper over ordinary errors is an anti-pattern — if a caller should handle it, return an error in the first place.",
       },
     ],
   },

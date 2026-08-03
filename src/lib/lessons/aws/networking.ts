@@ -64,6 +64,44 @@ Use security groups for essentially everything; use NACLs for coarse subnet-leve
 
 When traffic doesn't flow, check in this order — it's almost always one of these, in roughly this frequency: **security group** (inbound rule missing), **route table** (no route to the destination), **NACL** (return traffic blocked), **subnet AZ mismatch**, then DNS. Working outward from the instance beats guessing.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-vpc-q1",
+        prompt: "What actually makes a subnet \"public\"?",
+        options: [
+          "Its route table sends 0.0.0.0/0 to an Internet Gateway",
+          "A checkbox on the subnet marked public",
+          "It has instances with public IP addresses in it",
+          "Its security groups allow inbound traffic from 0.0.0.0/0",
+        ],
+        answer: 0,
+        explanation: "There is no meaningful \"public\" flag. A subnet is public because its traffic to the internet routes via an IGW; private because it routes via a NAT gateway; isolated because it has no 0.0.0.0/0 route at all. Nothing else.",
+      },
+      {
+        id: "aws-vpc-q2",
+        prompt: "You allow inbound 443 in a NACL, but responses never reach the client. What's missing?",
+        options: [
+          "A route table entry for the client's CIDR",
+          "An outbound rule for the ephemeral port range — NACLs are stateless, so return traffic must be allowed explicitly",
+          "An inbound rule for port 80 to handle the redirect",
+          "A security group rule allowing outbound 443",
+        ],
+        answer: 1,
+        explanation: "This is the practical difference between the two firewalls. A security group is stateful — allowing inbound 443 permits the response automatically. A NACL is stateless, so you must also allow outbound on 1024-65535, and forgetting it is the classic silent-breakage bug.",
+      },
+      {
+        id: "aws-vpc-q3",
+        prompt: "Which VPC feature both improves privacy and removes NAT gateway data charges for S3 traffic?",
+        options: [
+          "VPC peering to the S3 service VPC",
+          "A second NAT gateway dedicated to S3 traffic",
+          "A gateway VPC endpoint for S3 — free, and it bypasses NAT entirely",
+          "An interface endpoint (PrivateLink) for S3, billed hourly",
+        ],
+        answer: 2,
+        explanation: "Gateway endpoints exist for S3 and DynamoDB only, are free, and route traffic privately without touching the NAT gateway — which is charged per hour and per gigabyte processed. It's the easiest cost win in AWS networking.",
+      },
+    ],
   },
   {
     id: "aws-load-balancing",
@@ -120,6 +158,44 @@ ALBs and NLBs scale themselves, but not instantly — a step change from near-ze
 
 > [Load balancing](/library/load-balancing) in the library covers the algorithms and health-check theory generally — this lesson is about which AWS balancer implements them.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-load-balancing-q1",
+        prompt: "A client's corporate firewall needs to allowlist a fixed IP address for your service. Which load balancer?",
+        options: [
+          "ALB — it can be assigned an Elastic IP per AZ",
+          "Either; both provide static IPs",
+          "Neither; use Route 53 with a fixed A record instead",
+          "NLB — it gets a static IP per AZ and preserves the source IP",
+        ],
+        answer: 3,
+        explanation: "An ALB's addresses change as it scales, which is why you point DNS at its name. An NLB gets a static IP per AZ, which is precisely why people pick it when a client firewall needs an address to allowlist. Putting the ALB behind the NLB is a common way to get both.",
+      },
+      {
+        id: "aws-load-balancing-q2",
+        prompt: "Why can a health check that verifies a shared downstream dependency be worse than one that doesn't?",
+        options: [
+          "If that dependency is briefly slow, every instance fails the check at once and the entire fleet is pulled out of service",
+          "Deep health checks are billed per request",
+          "Health checks time out after 2 seconds and cannot call a database",
+          "The load balancer caches the first health check result for five minutes",
+        ],
+        answer: 0,
+        explanation: "Both directions bite. A check so shallow it returns 200 while the database is unreachable keeps sending traffic to a broken instance; a check so deep that a shared dependency fails all of them at once is a cascading failure caused by the check itself. Check what this instance can actually do.",
+      },
+      {
+        id: "aws-load-balancing-q3",
+        prompt: "Deploys are slow because each instance takes five minutes to drain. What's the likely cause?",
+        options: [
+          "The target group is using instance targets rather than IP targets",
+          "Deregistration delay is still at its 300-second default",
+          "The health check interval is too long",
+          "Cross-zone load balancing is disabled",
+        ],
+        answer: 1,
+        explanation: "Deregistration delay — connection draining — defaults to 300 seconds, and that's per instance during a rolling deploy. Lowering it to 30 seconds is one of the cheapest deploy-speed wins there is.",
+      },
+    ],
   },
   {
     id: "aws-route-53",
@@ -184,6 +260,44 @@ And DNS failover is never *precise*: browsers, OS resolvers, and JVMs all cache 
 
 For fine-grained, fast traffic shifting, prefer a layer that isn't cached by every resolver on earth: weighted target groups on an ALB, or **AWS Global Accelerator**, which gives you static anycast IPs and shifts traffic between regions in seconds with no DNS involved. Reach for Global Accelerator when DNS TTLs are the thing standing between you and a fast failover.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-route-53-q1",
+        prompt: "Why can't you use a CNAME to point `example.com` at a load balancer?",
+        options: [
+          "CNAMEs cannot point at AWS resources",
+          "Route 53 only supports CNAMEs on private hosted zones",
+          "You can, but it costs more than an alias",
+          "The DNS spec forbids a CNAME at the zone apex — that's exactly what alias records exist for",
+        ],
+        answer: 3,
+        explanation: "A CNAME can't coexist with the SOA and NS records that must live at the apex. Route 53 alias records are AWS-specific, work at the apex, resolve directly to the resource's IPs, and aren't billed as a query.",
+      },
+      {
+        id: "aws-route-53-q2",
+        prompt: "A record has a 24-hour TTL and you need to fail over to another region now. What actually happens?",
+        options: [
+          "Resolvers worldwide keep handing out the old answer for up to a day, and nothing you do at the DNS provider changes that",
+          "Route 53 pushes an invalidation to downstream resolvers",
+          "The TTL is ignored during a health-check-triggered failover",
+          "Failover takes effect within one minute regardless of TTL",
+        ],
+        answer: 0,
+        explanation: "TTL is your recovery time, and it's already been distributed. Lower TTLs on anything you may need to fail over — and lower them 48 hours ahead of a planned migration, not on the day.",
+      },
+      {
+        id: "aws-route-53-q3",
+        prompt: "You need to shift traffic between regions in seconds, not minutes. What should you reach for instead of DNS?",
+        options: [
+          "Multivalue answer routing with health checks",
+          "AWS Global Accelerator — static anycast IPs that shift traffic without DNS involvement",
+          "A lower TTL, down to one second",
+          "Geolocation routing instead of failover routing",
+        ],
+        answer: 1,
+        explanation: "DNS failover is never precise — browsers, OS resolvers, and JVMs all cache independently, some ignoring TTL entirely. Global Accelerator gives you static anycast IPs and moves traffic between regions in seconds with no DNS in the path.",
+      },
+    ],
   },
   {
     id: "aws-cloudfront",
@@ -234,6 +348,44 @@ Content that is genuinely per-user and never repeated gets no cache benefit — 
 
 > [CDN & object storage](/library/cdn-and-object-storage) in the library covers the general CDN model — this lesson is CloudFront's specific knobs.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-cloudfront-q1",
+        prompt: "Your CloudFront cache hit rate is 0%. Which configuration mistake causes this most often?",
+        options: [
+          "Compression is disabled on the distribution",
+          "A session cookie is included in the cache key, so every user gets their own cache entry",
+          "The origin is S3 rather than an ALB",
+          "The distribution is deployed to too few edge locations",
+        ],
+        answer: 1,
+        explanation: "Whatever you include in the cache key multiplies your cache entries. A per-user cookie in the key means nothing is ever shared between users. Forward what the origin needs; key on only what changes the bytes.",
+      },
+      {
+        id: "aws-cloudfront-q2",
+        prompt: "Why is putting CloudFront in front of a fully dynamic API worth doing even at a 0% cache hit rate?",
+        options: [
+          "It removes the need for a load balancer",
+          "It converts the API to HTTP/3 automatically, which is always faster",
+          "TCP and TLS handshakes terminate at a nearby edge, and the edge holds a warm connection to the origin over AWS's backbone",
+          "CloudFront compresses dynamic responses that the origin cannot",
+        ],
+        answer: 2,
+        explanation: "The overlooked win is connection termination. Handshakes complete close to the user, and the leg back to your origin runs over AWS's backbone on an already-warm connection rather than the public internet. Outbound data transfer via CloudFront is also cheaper than straight from S3 or EC2.",
+      },
+      {
+        id: "aws-cloudfront-q3",
+        prompt: "What's the better alternative to invalidating paths on every deploy?",
+        options: [
+          "Setting the distribution's max TTL to zero",
+          "Invalidating `/*` on a schedule rather than per deploy",
+          "Disabling caching for JavaScript and CSS",
+          "Versioned filenames with a one-year TTL, and short-TTL HTML referencing them",
+        ],
+        answer: 3,
+        explanation: "Invalidations are slow (minutes) and billed past the first thousand a month. Versioned filenames sidestep the problem entirely: a new deploy produces new filenames, so there is nothing to invalidate and no stale-asset bug. Every frontend build tool does this for exactly this reason.",
+      },
+    ],
   },
   {
     id: "aws-api-gateway",
@@ -289,5 +441,43 @@ private endpoints   no                 yes                  no
 
 > [APIs & protocols](/library/apis-and-protocols) and [Rate limiting](/library/rate-limiting) in the library cover the design side — this lesson is which AWS product enforces it.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-api-gateway-q1",
+        prompt: "You're building a public API with per-customer rate limits and quotas. HTTP API or REST API?",
+        options: [
+          "REST API — API keys and usage plans only exist there",
+          "HTTP API — it's cheaper and supports usage plans natively",
+          "Either; usage plans are a separate service",
+          "Neither; use an ALB with WAF rate rules",
+        ],
+        answer: 0,
+        explanation: "HTTP API is the cheaper, faster default and covers most services. Reach for REST API when you specifically need API keys and usage plans, response caching, full request validation, WAF, or private endpoints.",
+      },
+      {
+        id: "aws-api-gateway-q2",
+        prompt: "Which API Gateway limit do teams hit first when adapting an existing backend?",
+        options: [
+          "A 100-request-per-second account ceiling",
+          "The 29-second integration timeout — it's a hard ceiling on any long or streaming response",
+          "The 6 MB request payload limit",
+          "A maximum of 300 routes per API",
+        ],
+        answer: 1,
+        explanation: "The 29-second integration timeout is the constraint people meet first, and it can't be raised. Long-running or streaming responses need a different front door.",
+      },
+      {
+        id: "aws-api-gateway-q3",
+        prompt: "At a billion requests a month, why might an ALB in front of Lambda beat API Gateway?",
+        options: [
+          "API Gateway cannot invoke Lambda at that volume",
+          "ALBs include a built-in JWT authorizer that API Gateway lacks",
+          "Gateway fees at ~$1 per million can exceed the ALB's hourly cost, and you may not need usage plans or per-route auth",
+          "ALBs support higher request rates than API Gateway can",
+        ],
+        answer: 2,
+        explanation: "Per-request pricing is the deciding factor at high volume — a billion requests is roughly $1,000 in gateway fees alone. An ALB in front of Lambda or a container does the routing far more cheaply if you don't need what the gateway adds.",
+      },
+    ],
   },
 ];

@@ -26,6 +26,26 @@ export interface Exercise {
   starterCode: string;
 }
 
+/**
+ * One multiple-choice retention check, shown in the lesson's Quiz tab.
+ *
+ * Hand-written rather than generated: a quiz that marks a right answer wrong
+ * teaches the learner something false, so the answers have to be reviewable and
+ * testable like every other content bank here.
+ */
+export interface QuizQuestion {
+  /** Globally unique (across all courses), kebab-case. */
+  id: string;
+  /** The question. Plain text — rendered as markdown, so inline code is fine. */
+  prompt: string;
+  /** Exactly QUIZ_OPTIONS choices; the wrong ones must be plausible, not filler. */
+  options: string[];
+  /** Index into `options` of the single correct choice. */
+  answer: number;
+  /** Why that answer is right, shown once the learner has picked. */
+  explanation: string;
+}
+
 export interface Lesson {
   /** Globally unique (across all courses), kebab-case — the /learn/[course]/[lessonId] segment. */
   id: string;
@@ -41,7 +61,19 @@ export interface Lesson {
   content: string;
   /** Ordered exercises. Empty for conversational lessons (e.g. tooling). */
   exercises: Exercise[];
+  /**
+   * End-of-lesson retention check. Exactly QUIZ_LENGTH questions on EVERY lesson,
+   * exercises or not — the one part of a lesson that is never optional. Questions
+   * the learner misses are fed back to the tutor (see buildLessonScript).
+   */
+  quiz: QuizQuestion[];
 }
+
+/** Questions per lesson quiz. Enforced by the lesson bank tests. */
+export const QUIZ_LENGTH = 3;
+
+/** Choices per question. Enforced by the lesson bank tests. */
+export const QUIZ_OPTIONS = 4;
 
 export interface Module {
   id: string;

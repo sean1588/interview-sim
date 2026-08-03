@@ -41,6 +41,44 @@ S3 is not a filesystem and not a database. If you need file locking, partial wri
 
 > [CDN & object storage](/library/cdn-and-object-storage) in the library is the interview-facing version of this pairing — this lesson is about what S3 itself guarantees and why.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-s3-q1",
+        prompt: "Why can S3 offer eleven nines of durability when a filesystem cannot?",
+        options: [
+          "Object storage uses more reliable hardware than block storage",
+          "Objects are immutable and self-contained, so S3 can replicate each across at least three AZs and repair from redundancy in the background",
+          "S3 writes are synchronously committed to disk on every node before returning",
+          "S3 keeps a full second copy of every bucket in another region by default",
+        ],
+        answer: 1,
+        explanation: "The refusal to support seeks, appends, partial writes, and renames is what buys the durability. Immutable, self-contained objects can be replicated across AZs and continuously repaired from redundancy — that's where 11 nines comes from. Availability is a separate, much lower number.",
+      },
+      {
+        id: "aws-s3-q2",
+        prompt: "Your keys all begin with the current timestamp and you're hitting request-rate limits. What's going on?",
+        options: [
+          "Timestamps make objects larger, which counts against throughput",
+          "The bucket needs to be moved to a different storage class",
+          "Performance limits are per prefix, and a shared leading component concentrates all load on one prefix",
+          "S3 rate-limits per bucket regardless of key naming",
+        ],
+        answer: 2,
+        explanation: "S3 gives you roughly 3,500 PUT/s and 5,500 GET/s per prefix, and prefixes scale horizontally. Keys sharing a leading timestamp all land on the same prefix; a high-entropy leading component spreads the load.",
+      },
+      {
+        id: "aws-s3-q3",
+        prompt: "Which claim about S3 consistency is still repeated in old blog posts but is now false?",
+        options: [
+          "That a GET after a PUT of a brand-new object returns the object",
+          "That LIST is paginated for large prefixes",
+          "That objects can be up to 5 TB",
+          "That overwrites and deletes are only eventually consistent — S3 has been strongly read-after-write consistent since December 2020",
+        ],
+        answer: 3,
+        explanation: "S3 became strongly read-after-write consistent for all operations in December 2020. A GET after a PUT returns the new object and a LIST after a PUT shows it — but the old eventual-consistency advice is still widely repeated.",
+      },
+    ],
   },
   {
     id: "aws-ebs-and-efs",
@@ -92,6 +130,44 @@ Snapshots are incremental and land in S3, so they survive the AZ. A snapshot res
 
 Because EBS is zonal, an instance and its volume die together with the AZ. There is no "reattach it elsewhere" — recovery means restoring a snapshot into another AZ, which takes time. This is precisely why stateful workloads either use a managed service that handles the replication (RDS Multi-AZ), or keep the durable copy in something regional (S3, EFS) and treat the instance as disposable.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-ebs-and-efs-q1",
+        prompt: "Several web servers across three AZs need to read and write the same upload directory. EBS or EFS?",
+        options: [
+          "EFS — it's a regional NFS filesystem that many instances mount at once",
+          "EBS — attach the same volume to all of them",
+          "EBS with a snapshot restored into each AZ",
+          "Either; the difference is only price",
+        ],
+        answer: 0,
+        explanation: "EBS is a disk for one machine and is pinned to a single AZ. EFS is a shared drive: regional, mountable from many instances at once, and it grows and shrinks automatically. Faking a shared directory with rsync between instances is the anti-pattern EFS replaces.",
+      },
+      {
+        id: "aws-ebs-and-efs-q2",
+        prompt: "What was the gp2 trap that gp3 fixes?",
+        options: [
+          "gp2 did not support encryption at rest",
+          "gp2 tied IOPS to volume size, so people provisioned 1 TB volumes for a 40 GB database just to get throughput",
+          "gp2 volumes could not be snapshotted",
+          "gp2 volumes were limited to a single AZ while gp3 is regional",
+        ],
+        answer: 1,
+        explanation: "gp2 granted 3 IOPS per GB, so capacity was the only lever for performance. gp3 sets throughput and IOPS independently of size, and is cheaper — which is why it's the default answer and why migrating off gp2 usually saves money.",
+      },
+      {
+        id: "aws-ebs-and-efs-q3",
+        prompt: "Why do stateful workloads on EC2 usually keep their durable copy in S3 or EFS rather than relying on EBS?",
+        options: [
+          "EBS cannot be encrypted, unlike S3 and EFS",
+          "EBS has a hard 1 TB size ceiling",
+          "EBS is zonal, so the instance and volume die together with the AZ and recovery means restoring a snapshot elsewhere",
+          "EBS volumes are not durable and lose data on reboot",
+        ],
+        answer: 2,
+        explanation: "An EBS volume in us-east-1a can only ever attach to an instance in us-east-1a. There is no reattach-elsewhere — recovery is a snapshot restore, which takes time. So stateful workloads either use a managed service that handles replication or keep the durable copy somewhere regional and treat the instance as disposable.",
+      },
+    ],
   },
   {
     id: "aws-storage-classes",
@@ -149,5 +225,43 @@ Rules also clean up two things people forget and pay for indefinitely: **noncurr
 
 Don't archive anything on a user-facing path. Glacier Flexible's retrieval is measured in minutes to hours — a request that hits it doesn't slow down, it fails to answer for hours. If a human might ever click a button and expect that object, it belongs in an instant-retrieval class.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-storage-classes-q1",
+        prompt: "You move objects to Standard-IA to save money, but the bill goes up. What is the most likely explanation?",
+        options: [
+          "Lifecycle transitions themselves are billed per gigabyte moved",
+          "The objects are read more than about once a month, and IA classes charge per gigabyte retrieved",
+          "Standard-IA has lower durability, so S3 stores extra copies and charges for them",
+          "Standard-IA is only cheaper in certain regions",
+        ],
+        answer: 1,
+        explanation: "Infrequent Access classes are cheap to store and cost money per gigabyte read. The class names mean what they say — the break-even is genuinely around \"less than once a month.\" An object in Standard-IA read twice a week costs more than it would have in Standard.",
+      },
+      {
+        id: "aws-storage-classes-q2",
+        prompt: "A lifecycle rule transitions objects to Glacier Deep Archive on day 1, and most are deleted after a week. What happens?",
+        options: [
+          "The objects are deleted normally with no extra charge",
+          "The deletes fail until the minimum duration elapses",
+          "You're billed for the 180-day minimum duration on each one, so the rule increases your bill",
+          "The transition is silently skipped for short-lived objects",
+        ],
+        answer: 2,
+        explanation: "Each class carries a minimum billable duration — 30 days for IA, 90 for Glacier, 180 for Deep Archive. Deleting early still bills the full window, so a lifecycle rule aimed at short-lived objects can cost more than leaving them in Standard.",
+      },
+      {
+        id: "aws-storage-classes-q3",
+        prompt: "Which two things do lifecycle rules clean up that teams commonly pay for indefinitely without noticing?",
+        options: [
+          "Empty buckets and unused bucket policies",
+          "Access logs and CloudTrail events",
+          "Presigned URLs and cached CloudFront objects",
+          "Noncurrent object versions and incomplete multipart uploads",
+        ],
+        answer: 3,
+        explanation: "Versioning keeps every overwrite forever unless you expire noncurrent versions, and a failed large upload leaves its parts billing you silently. Both are worth a rule in every bucket.",
+      },
+    ],
   },
 ];

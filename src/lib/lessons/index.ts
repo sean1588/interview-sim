@@ -11,7 +11,15 @@ import { goCourse } from "./go";
 import { distributedSystemsCourse } from "./distributed-systems";
 import { awsCourse } from "./aws";
 
-export type { Course, Lesson, Exercise, Module, ConceptCourseId } from "./types";
+export type {
+  Course,
+  Lesson,
+  Exercise,
+  Module,
+  ConceptCourseId,
+  QuizQuestion,
+} from "./types";
+export { QUIZ_LENGTH, QUIZ_OPTIONS } from "./types";
 export { buildLessonScript } from "./script";
 
 /** Ordered course list — drives the /learn picker and the home "Learn" section. */

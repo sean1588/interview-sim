@@ -58,6 +58,44 @@ Going multi-region "for availability" before you have exhausted multi-AZ is the 
 
 > The library's [Multi-region](/library/multi-region) note is the interview-facing companion — how to *talk about* active-active vs active-passive under time pressure. This lesson is about what AWS actually gives you at each level.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-regions-and-azs-q1",
+        prompt: "You need to replicate a database synchronously so a failure loses no committed writes. Across AZs in one region, or across two regions?",
+        options: [
+          "Across regions — only a region boundary is a real fault domain",
+          "Either works; the latency difference is not large enough to matter",
+          "Neither — synchronous replication is impossible on AWS",
+          "Across AZs — they are ~1-2ms apart, close enough that synchronous replication is practical",
+        ],
+        answer: 3,
+        explanation: "AZs sit ~1-2ms apart, so a synchronous commit costs single-digit milliseconds. Regions are 60-200ms apart, which makes synchronous cross-region writes a design mistake rather than a tuning problem.",
+      },
+      {
+        id: "aws-regions-and-azs-q2",
+        prompt: "Which pair of resources disappears together when a single Availability Zone fails?",
+        options: [
+          "An EC2 instance and its attached EBS volume",
+          "An S3 bucket and a DynamoDB table",
+          "An SQS queue and an SNS topic",
+          "A Lambda function and its execution role",
+        ],
+        answer: 0,
+        explanation: "EC2 instances and EBS volumes are zonal — both live in one AZ and die with it. S3, DynamoDB, SQS, SNS, and Lambda are regional and already replicate across AZs for you.",
+      },
+      {
+        id: "aws-regions-and-azs-q3",
+        prompt: "A team wants to go multi-region \"for availability\" but is currently running in a single AZ. What is the strongest objection?",
+        options: [
+          "Nothing — multi-region strictly dominates multi-AZ on availability",
+          "Multi-AZ is nearly free, handles the failure they will actually have, and avoids the eventual consistency and failover procedure multi-region forces on them",
+          "Multi-region is not supported for most AWS services",
+          "Multi-region would violate data residency rules in every jurisdiction",
+        ],
+        answer: 1,
+        explanation: "Skipping multi-AZ to go multi-region is the classic overbuild. Multi-AZ costs almost nothing extra and survives the datacenter loss you're realistically going to have; multi-region doubles the infrastructure, forces eventual consistency, and adds a failover procedure that is itself a leading cause of outages.",
+      },
+    ],
   },
   {
     id: "aws-iam",
@@ -107,6 +145,44 @@ Resources have their own policies too. An S3 object read is checked against **bo
 
 Start every role at zero and add the specific actions that fail. \`"Action": "*"\` on \`"Resource": "*"\` is not a starting point you tighten later — nobody ever tightens it. IAM Access Analyzer will generate a least-privilege policy from what a role actually called over the last 90 days, which is far more honest than guessing.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-iam-q1",
+        prompt: "An IAM policy allows `s3:GetObject` on a bucket, but the call is still denied. What is the most likely cause?",
+        options: [
+          "Another policy — the bucket policy, a KMS key policy, or an SCP — carries an explicit Deny",
+          "The IAM policy needs to be attached twice, once to the user and once to the role",
+          "S3 requires the action to be spelled `s3:Get*` to work",
+          "IAM policies take 24 hours to propagate before they take effect",
+        ],
+        answer: 0,
+        explanation: "An S3 read is evaluated against both the caller's IAM policy and the resource's policy, and an explicit Deny anywhere wins. When the IAM policy looks right, the bucket policy, KMS key policy, or an org-level SCP is usually the one saying no.",
+      },
+      {
+        id: "aws-iam-q2",
+        prompt: "Why is an IAM role preferred over an IAM user with access keys for anything that runs?",
+        options: [
+          "Roles bypass the bucket policy check, simplifying access",
+          "Assuming a role mints credentials that expire in about an hour, so there is no long-lived key to leak into git, CI logs, or Slack",
+          "Roles are evaluated faster than users at the API layer",
+          "Roles can be attached to more services than users can",
+        ],
+        answer: 1,
+        explanation: "A role has no key material of its own — it is assumed, producing temporary credentials. A long-lived `AKIA...` key in an environment variable never expires on its own, and leaked keys are the single most common way AWS accounts get compromised.",
+      },
+      {
+        id: "aws-iam-q3",
+        prompt: "A request arrives for an action that no policy mentions at all — no Allow, no Deny. What happens?",
+        options: [
+          "It is allowed only if the principal is in the same account as the resource",
+          "The call fails with a policy-not-found error rather than an authorization decision",
+          "It is denied — IAM is default-deny, so you need an explicit Allow",
+          "It is allowed, because nothing forbade it",
+        ],
+        answer: 2,
+        explanation: "The evaluation rule is short: an explicit Deny always wins; otherwise you need an explicit Allow; with no statement at all the answer is no. Default-deny is the whole model.",
+      },
+    ],
   },
   {
     id: "aws-shared-responsibility-and-cost",
@@ -156,5 +232,43 @@ The shape of your traffic decides: **spiky and low-duty-cycle favours serverless
 - **S3 lifecycle policies** — move old objects to cheaper classes automatically rather than paying Standard rates for logs nobody reads.
 - **Right-sizing from CloudWatch** — an instance at 4% CPU for three months is the easiest saving there is.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-shared-responsibility-and-cost-q1",
+        prompt: "Under the shared responsibility model, which item is yours no matter how managed the service is?",
+        options: [
+          "OS patching",
+          "Database engine patching",
+          "The durability of stored objects",
+          "Your data, your IAM policies, and your application logic",
+        ],
+        answer: 3,
+        explanation: "The more managed the service, the less of the stack is yours — Lambda takes the runtime, RDS takes OS and DB patching, S3 takes durability. What never becomes AWS's job at any level is your data, your IAM policies, and your application logic. A public S3 bucket is not an AWS failure.",
+      },
+      {
+        id: "aws-shared-responsibility-and-cost-q2",
+        prompt: "Which cost lever most often produces a surprising bill for teams who thought they understood their spend?",
+        options: [
+          "Data transfer — outbound to the internet is charged, and cross-AZ traffic is billed in both directions",
+          "Compute time, because instance-hours are hard to predict",
+          "Storage, because GB-months compound",
+          "Request counts, because per-million API pricing is opaque",
+        ],
+        answer: 0,
+        explanation: "Data transfer is the sleeper. Inbound is free, but outbound to the internet is not, and cross-AZ traffic is charged in both directions — so chatty service-to-service calls spread across AZs \"for high availability\" quietly bill per gigabyte.",
+      },
+      {
+        id: "aws-shared-responsibility-and-cost-q3",
+        prompt: "A batch rendering job runs for hours, is checkpointed, and can restart safely. Which pricing model fits?",
+        options: [
+          "Lambda, since it scales to zero between runs",
+          "Spot — up to 90% off spare capacity, reclaimed with a two-minute warning",
+          "On-demand, so the job is never interrupted",
+          "Reserved instances, to lock in the lowest rate",
+        ],
+        answer: 1,
+        explanation: "Spot is exactly the right fit for batch, CI, rendering, and ML training — interruptible work that is checkpointed and restartable. It's wrong for your database. Lambda's 15-minute ceiling rules it out for a multi-hour render.",
+      },
+    ],
   },
 ];

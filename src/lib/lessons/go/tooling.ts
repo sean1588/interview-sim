@@ -127,6 +127,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-testing-q1",
+        prompt: "What's the difference between `t.Errorf` and `t.Fatalf`?",
+        options: [
+          "`Fatalf` fails the whole test binary; `Errorf` fails only the subtest",
+          "They're identical aliases",
+          "`Errorf` records a failure and continues; `Fatalf` stops that test immediately",
+          "`Errorf` is for expected failures; `Fatalf` is for panics",
+        ],
+        answer: 2,
+        explanation: "Use `Fatalf` when the lines after it would panic — for example when a constructor returned nil. Otherwise `Errorf` gives you more information per run. Go ships no assertion library by design; you check and fail yourself.",
+      },
+      {
+        id: "go-testing-q2",
+        prompt: "What is the dominant Go testing idiom?",
+        options: [
+          "One test function per input case, named after the case",
+          "Property-based tests generated from the type signature",
+          "A single test per file, asserting on a golden output",
+          "Table-driven tests: a slice of cases looped over, usually with `t.Run` giving each a named subtest",
+        ],
+        answer: 3,
+        explanation: "Adding a case becomes one line, and named subtests fail independently — `go test -run TestAbs/negative` runs just that one.",
+      },
+      {
+        id: "go-testing-q3",
+        prompt: "What does a function named `ExampleAdd` with an `// Output: 5` comment do?",
+        options: [
+          "It's compiled, run, and its stdout is checked against the comment — documentation that can't go stale",
+          "It's shown in docs but never executed",
+          "It generates a benchmark for the `Add` function",
+          "It's a template the test generator expands into real tests",
+        ],
+        answer: 0,
+        explanation: "Testable examples are documentation the compiler and test runner both verify. Alongside them, `BenchmarkXxx(b *testing.B)` runs with `-bench`, `-cover` reports coverage, and `-race` runs the race detector — all from the one `go test` command.",
+      },
+    ],
   },
   {
     id: "go-modules-tooling",
@@ -197,5 +235,43 @@ project/
 
 This lesson has no editor exercise — spin up \`go mod init\` in a scratch directory and try \`go run\`, \`go test\`, and \`gofmt\` on the code from earlier lessons. Ask your tutor about anything in the workflow.`,
     exercises: [],
+    quiz: [
+      {
+        id: "go-modules-tooling-q1",
+        prompt: "How do you add a dependency to a Go module?",
+        options: [
+          "Add it to a `require` block, then run a separate install step",
+          "Vendor it into a `vendor/` directory first",
+          "Import it and run `go mod tidy` — Go fetches it, pins a version, and records a checksum",
+          "Run `go install` and add the version to `go.mod` by hand",
+        ],
+        answer: 2,
+        explanation: "There's no separate install step and no manifest-versus-lockfile split: `go.mod` holds direct requirements, `go.sum` holds checksums. `go mod tidy` also *removes* dependencies you no longer import, keeping the file honest.",
+      },
+      {
+        id: "go-modules-tooling-q2",
+        prompt: "What is special about a directory named `internal/`?",
+        options: [
+          "It's excluded from the build unless a tag is set",
+          "It's where the toolchain caches downloaded modules",
+          "Its packages are compiled but never tested by `go test ./...`",
+          "Its packages can only be imported by code rooted at its parent — enforced visibility for a private API",
+        ],
+        answer: 3,
+        explanation: "The compiler enforces it, which makes \"this is our private API\" a real boundary rather than a convention. It complements capitalization, which controls visibility at the identifier level.",
+      },
+      {
+        id: "go-modules-tooling-q3",
+        prompt: "Why is `gofmt` not configurable?",
+        options: [
+          "So all Go code looks the same — no formatting reviews and no bikeshedding",
+          "Because configuration would slow the formatter down",
+          "Because the parser can only emit one layout",
+          "It is configurable; most teams just use the defaults",
+        ],
+        answer: 0,
+        explanation: "That's the point rather than a limitation. Editors run it on save, and `goimports` additionally adds and removes import lines. Formatting, testing, vetting, docs, and dependency management all live in the one toolchain, versioned with the language.",
+      },
+    ],
   },
 ];

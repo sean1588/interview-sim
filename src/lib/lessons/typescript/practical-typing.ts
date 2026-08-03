@@ -150,6 +150,44 @@ console.log("safe name:", safeName(raw));
 `,
     },
     ],
+    quiz: [
+      {
+        id: "unknown-and-validation-q1",
+        prompt: "What is `JSON.parse` typed to return, and why does that matter?",
+        options: [
+          "`unknown` — so you must narrow before using it",
+          "`object`, which still requires a cast",
+          "`Record<string, unknown>`, which is safe by default",
+          "`any` — so `data.user.name.toUpperCase()` compiles and explodes at runtime",
+        ],
+        answer: 3,
+        explanation: "The trap is built into the standard library. The boundary — an HTTP body, `localStorage`, a file, a message — is exactly where types most often lie, and `any` is the checker giving up right at that point.",
+      },
+      {
+        id: "unknown-and-validation-q2",
+        prompt: "Why is `any` described as a hole and `unknown` as a wall?",
+        options: [
+          "`any` opts a value out of checking and spreads to everything you pull off it; `unknown` accepts any value but lets you do nothing until you prove what it is",
+          "`any` is checked at runtime; `unknown` is not checked at all",
+          "`unknown` errors on assignment; `any` errors on use",
+          "`any` can hold only primitives; `unknown` can hold objects too",
+        ],
+        answer: 0,
+        explanation: "Same \"I don't know yet,\" opposite default. One `any` at an edge silently disables the checker across everything downstream — which is why containing it at the boundary matters so much.",
+      },
+      {
+        id: "unknown-and-validation-q3",
+        prompt: "What does \"parse, don't validate\" mean in practice?",
+        options: [
+          "Reject malformed input at the HTTP layer before it reaches your code",
+          "Narrow external data into a typed value once, at the edge, and let the rest of the program work with the real type",
+          "Use a schema library instead of hand-written checks",
+          "Validate the same data again at each layer that consumes it",
+        ],
+        answer: 1,
+        explanation: "Past the parsing function you hold a real `User`, never re-checked downstream. The tools are plain JavaScript — `typeof`, `in`, `Array.isArray`, custom type guards — and the messy `unknown` lives only at the boundary, which is exactly where domain edge cases belong.",
+      },
+    ],
   },
   {
     id: "as-const-and-derivation",
@@ -282,6 +320,44 @@ console.log("primary:", "(read palette.primary)");
 `,
     },
     ],
+    quiz: [
+      {
+        id: "as-const-and-derivation-q1",
+        prompt: "What does `as const` do to `{ host: \"localhost\", port: 8080 }`?",
+        options: [
+          "Calls `Object.freeze` on it at runtime",
+          "Widens the properties to `string` and `number` for assignability",
+          "Marks it as a compile-time constant that's inlined at each use",
+          "Freezes it to its narrowest, `readonly` form — `{ readonly host: \"localhost\"; readonly port: 8080 }`",
+        ],
+        answer: 3,
+        explanation: "Without it, `{ role: \"admin\" }` infers `{ role: string }` and the useful literal is lost. `as const` makes the value precise enough to *derive a type from* — which is what enables the single-source-of-truth idiom.",
+      },
+      {
+        id: "as-const-and-derivation-q2",
+        prompt: "Why does idiomatic modern TypeScript often prefer a const object plus a derived union over `enum`?",
+        options: [
+          "`enum` is the one TS feature that emits runtime JavaScript, and numeric enums are reverse-mapped rather than plain values",
+          "`enum` can't be used with `switch` exhaustiveness checking",
+          "`enum` members can't be strings",
+          "`enum` is deprecated and removed in TypeScript 6",
+        ],
+        answer: 0,
+        explanation: "`const Status = {...} as const` plus `type Status = (typeof Status)[keyof typeof Status]` gives plain string values at runtime, an exhaustive union at compile time, and zero emitted machinery. Value and type can even share the name, since they live in separate namespaces.",
+      },
+      {
+        id: "as-const-and-derivation-q3",
+        prompt: "How does `satisfies T` differ from an annotation `: T`?",
+        options: [
+          "They're equivalent, but `satisfies` reads better on literals",
+          "`: T` constrains *and* widens to `T`; `satisfies T` constrains but preserves the narrow inferred type",
+          "`satisfies` checks at runtime; `:` checks at compile time",
+          "`satisfies` allows extra properties; `:` does not",
+        ],
+        answer: 1,
+        explanation: "Annotating `const palette: Record<string, string>` loses the literal keys, so `palette.primary` is no longer known. `satisfies Record<string, \\`#${string}\\`>` verifies the shape yet keeps every key and literal value intact.",
+      },
+    ],
   },
   {
     id: "pitfalls-and-patterns",
@@ -413,6 +489,44 @@ console.log("result:", firstTwoSorted(source));
 console.log("source untouched:", source);
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "pitfalls-and-patterns-q1",
+        prompt: "Why is `as` not a cast?",
+        options: [
+          "There's no runtime conversion — it asserts a belief the compiler obeys without checking",
+          "It converts the value but doesn't check the result",
+          "It only works between types that already overlap structurally",
+          "It's checked at runtime in strict mode",
+        ],
+        answer: 0,
+        explanation: "`JSON.parse(s) as User` is a lie if the JSON isn't a `User`, and the checker was explicitly told to ignore it. The non-null `!` is the same idea in focused form — prefer a guard that *proves* it.",
+      },
+      {
+        id: "pitfalls-and-patterns-q2",
+        prompt: "What is a branded type and what does it buy you?",
+        options: [
+          "A runtime symbol attached to the value for identification",
+          "A base type intersected with a unique erased tag, so two same-shaped types stop being interchangeable — nominal safety at zero runtime cost",
+          "A class wrapper that validates the value in its constructor",
+          "A `readonly` alias that prevents mutation of the underlying value",
+        ],
+        answer: 1,
+        explanation: "`type UserId = string & { readonly __brand: \"UserId\" }` means a plain `string` won't pass where a `UserId` is required. It's the deliberate opt-out from structural typing, and the brand erases completely.",
+      },
+      {
+        id: "pitfalls-and-patterns-q3",
+        prompt: "Why type an input as `readonly number[]` rather than `number[]`?",
+        options: [
+          "It allows the caller to pass a tuple as well as an array",
+          "It prevents the array from being reassigned inside the function",
+          "Mutation becomes a compile error rather than a convention you hope holds — so you copy before sorting",
+          "It makes the array immutable at runtime",
+        ],
+        answer: 2,
+        explanation: "`sort` mutates in place, so `xs.sort(...)` on a caller's array is a silent side effect. `readonly` turns that into a compile error, pushing you toward `[...xs].sort(...)`. Together with `unknown` at the boundary and branded ids, it's the default-safe posture.",
+      },
     ],
   },
 ];

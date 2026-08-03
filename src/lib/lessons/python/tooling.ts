@@ -56,6 +56,44 @@ Raw \`pip\` + \`venv\` works but is clunky. The modern stack:
 
 **Pythonic default in 2026:** reach for \`uv\`. Use raw \`venv\` + \`pip\` + \`requirements.txt\` only for tiny scripts or when a project predates the tooling.`,
     exercises: [],
+    quiz: [
+      {
+        id: "venvs-and-packages-q1",
+        prompt: "What problem does a virtual environment solve?",
+        options: [
+          "It sandboxes the interpreter so untrusted code can't touch the filesystem",
+          "`pip install` otherwise drops packages into the global interpreter, shared across every project on the machine",
+          "It isolates the Python version, but dependencies are still global",
+          "It provides a lockfile so installs are reproducible",
+        ],
+        answer: 1,
+        explanation: "A venv is a throwaway copy of the interpreter with its own `site-packages`. Activation just rewrites `$PATH` — there's no upward directory walk like Node's `node_modules` resolution.",
+      },
+      {
+        id: "venvs-and-packages-q2",
+        prompt: "What's the gap between `requirements.txt` and `package.json`?",
+        options: [
+          "`requirements.txt` is per-machine and can't be committed",
+          "`requirements.txt` supports only PyPI packages, not git URLs",
+          "`pip freeze` dumps the whole flattened tree, so it has no notion of direct vs transitive deps and no manifest/lockfile split",
+          "`requirements.txt` can't pin exact versions",
+        ],
+        answer: 2,
+        explanation: "You can't tell what you asked for from what got pulled in. `pyproject.toml` is the modern manifest where you declare loose intent, and a tool resolves and locks exact versions — the split `package.json` plus `package-lock.json` gives you.",
+      },
+      {
+        id: "venvs-and-packages-q3",
+        prompt: "What is `uv`?",
+        options: [
+          "A linter and formatter that replaced flake8",
+          "A build backend for producing wheels",
+          "A type checker that competes with mypy",
+          "A fast Rust-based all-in-one tool that manages the venv, resolves deps, writes a lockfile, and installs Python versions",
+        ],
+        answer: 3,
+        explanation: "`uv venv`, `uv add requests`, `uv sync`, `uv run script.py` — the closest thing to npm/cargo ergonomics Python has, and where the ecosystem is heading. Poetry is the established predecessor.",
+      },
+    ],
   },
   {
     id: "project-layout-tooling",
@@ -121,5 +159,43 @@ pre-commit run --all-files
 
 **Pythonic default:** \`src/\` layout, absolute imports, \`pyproject.toml\` configuring \`ruff\` + \`mypy\`, enforced via \`pre-commit\`.`,
     exercises: [],
+    quiz: [
+      {
+        id: "project-layout-tooling-q1",
+        prompt: "Why put importable code under `src/`?",
+        options: [
+          "It keeps the package out of version control by default",
+          "It makes relative imports resolve correctly",
+          "It forces you to install the package before importing, so tests run against the same import path users get",
+          "It's required for `pyproject.toml` to find the package",
+        ],
+        answer: 2,
+        explanation: "A flat layout silently imports from the working directory and hides packaging bugs. `src/` is the equivalent of Go forcing code into a module path or Java's `src/main/java`.",
+      },
+      {
+        id: "project-layout-tooling-q2",
+        prompt: "What is `ruff`?",
+        options: [
+          "A test runner that competes with pytest",
+          "A dependency resolver used by uv",
+          "A static type checker, like mypy",
+          "A Rust-based linter and formatter replacing flake8/isort/pyflakes/pylint — your `eslint`",
+        ],
+        answer: 3,
+        explanation: "Its formatter is black-compatible, so many projects use ruff for both and drop black. mypy is the separate `tsc`-style pass that actually checks type hints — none of this is bundled the way TypeScript bundles it.",
+      },
+      {
+        id: "project-layout-tooling-q3",
+        prompt: "What does `pre-commit` do?",
+        options: [
+          "Runs ruff/black/mypy automatically before each commit via a git hook, so the stack isn't optional",
+          "Validates that commit messages match a convention",
+          "Runs the test suite and blocks the commit on failure",
+          "Formats only the files staged for commit, leaving others untouched",
+        ],
+        answer: 0,
+        explanation: "It's the analog of a `lint-staged` + `husky` setup, but language-agnostic and the Python community standard. Configured in `.pre-commit-config.yaml`, wired up once with `pre-commit install`.",
+      },
+    ],
   },
 ];

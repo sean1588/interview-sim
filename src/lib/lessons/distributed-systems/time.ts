@@ -38,6 +38,44 @@ No error, no log line, the data is just gone. Last-write-wins by wall clock is a
 
 You can build on clocks if you bound the error and *account for it*. Google's Spanner exposes time as an interval (\`TT.now()\` → \`[earliest, latest]\`, typically a few milliseconds wide, backed by GPS and atomic clocks) and, to commit, simply **waits out the uncertainty** before acknowledging. That's the honest version: not "the clock is right" but "the clock is right within ε, and I'll pay ε in latency to be sure."`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-clocks-lie-q1",
+        prompt: "Which clock should you use to measure whether 30 seconds have elapsed?",
+        options: [
+          "The wall clock, since it's synchronized by NTP",
+          "Either; they're both derived from the same hardware oscillator",
+          "The wall clock, but only after checking NTP is synchronized",
+          "The monotonic clock — it never jumps, though it's meaningless as a date",
+        ],
+        answer: 3,
+        explanation: "Wall clock for timestamps you show or store; monotonic clock for every timeout, duration, and elapsed-time check. Subtracting two wall-clock readings is a latent bug that fires the moment NTP steps the clock.",
+      },
+      {
+        id: "ds-clocks-lie-q2",
+        prompt: "Why is last-write-wins by wall clock described as a data-loss mechanism rather than a conflict-resolution strategy?",
+        options: [
+          "Clocks disagree, so a physically later write can carry a lower timestamp and be silently discarded with no error or log line",
+          "It always keeps the wrong value by construction",
+          "It requires a distributed transaction that can fail halfway",
+          "It only works when all writes go through one leader",
+        ],
+        answer: 0,
+        explanation: "If node B's clock is 300ms behind node A's, B's physically later write loses the comparison. No error, no log line — the data is just gone. That's the motivation for logical clocks: an ordering that doesn't depend on clocks agreeing.",
+      },
+      {
+        id: "ds-clocks-lie-q3",
+        prompt: "How does Spanner make it safe to build on physical clocks?",
+        options: [
+          "It falls back to Lamport timestamps whenever drift is detected",
+          "It exposes time as an interval `[earliest, latest]` and waits out the uncertainty before acknowledging a commit",
+          "It uses atomic clocks accurate enough that drift is zero",
+          "It disables NTP and relies on a single master clock server",
+        ],
+        answer: 1,
+        explanation: "The honest version isn't \"the clock is right\" but \"the clock is right within ε, and I'll pay ε in latency to be sure.\" GPS and atomic clocks make ε a few milliseconds wide; the commit wait converts that bound into a correctness guarantee.",
+      },
+    ],
   },
   {
     id: "ds-happens-before",
@@ -83,6 +121,44 @@ The mechanism that lets you *tell which case you're in* is a logical clock — t
 
 > The library's [Consistency models](/library/consistency-models) covers what to say when an interviewer asks about causal consistency. This lesson is the underlying relation the model is defined on.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-happens-before-q1",
+        prompt: "Two events are concurrent under happens-before. What does that mean?",
+        options: [
+          "Neither could have known about the other — it's a fact about the system, not missing information",
+          "They occurred at the same wall-clock instant",
+          "We lack the timestamps needed to order them",
+          "They were processed by the same node in the same batch",
+        ],
+        answer: 0,
+        explanation: "Happens-before is a partial order, and that's the point. Concurrent isn't a tie to break — it's the positive statement that no information could have flowed either way. A wall clock would hand you a confident answer to a question that has no answer.",
+      },
+      {
+        id: "ds-happens-before-q2",
+        prompt: "Which pair of events does happens-before relate?",
+        options: [
+          "Any two events where one node's clock reads earlier than the other's",
+          "The sending of a message and the receiving of that same message",
+          "Two events on different nodes with the same wall-clock timestamp",
+          "Two events on different nodes within the same NTP sync window",
+        ],
+        answer: 1,
+        explanation: "The full definition is three rules: same process and earlier, send-then-receive of the same message, or transitivity. It says nothing about seconds — it captures exactly the pairs where information could have flowed.",
+      },
+      {
+        id: "ds-happens-before-q3",
+        prompt: "Two writes are genuinely concurrent. What are the system's honest options?",
+        options: [
+          "Pick the one from the node with the lower node id",
+          "Reject both and ask the client to retry",
+          "Keep both for the application to merge, use a conflict-free data type, or prevent concurrency with a leader or consensus",
+          "Pick the one with the higher wall-clock timestamp",
+        ],
+        answer: 2,
+        explanation: "Concurrent writes have no correct automatic resolution. Amazon's shopping cart keeps both — a re-added item beats a silently lost one. CRDTs merge deterministically at the cost of limited data types. Preventing concurrency in the first place is what leaders and consensus are for.",
+      },
+    ],
   },
   {
     id: "ds-lamport-clocks",
@@ -128,6 +204,44 @@ Because \`a → b ⟹ C(a) < C(b)\`, breaking ties by \`(C, nodeId)\` gives you 
 
 A pure Lamport counter is unreadable to humans and useless for "show me writes from last Tuesday". A **hybrid logical clock (HLC)** pairs the physical time with a logical counter: \`(pt, l)\`, where \`pt\` tracks the wall clock but is dragged forward by incoming messages, and \`l\` breaks ties within the same millisecond. You get timestamps that are close to real time *and* consistent with causality. CockroachDB and MongoDB both use HLCs, and it's the practical default when you need both properties.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-lamport-clocks-q1",
+        prompt: "You observe `C(a) = 5` and `C(b) = 9` on different nodes. What can you conclude?",
+        options: [
+          "That they are concurrent, since they're on different nodes",
+          "That `b` was sent in response to `a`",
+          "Nothing about their ordering — they may be causally ordered or completely concurrent",
+          "That `a` happened before `b`",
+        ],
+        answer: 2,
+        explanation: "The guarantee runs one direction only: `a → b` implies `C(a) < C(b)`, but not the converse. A Lamport timestamp can prove that ordering is possible, never that it happened — and that gap is exactly what vector clocks fill.",
+      },
+      {
+        id: "ds-lamport-clocks-q2",
+        prompt: "On receiving a message carrying timestamp `t`, what does a node set its counter to?",
+        options: [
+          "`t + 1`, adopting the sender's clock",
+          "`C + t`, accumulating both",
+          "`C + 1`, ignoring the sender's value",
+          "`max(C, t) + 1`",
+        ],
+        answer: 3,
+        explanation: "Three rules total: increment before a local event, increment and attach when sending, and take `max(C, t) + 1` on receipt. The max is what makes the counter respect causality across nodes.",
+      },
+      {
+        id: "ds-lamport-clocks-q3",
+        prompt: "What does a hybrid logical clock add over a pure Lamport counter?",
+        options: [
+          "Timestamps close to real time as well as consistent with causality, by pairing physical time with a logical tie-breaker",
+          "The ability to detect concurrent writes",
+          "Bounded clock drift guaranteed by hardware",
+          "A total order that no longer requires node ids for tie-breaking",
+        ],
+        answer: 0,
+        explanation: "A pure Lamport counter is unreadable to humans and useless for \"show me writes from last Tuesday\". An HLC's `(pt, l)` pair tracks the wall clock while being dragged forward by incoming messages. CockroachDB and MongoDB both use HLCs. Detecting concurrency is still a vector clock's job.",
+      },
+    ],
   },
   {
     id: "ds-vector-clocks",
@@ -182,5 +296,43 @@ Need to PREVENT concurrent writes?             Single leader or consensus  (next
 
 > [Replication & quorums](/library/replication-and-quorums) is the interview-facing companion — how to talk about sibling resolution and quorum reads when a design question calls for it.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-vector-clocks-q1",
+        prompt: "Comparing `{A:2, B:1}` with `{A:1, B:2}` — what do you know?",
+        options: [
+          "Neither dominates, so these are concurrent writes: a genuine conflict that must not be silently resolved",
+          "The first happened before the second, since A is the first entry",
+          "The second happened before the first, since its total is higher",
+          "They are identical, since the sum of entries is the same",
+        ],
+        answer: 0,
+        explanation: "`V1 ≤ V2` requires every entry to be ≤. Here A is ahead in one and B is ahead in the other, so neither dominates — two writers, neither saw the other. Under last-write-wins this case picks a winner by clock and destroys the loser's write.",
+      },
+      {
+        id: "ds-vector-clocks-q2",
+        prompt: "Vector clocks grow with the number of writers. Which mitigation keeps the size bounded by the replication factor?",
+        options: [
+          "Resetting all entries to zero after each successful merge",
+          "Version vectors keyed by replica rather than by client",
+          "Pruning the oldest entries past a fixed cap",
+          "Compressing the vector before sending it on the wire",
+        ],
+        answer: 1,
+        explanation: "Keying by replica bounds the count at 3 or 5 rather than fleet size. Pruning also works but reintroduces a chance of a false \"concurrent\" verdict — which is safe, since you merge something you didn't need to. False causality would lose data.",
+      },
+      {
+        id: "ds-vector-clocks-q3",
+        prompt: "You need to *detect* concurrent writes so the application can merge them. Which mechanism?",
+        options: [
+          "A single leader",
+          "NTP with a tight sync interval",
+          "Vector or version clocks",
+          "Lamport timestamps or an HLC",
+        ],
+        answer: 2,
+        explanation: "Lamport and HLC give you a stable total order for replay. Vector clocks detect concurrency. A single leader or consensus *prevents* concurrency in the first place. Pick by which of those three you actually need.",
+      },
+    ],
   },
 ];

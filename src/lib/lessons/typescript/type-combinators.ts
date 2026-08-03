@@ -117,6 +117,44 @@ console.log(user);
 `,
     },
     ],
+    quiz: [
+      {
+        id: "utility-types-q1",
+        prompt: "How do `Pick` and `Omit` relate?",
+        options: [
+          "`Omit` is `Pick` combined with `Partial`",
+          "They're complements — `Pick` whitelists keys, `Omit` blacklists them",
+          "`Pick` selects properties, `Omit` deletes them at runtime",
+          "`Pick` works on unions, `Omit` on object types only",
+        ],
+        answer: 1,
+        explanation: "Reach for either to derive a narrower DTO from a model rather than declaring a second interface by hand — then the derived type follows the model automatically. `Partial` is the one for a patch/update object.",
+      },
+      {
+        id: "utility-types-q2",
+        prompt: "Why is `ReturnType<typeof fn>` described as the killer move?",
+        options: [
+          "It generates a runtime wrapper that validates the return value",
+          "It lets you call the function without importing it",
+          "`typeof fn` grabs the function's type and `ReturnType` extracts what it returns, so the type follows the implementation automatically",
+          "It's the only utility type that works on functions",
+        ],
+        answer: 2,
+        explanation: "It's the two-namespace idea put to work: `typeof` bridges from value space to type space, and the utility does the rest. Change the implementation and the derived type updates — no second declaration to keep in sync.",
+      },
+      {
+        id: "utility-types-q3",
+        prompt: "How is `Partial<T>` actually defined?",
+        options: [
+          "As a compiler intrinsic with no TypeScript source",
+          "As a conditional type checking each property against `undefined`",
+          "As an intersection of `T` with an all-optional index signature",
+          "As a mapped type: `{ [K in keyof T]?: T[K] }`",
+        ],
+        answer: 3,
+        explanation: "That's essentially how `lib.es5.d.ts` writes it. Every built-in utility is made from mapped and conditional types, so once you know those you can build your own when the standard library runs out.",
+      },
+    ],
   },
   {
     id: "mapped-types",
@@ -239,6 +277,44 @@ console.log(row);
 `,
     },
     ],
+    quiz: [
+      {
+        id: "mapped-types-q1",
+        prompt: "How should you read `{ [K in keyof T]: string }`?",
+        options: [
+          "As a conditional that checks whether `K` is in `T`",
+          "As a runtime transform applied to the object's keys",
+          "As a `for...in` loop in the type system — `K` ranges over the union of `T`'s keys",
+          "As an index signature accepting any key of type `K`",
+        ],
+        answer: 2,
+        explanation: "`keyof T` is the union of keys and `K` ranges over them, producing one property per key. There's no JavaScript equivalent — it's pure compile-time machinery that erases entirely.",
+      },
+      {
+        id: "mapped-types-q2",
+        prompt: "What does the `-` do in `{ -readonly [K in keyof T]: T[K] }`?",
+        options: [
+          "Negates the key selection, excluding readonly properties",
+          "Marks the property as required rather than optional",
+          "Subtracts the property from the resulting type",
+          "Removes the `readonly` modifier — bare `readonly` and `?` mean add, and `-` removes",
+        ],
+        answer: 3,
+        explanation: "`{ [K in keyof T]-?: T[K] }` strips optionality the same way — that's how `Required<T>` is built. The `+` variants are the (usually implicit) opposite.",
+      },
+      {
+        id: "mapped-types-q3",
+        prompt: "What does the `as` clause do in `[K in keyof T as \\`get${Capitalize<string & K>}\\`]`?",
+        options: [
+          "Key remapping — it renames each key while mapping over them",
+          "Asserts the key type so the compiler stops complaining",
+          "Filters out keys that don't match the template",
+          "Converts the key to a string at runtime",
+        ],
+        answer: 0,
+        explanation: "Key remapping turns `{ name: string }` into `{ getName: () => string }`. The `string & K` intersection is the idiom that convinces the compiler `K` is a string, since keys can in principle be `number` or `symbol`.",
+      },
+    ],
   },
   {
     id: "conditional-types",
@@ -337,6 +413,44 @@ const value: Unwrap<Promise<string>> = "done";
 console.log(value);
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "conditional-types-q1",
+        prompt: "What is `ToArray<string | number>` where `type ToArray<T> = T extends any ? T[] : never`?",
+        options: [
+          "`(string | number)[]` — the union is treated as one type",
+          "`never`, since a union doesn't extend `any`",
+          "`unknown[]`, because the branches disagree",
+          "`string[] | number[]` — the conditional distributes over each union member",
+        ],
+        answer: 3,
+        explanation: "Distribution is the single most surprising rule here. It applies when the checked type is a *naked* type parameter, and it's why `Exclude` and `NonNullable` work. To opt out, wrap both sides in a tuple: `[T] extends [U] ? ...`.",
+      },
+      {
+        id: "conditional-types-q2",
+        prompt: "What does `infer E` do in `T extends (infer E)[] ? E : T`?",
+        options: [
+          "Introduces a fresh type variable that the compiler fills in by pattern-matching — the type-level version of destructuring",
+          "Asserts that `E` is the element type, erroring if it isn't",
+          "Infers `E` from the call site's arguments",
+          "Declares `E` as a default type parameter",
+        ],
+        answer: 0,
+        explanation: "\"Match this shape and bind whatever sits in that slot to `E`.\" With it you can build `Flatten`, read a function's return type, or pull a `Promise`'s value out — all the introspection the built-in utilities are made of.",
+      },
+      {
+        id: "conditional-types-q3",
+        prompt: "How should you read `T extends U` in a conditional type?",
+        options: [
+          "\"Is `T` a subclass of `U` at runtime?\"",
+          "\"Is `T` assignable to `U`?\" — a ternary evaluated by the compiler",
+          "\"Does `T` declare `U` as a base type?\"",
+          "\"Does `T` have more members than `U`?\"",
+        ],
+        answer: 1,
+        explanation: "It's assignability, not declared inheritance — consistent with TypeScript being structural everywhere else. Like the rest of the type layer, it erases with no runtime cost.",
+      },
     ],
   },
   {
@@ -447,6 +561,44 @@ const margin: Px = "16px";
 console.log(padding, margin);
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "template-literal-types-q1",
+        prompt: "What is `type File = \\`app.${Lang}\\`` where `type Lang = \"ts\" | \"js\"`?",
+        options: [
+          "A compile error — unions can't be interpolated",
+          "The two-member union `\"app.ts\" | \"app.js\"` — interpolating a union distributes",
+          "A single fuzzy type matching any string starting with `app.`",
+          "`string`, since interpolation widens",
+        ],
+        answer: 1,
+        explanation: "Interpolating a union distributes across every member. The closest cousin in JavaScript is a regex, but here the *type checker* enforces the shape at compile time.",
+      },
+      {
+        id: "template-literal-types-q2",
+        prompt: "Which four intrinsic types transform the casing of a string-literal type?",
+        options: [
+          "`Upper`, `Lower`, `Pascal`, `Camel`",
+          "`Capitalize` and `Uncapitalize` only — the others are runtime string methods",
+          "`Uppercase`, `Lowercase`, `Capitalize`, `Uncapitalize`",
+          "`ToUpper`, `ToLower`, `Title`, `Sentence`",
+        ],
+        answer: 2,
+        explanation: "They're what makes `type EventName<T extends string> = \\`on${Capitalize<T>}\\`` produce `\"onClick\"` from `\"click\"`. Combined with a mapped type's `as` clause, they let you derive a whole handler map from a model declaratively.",
+      },
+      {
+        id: "template-literal-types-q3",
+        prompt: "Why does `Capitalize<string & K>` use an intersection rather than just `K`?",
+        options: [
+          "It forces `K` to be a literal rather than widening to `string`",
+          "It's a performance optimization for large key unions",
+          "It excludes keys that are already capitalized",
+          "Keys can in principle be `number` or `symbol`, which `Capitalize` rejects — the intersection convinces the compiler `K` is a string",
+        ],
+        answer: 3,
+        explanation: "`keyof T` can include `number` and `symbol`, so the intersection narrows `K` to just its string members before the casing helper sees it. It's a small idiom you'll copy every time you write a key-remapping mapped type.",
+      },
     ],
   },
 ];

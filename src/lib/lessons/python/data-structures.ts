@@ -106,6 +106,44 @@ print(swap(1, 2))
 `,
     },
     ],
+    quiz: [
+      {
+        id: "lists-and-tuples-q1",
+        prompt: "What does `nums[::-1]` produce?",
+        options: [
+          "A new reversed list — a step of -1 walks backwards",
+          "The last element",
+          "The list with its last element removed",
+          "An error — a negative step needs explicit start and stop",
+        ],
+        answer: 0,
+        explanation: "`lst[start:stop:step]` with any part omitted means \"the end of that side.\" `nums[::2]` takes every other element, and slicing always returns a *new* list.",
+      },
+      {
+        id: "lists-and-tuples-q2",
+        prompt: "What does `lst.sort()` return?",
+        options: [
+          "An iterator over the sorted elements",
+          "`None` — it mutates in place; `sorted(lst)` is the one that returns a new list",
+          "The sorted list, and also mutates in place",
+          "A new sorted list, leaving the original alone",
+        ],
+        answer: 1,
+        explanation: "This trips people up in chained expressions. Both take a `key=` function — note that's a key extractor, not a comparator — and `reverse=True`.",
+      },
+      {
+        id: "lists-and-tuples-q3",
+        prompt: "What does `first, *rest = [1, 2, 3, 4]` bind?",
+        options: [
+          "`first = [1]` and `rest = [2, 3, 4]`",
+          "A SyntaxError — starred targets only work in function signatures",
+          "`first = 1` and `rest = [2, 3, 4]` — the star greedily collects the leftovers into a list",
+          "`first = 1` and `rest = (2, 3, 4)` as a tuple",
+        ],
+        answer: 2,
+        explanation: "It's Python's spread-on-the-left, and there can be at most one starred target. `*init, last = [10, 20, 30]` and `head, *mid, tail = [1, 2, 3, 4]` work the same way.",
+      },
+    ],
   },
   {
     id: "dicts",
@@ -210,6 +248,44 @@ print(merge({"x": 1, "y": 2}, {"y": 9, "z": 3}))
 `,
     },
     ],
+    quiz: [
+      {
+        id: "dicts-q1",
+        prompt: "What happens on `user[\"email\"]` when the key is absent?",
+        options: [
+          "A `KeyError` is raised — use `.get(key, default)` when a key may be missing",
+          "It returns `None`",
+          "It returns `None` and inserts the key",
+          "It returns an empty string",
+        ],
+        answer: 0,
+        explanation: "`d[key]` raises; `.get(key)` returns `None` and `.get(key, default)` returns your fallback. That difference is why the EAFP lesson uses dict lookup as its example.",
+      },
+      {
+        id: "dicts-q2",
+        prompt: "Iterating a dict directly yields what?",
+        options: [
+          "Nothing; dicts aren't iterable without `.items()`",
+          "Its keys — use `.items()` to get key/value pairs at once",
+          "Its values",
+          "`(key, value)` tuples",
+        ],
+        answer: 1,
+        explanation: "`for key, value in user.items()` unpacks each pair, just like JS's `for (const [k, v] of map)`. Membership with `in` also tests keys: `\"name\" in user`.",
+      },
+      {
+        id: "dicts-q3",
+        prompt: "What does `groups.setdefault(\"a\", []).append(1)` do?",
+        options: [
+          "Appends to a temporary list that's discarded",
+          "Raises if `\"a\"` already exists",
+          "Returns the existing list for `\"a\"`, or inserts and returns `[]` first — then appends to it either way",
+          "Replaces the value at `\"a\"` with `[1]`",
+        ],
+        answer: 2,
+        explanation: "It's the idiomatic way to build a dict of lists without an `if key in groups` guard — though `collections.defaultdict(list)` is cleaner still when every key needs the same factory.",
+      },
+    ],
   },
   {
     id: "sets",
@@ -298,6 +374,44 @@ For \`a={1, 2, 3}\`, \`b={2, 3, 4}\` the expected output is \`([1, 2, 3, 4], [2,
 print(set_algebra({1, 2, 3}, {2, 3, 4}))
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "sets-q1",
+        prompt: "What is `{}` in Python?",
+        options: [
+          "An empty dict — use `set()` for an empty set",
+          "An empty set",
+          "An empty frozenset",
+          "A syntax error; you must write `dict()` or `set()`",
+        ],
+        answer: 0,
+        explanation: "The braces literal is claimed by dicts, so there's no empty-set literal. `{1, 2, 3}` is a set because it has bare elements rather than `key: value` pairs.",
+      },
+      {
+        id: "sets-q2",
+        prompt: "What does `a - b` do for two sets?",
+        options: [
+          "It's not defined; you need `a.difference(b)`",
+          "Difference — the elements in `a` that aren't in `b`",
+          "Symmetric difference — elements in exactly one of them",
+          "Intersection — elements in both",
+        ],
+        answer: 1,
+        explanation: "`|` is union, `&` is intersection, `-` is difference, `^` is symmetric difference. Unlike JS, where Set operations mean manual loops, Python gives you these as first-class operators — and the named methods accept any iterable, not just another set.",
+      },
+      {
+        id: "sets-q3",
+        prompt: "What can a `frozenset` do that a `set` cannot?",
+        options: [
+          "Preserve insertion order",
+          "Support the set-algebra operators",
+          "Be used as a dict key or placed inside another set, because it's hashable",
+          "Hold unhashable elements like lists",
+        ],
+        answer: 2,
+        explanation: "Mutability and hashability are in tension: a normal `set` can change, so it can't have a stable hash. The frozen version is immutable and therefore hashable.",
+      },
     ],
   },
   {
@@ -391,6 +505,44 @@ For \`[[1, 2], [3, 4], [5]]\` the expected output is \`[1, 2, 3, 4, 5]\`.`,
 print(flatten([[1, 2], [3, 4], [5]]))
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "comprehensions-q1",
+        prompt: "Where does the filter go in `[n for n in range(10) if n % 2 == 0]`?",
+        options: [
+          "The `if` is a ternary and doesn't filter at all",
+          "You can't filter and transform in one comprehension",
+          "The trailing `if` filters; the leading expression transforms — one comprehension does both",
+          "The leading expression filters; the `if` transforms",
+        ],
+        answer: 2,
+        explanation: "Compare `range(10).filter(...).map(...)` in JS. A ternary in the *expression* position is mapping, not filtering: `[\"even\" if n % 2 == 0 else \"odd\" for n in nums]`.",
+      },
+      {
+        id: "comprehensions-q2",
+        prompt: "How do you read the nesting in `[x for row in matrix for x in row]`?",
+        options: [
+          "Right to left, inner to outer",
+          "The rightmost clause is always the outer loop",
+          "Nested comprehensions can't be flattened this way",
+          "Left to right, outer to inner — same order as the nested `for` loops would be written",
+        ],
+        answer: 3,
+        explanation: "The clauses mirror the loops in the order you'd write them, which is why it flattens `[[1, 2], [3, 4]]` to `[1, 2, 3, 4]`. Keep them short — once you need multiple conditions plus nesting plus a ternary, a plain loop reads better.",
+      },
+      {
+        id: "comprehensions-q3",
+        prompt: "What's the difference between `sum([n * n for n in range(1000)])` and `sum(n * n for n in range(1000))`?",
+        options: [
+          "The second is a generator expression — lazy, with no intermediate list materialized",
+          "The second is a set comprehension, so duplicates are dropped",
+          "They're identical; the brackets are optional",
+          "The second is slower because it can't be optimized",
+        ],
+        answer: 0,
+        explanation: "Parentheses make it lazy, computing items on demand. That's ideal for feeding aggregations like `sum`, `any`, or `max`, where the intermediate list is pure waste.",
+      },
     ],
   },
 ];

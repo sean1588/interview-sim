@@ -138,6 +138,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-stdlib-essentials-q1",
+        prompt: "What should a comparator passed to `slices.SortFunc` return?",
+        options: [
+          "The smaller of the two values",
+          "An error when the two values are incomparable",
+          "A negative, zero, or positive int — like `cmp.Compare`",
+          "A bool that is true when `a` should come before `b`",
+        ],
+        answer: 2,
+        explanation: "`slices.SortFunc(people, func(a, b Person) int { return a.Age - b.Age })` sorts ascending by age. The older `sort.Slice` takes a `less` bool instead, and you'll still see it in existing code.",
+      },
+      {
+        id: "go-stdlib-essentials-q2",
+        prompt: "How does Go format a date as `2026-07-22`?",
+        options: [
+          "`t.Format(\"%Y-%m-%d\")`",
+          "`t.Format(\"YYYY-MM-DD\")`",
+          "`t.Format(time.ISO8601)`",
+          "`t.Format(\"2006-01-02\")` — a reference layout, not `%Y-%m-%d` codes",
+        ],
+        answer: 3,
+        explanation: "Go formats by example, using the specific reference date `Mon Jan 2 15:04:05 MST 2006` — that is, 01/02 03:04:05 PM '06. You write the layout as that date would appear.",
+      },
+      {
+        id: "go-stdlib-essentials-q3",
+        prompt: "Which `slices` helper directly addresses the slice aliasing trap?",
+        options: [
+          "`slices.Clone` — an independent copy",
+          "`slices.Equal` — element-wise comparison",
+          "`slices.Contains` — membership without indexing",
+          "`slices.Reverse` — in-place reversal",
+        ],
+        answer: 0,
+        explanation: "`slices.Clone(xs)` allocates fresh backing storage, so appends and mutations to the copy can't reach the original. It replaced a `make` plus `copy` that everyone wrote by hand.",
+      },
+    ],
   },
   {
     id: "go-json-io",
@@ -255,6 +293,44 @@ func main() {
 	fmt.Println(b.Title, b.Pages)
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-json-io-q1",
+        prompt: "Why doesn't an unexported (lowercase) struct field appear in `json.Marshal` output?",
+        options: [
+          "It appears with its lowercase name unless a tag renames it",
+          "It appears only when `omitempty` is absent",
+          "It causes a marshal error",
+          "Only exported fields are visible to the encoder — a struct tag can't rescue an unexported field",
+        ],
+        answer: 3,
+        explanation: "The encoder can only see exported fields. Struct tags control the *name* and options of fields it can already see — `json:\"email,omitempty\"` omits when empty, `json:\"-\"` never marshals.",
+      },
+      {
+        id: "go-json-io-q2",
+        prompt: "Why must you pass `&back` rather than `back` to `json.Unmarshal`?",
+        options: [
+          "Unmarshal writes into your value, so it needs a pointer",
+          "Structs can only be passed by pointer in Go",
+          "The pointer tells Unmarshal which struct tags to use",
+          "It avoids copying the JSON bytes twice",
+        ],
+        answer: 0,
+        explanation: "Without the address it would be filling in a copy. The other common surprise: unknown JSON fields are silently ignored rather than erroring, so a typo'd tag produces a zero-valued field with no complaint.",
+      },
+      {
+        id: "go-json-io-q3",
+        prompt: "Why is code written against `io.Reader` and `io.Writer` so widely reusable?",
+        options: [
+          "They buffer internally, so callers never need to manage chunk sizes",
+          "Files, network connections, `bytes.Buffer`, `strings.Reader`, and HTTP bodies all implement these one-method interfaces",
+          "The runtime converts any type to a Reader automatically",
+          "They are generic over the element type",
+        ],
+        answer: 1,
+        explanation: "This is \"accept interfaces\" at stdlib scale. `io.Copy(dst, src)` streams between any pair of them, and `fmt.Fprintf` writes to any Writer — which is why `json.NewEncoder(w)` and `json.NewDecoder(r)` compose with everything.",
       },
     ],
   },

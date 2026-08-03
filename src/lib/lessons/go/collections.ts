@@ -140,6 +140,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-slices-q1",
+        prompt: "What does this print?\n\n```go\nbase := []int{1, 2, 3}\nview := base[:2]\nview = append(view, 99)\nfmt.Println(base)\n```",
+        options: [
+          "`[1 2 3]` — append always allocates a new backing array",
+          "`[1 2 3 99]` — the append extends the original slice",
+          "A panic — you can't append to a sub-slice",
+          "`[1 2 99]` — the append fit within capacity and overwrote `base[2]`",
+        ],
+        answer: 3,
+        explanation: "This is the #1 slice surprise. `view` shares `base`'s backing array and has spare capacity, so the append writes into the storage `base` can still see. Rule of thumb: if you slice something and then append, assume you may be sharing memory unless you copied.",
+      },
+      {
+        id: "go-slices-q2",
+        prompt: "Why must you write `s = append(s, x)` rather than just `append(s, x)`?",
+        options: [
+          "When the append exceeds capacity, Go allocates a bigger backing array and returns a new slice header",
+          "`append` returns an error you must handle",
+          "Go requires all function results to be assigned",
+          "It's only necessary for slices created with `make`",
+        ],
+        answer: 0,
+        explanation: "A slice is a header — pointer, length, capacity. Growing past capacity produces a new header pointing at new storage, so discarding the return value loses the append. Even within capacity the length changes, so the return value always matters.",
+      },
+      {
+        id: "go-slices-q3",
+        prompt: "How do you get a genuinely independent copy of a slice?",
+        options: [
+          "`dst := append([]int{}, src...)` is the only way that works",
+          "`copy(dst, src)` into a `make`d slice, or `slices.Clone(src)`",
+          "`dst := src` — assignment copies the elements",
+          "`dst := src[:]` — a full re-slice detaches the storage",
+        ],
+        answer: 1,
+        explanation: "Assignment and re-slicing both copy the *header*, not the backing array, so they still alias. `copy` into freshly allocated storage or `slices.Clone` gives you independence. (`append` onto an empty slice does work too, but `copy`/`Clone` states the intent.)",
+      },
+    ],
   },
   {
     id: "go-maps",
@@ -261,6 +299,44 @@ func main() {
 	fmt.Println(unique([]string{"a", "b", "a", "c", "b"}))
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-maps-q1",
+        prompt: "`m[\"missing\"]` returns `0` for a `map[string]int`. How do you tell absent from a stored zero?",
+        options: [
+          "Use `errors.Is` on the returned value",
+          "The comma-ok form: `v, ok := m[key]` — `ok` is false only when the key is absent",
+          "Compare against `nil`, since missing keys return nil",
+          "Call `len(m)` before and after the lookup",
+        ],
+        answer: 1,
+        explanation: "Indexing a missing key returns the value type's zero value, not an error — indistinguishable from a stored `0`. The comma-ok pattern appears everywhere in Go: the same shape as a type assertion or a channel receive.",
+      },
+      {
+        id: "go-maps-q2",
+        prompt: "What happens when you write to a nil map (`var m map[string]int`)?",
+        options: [
+          "Go allocates the map automatically on first write",
+          "It's a compile error",
+          "It panics — reads return the zero value, but writes require `make` or a literal first",
+          "It silently does nothing",
+        ],
+        answer: 2,
+        explanation: "The nil map is readable — every lookup returns the zero value — which makes the write panic surprising. Always `make` or use a literal before writing.",
+      },
+      {
+        id: "go-maps-q3",
+        prompt: "Is Go's map iteration order stable?",
+        options: [
+          "Yes, it follows insertion order",
+          "Yes, it follows the keys' natural sort order",
+          "It's unspecified but stable within a single program run",
+          "No — it's deliberately randomized, so to print in order you collect the keys and sort them",
+        ],
+        answer: 3,
+        explanation: "The randomization is intentional: it stops code from accidentally depending on an order the implementation never promised. Collect keys into a slice and sort when you need determinism.",
       },
     ],
   },
@@ -393,6 +469,44 @@ func main() {
 	fmt.Println(shout([]string{"go", "is", "fun"}))
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-strings-runes-q1",
+        prompt: "What is `len(\"héllo\")` in Go?",
+        options: [
+          "6 — `len` counts bytes, and `é` takes two bytes in UTF-8",
+          "5 — `len` counts characters",
+          "5 — `len` counts UTF-16 code units",
+          "10 — Go strings are stored as UTF-32",
+        ],
+        answer: 0,
+        explanation: "A Go string is a read-only slice of bytes holding UTF-8. `len` and `s[i]` both speak bytes — the key mental shift from Python 3, where indexing yields characters, and JS, which uses UTF-16 code units. Use `utf8.RuneCountInString` to count characters.",
+      },
+      {
+        id: "go-strings-runes-q2",
+        prompt: "Ranging over `\"héllo\"` yields indices 0, 1, 3, 4, 5. Why does it jump from 1 to 3?",
+        options: [
+          "It's a bug fixed in Go 1.22",
+          "The index is the byte offset and the value is the decoded rune — `é` occupies two bytes",
+          "Ranging skips any character that isn't ASCII",
+          "The index counts runes but starts over after a multi-byte character",
+        ],
+        answer: 1,
+        explanation: "`for range` over a string decodes UTF-8 for you: index is the byte offset, value is the rune. That's why the offsets skip — the loop is walking bytes while handing you characters.",
+      },
+      {
+        id: "go-strings-runes-q3",
+        prompt: "What does `string(65)` produce?",
+        options: [
+          "A compile error, since int and string are unrelated",
+          "`\"\\x41\"` as an escaped literal",
+          "`\"A\"` — it converts a code point, not a number; use `strconv.Itoa` for `\"65\"`",
+          "`\"65\"` — the decimal representation",
+        ],
+        answer: 2,
+        explanation: "Converting an integer to a string interprets it as a Unicode code point. `strconv.Itoa(65)` is the numeric-text conversion you probably meant, and `strconv.Atoi` goes the other way with an error.",
       },
     ],
   },

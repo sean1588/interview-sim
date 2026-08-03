@@ -58,6 +58,44 @@ Parameter Store's free standard tier is the right answer for the much larger set
 
 Equally, **don't fetch a secret on every invocation**: Secrets Manager is billed per 10,000 API calls and adds latency. Cache it for the life of the execution environment, with a refresh window shorter than the rotation period.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-kms-and-secrets-q1",
+        prompt: "Why does envelope encryption exist rather than sending data straight to KMS?",
+        options: [
+          "KMS never releases key material and can't encrypt large payloads, so you encrypt locally with a data key and store the encrypted data key alongside",
+          "It lets you use a different algorithm than KMS supports",
+          "It avoids per-request KMS charges entirely",
+          "It allows the same key to be used across regions",
+        ],
+        answer: 0,
+        explanation: "Pushing a 5 GB file through an API isn't viable. You ask KMS for a data key, get back a plaintext and an encrypted copy, encrypt locally, store the encrypted key with the ciphertext, and discard the plaintext. Every \"encryption at rest\" checkbox in AWS — S3, EBS, RDS, DynamoDB — is doing exactly this.",
+      },
+      {
+        id: "aws-kms-and-secrets-q2",
+        prompt: "Cross-account access to an encrypted S3 bucket is failing. What is commonly overlooked?",
+        options: [
+          "The object's ACL",
+          "The KMS key policy — access to the data requires access to the key, not just the bucket",
+          "The bucket's storage class",
+          "S3 Block Public Access on the source account",
+        ],
+        answer: 1,
+        explanation: "Cross-account access to an encrypted bucket needs both the bucket policy and the key policy. A KMS key policy that doesn't allow the role produces an access denial that looks like a storage problem.",
+      },
+      {
+        id: "aws-kms-and-secrets-q3",
+        prompt: "You need database credentials that rotate automatically with no downtime. Secrets Manager or Parameter Store?",
+        options: [
+          "Either; both support rotation identically",
+          "Neither; rotation requires CloudHSM",
+          "Secrets Manager — built-in rotation with native RDS support is the whole reason it exists",
+          "Parameter Store — SecureString parameters rotate on a schedule for free",
+        ],
+        answer: 2,
+        explanation: "Parameter Store's free standard tier is right for configuration — endpoint URLs, feature flags, AMI ids — and SecureString is still KMS-encrypted. But it has no rotation. Secrets Manager's managed RDS rotation creates a new password, updates the database, and updates the secret without downtime by alternating users.",
+      },
+    ],
   },
   {
     id: "aws-cloudwatch-and-observability",
@@ -119,6 +157,44 @@ CloudWatch is not a great long-horizon analytics store; for retrospective analys
 
 > [Observability](/library/observability) in the library covers the metrics/logs/traces model and what to alert on; this lesson maps it onto the AWS services.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-cloudwatch-and-observability-q1",
+        prompt: "\"Who deleted that security group, and when?\" Which service answers it?",
+        options: [
+          "CloudWatch Metrics, via the security group's metric stream",
+          "CloudTrail — it records control-plane API calls",
+          "CloudWatch Logs — it holds all AWS activity",
+          "X-Ray — its service map shows resource changes",
+        ],
+        answer: 1,
+        explanation: "These two are conflated constantly. CloudWatch Logs holds your application's output; CloudTrail records control-plane actions — someone deleting a security group, a role being assumed, a KMS key being used. When the question is \"who changed this?\", it's always CloudTrail.",
+      },
+      {
+        id: "aws-cloudwatch-and-observability-q2",
+        prompt: "Why does adding a request id as a CloudWatch metric dimension produce an enormous bill?",
+        options: [
+          "High-cardinality dimensions force 1-second resolution automatically",
+          "Each dimension triggers an additional API call per data point",
+          "Every unique dimension combination is a separate custom metric, so a high-cardinality dimension creates millions of them",
+          "Dimensions are billed per character of their name",
+        ],
+        answer: 2,
+        explanation: "Custom metrics are billed per metric, and each unique dimension combination is its own metric. Embedded Metric Format is the fix: emit structured logs so the high-cardinality fields stay queryable in Logs Insights without becoming metrics.",
+      },
+      {
+        id: "aws-cloudwatch-and-observability-q3",
+        prompt: "Which alarm set best reflects what users actually experience?",
+        options: [
+          "CPU, memory, and disk utilization on every instance",
+          "Instance count and ASG desired capacity",
+          "Log volume ingested per log group",
+          "Error rate, p99 latency, SQS queue age, and DLQ depth",
+        ],
+        answer: 3,
+        explanation: "The two failure modes are symmetric: alarms so noisy nobody reads them, and alarms only on infrastructure metrics so a fully broken application looks healthy. Alarm on what users experience, and use composite alarms to suppress downstream noise when an upstream alarm is already firing.",
+      },
+    ],
   },
   {
     id: "aws-iac",
@@ -171,5 +247,43 @@ Also, **IaC does not manage data**. Terraform will happily plan a change that re
 
 > [Deploys & rollouts](/library/deploys-and-rollouts) in the library covers the release side — blue/green, canaries, and rollback — which sits directly on top of this.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-iac-q1",
+        prompt: "What property of infrastructure as code makes an apply repeatable rather than a one-shot script?",
+        options: [
+          "It stores credentials in Secrets Manager automatically",
+          "It executes each resource creation in a transaction",
+          "It's declarative — you describe the desired end state and the tool computes the diff",
+          "It runs inside AWS rather than on your machine",
+        ],
+        answer: 2,
+        explanation: "Declarative desired-state is what makes the tool able to run against an environment that partly exists, compute the difference, and converge — as opposed to an imperative script that only works against a blank slate.",
+      },
+      {
+        id: "aws-iac-q2",
+        prompt: "What is Terraform's distinctive operational burden compared to CloudFormation and CDK?",
+        options: [
+          "It cannot manage AWS resources without an agent installed",
+          "It requires the AWS CLI to be authenticated as a root user",
+          "It has no way to preview changes before applying them",
+          "State — a file recording what Terraform believes exists, which must live in remote storage with locking and must not be lost",
+        ],
+        answer: 3,
+        explanation: "CloudFormation and CDK let AWS hold the state. Terraform keeps a state file you must manage — S3 with locking — and losing or corrupting it means Terraform no longer knows it owns your infrastructure. In exchange you get multi-cloud and the largest provider ecosystem.",
+      },
+      {
+        id: "aws-iac-q3",
+        prompt: "Why should a VPC and database live in a different stack from the application?",
+        options: [
+          "They move at different speeds — putting them together means every daily app deploy risks the database, and a failed rollback there is genuinely dangerous",
+          "CloudFormation has a hard limit of 200 resources per stack",
+          "Networking resources cannot be created in the same stack as compute",
+          "Separate stacks are required for cross-region replication",
+        ],
+        answer: 0,
+        explanation: "Separate the slow-moving from the fast-moving. A VPC and database change monthly; an application changes daily. And IaC does not manage data — read the plan every time, especially the lines that say *replace*, which is why deletion protection on stateful resources exists.",
+      },
+    ],
   },
 ];

@@ -122,6 +122,44 @@ print(describe_status(503))
 `,
     },
     ],
+    quiz: [
+      {
+        id: "requests-http-q1",
+        prompt: "How does `requests` differ from `fetch` in its basic call shape?",
+        options: [
+          "It's synchronous — `requests.get(...)` returns once the full response is in hand, and `.json()` is a plain method",
+          "It returns a promise you await twice, same as fetch",
+          "It returns the parsed body directly, with no response object",
+          "It requires an explicit event loop to be running",
+        ],
+        answer: 0,
+        explanation: "With `fetch` the first `await` only resolves headers and `await response.json()` is a second step. `requests` blocks until the whole response arrives, and `.json()` parses the body (raising if it isn't valid JSON).",
+      },
+      {
+        id: "requests-http-q2",
+        prompt: "What does passing `json={\"name\": \"Ada\"}` to `requests.post` do?",
+        options: [
+          "Validates the response against it as a schema",
+          "Serializes the dict as the body and sets `Content-Type: application/json` for you",
+          "Sends it as form-encoded data",
+          "Appends it to the query string",
+        ],
+        answer: 1,
+        explanation: "`params=` is the one that builds the query string from a dict — no manual concatenation. Between them you rarely touch string formatting for URLs or bodies.",
+      },
+      {
+        id: "requests-http-q3",
+        prompt: "What does `resp.raise_for_status()` do, and how does that differ from `fetch`?",
+        options: [
+          "Returns a boolean rather than raising",
+          "Retries the request once before raising",
+          "Raises an HTTPError for 4xx/5xx — whereas `fetch` does not reject on HTTP errors and you must check `response.ok` yourself",
+          "Raises only for 5xx; 4xx responses are considered valid",
+        ],
+        answer: 2,
+        explanation: "Calling it right after a request is the idiomatic guard, so an error code becomes an exception instead of silently flowing downstream. `fetch` resolving on a 500 is one of its most common footguns.",
+      },
+    ],
   },
   {
     id: "numpy",
@@ -235,6 +273,44 @@ def above_mean():
 print(above_mean())
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "numpy-q1",
+        prompt: "What does `a * 2` do differently for a Python list versus a numpy array?",
+        options: [
+          "A list raises a TypeError; an ndarray multiplies",
+          "Both repeat, but numpy repeats along a new axis",
+          "A list repeats its contents; an ndarray does elementwise math",
+          "Both do elementwise math, but numpy is faster",
+        ],
+        answer: 2,
+        explanation: "`[1,2,3] * 2` gives `[1,2,3,1,2,3]`. On an ndarray, `*` is elementwise — that's the whole mental shift: think in whole-array expressions rather than loops, and let vectorized C do the work.",
+      },
+      {
+        id: "numpy-q2",
+        prompt: "What is broadcasting?",
+        options: [
+          "Copying an array to every worker in a parallel computation",
+          "Converting an array to a list for printing",
+          "Raising an error when two shapes are incompatible",
+          "When shapes don't match, numpy stretches the smaller operand across the larger one",
+        ],
+        answer: 3,
+        explanation: "`prices * 1.1` stretches the scalar over the array, and adding a row vector to a 2D grid applies it to every row. It's what lets whole-array expressions stay concise across dimensions.",
+      },
+      {
+        id: "numpy-q3",
+        prompt: "For a 2D array, what does `m.sum(axis=0)` compute?",
+        options: [
+          "Per-column sums — `axis=0` collapses down the rows",
+          "Per-row sums",
+          "The total of every element",
+          "The sum of the first row only",
+        ],
+        answer: 0,
+        explanation: "`axis=0` reduces down the rows, giving one result per column; `axis=1` reduces across the columns, giving one per row. Getting that intuition right is most of using numpy well.",
+      },
     ],
   },
   {
@@ -389,6 +465,44 @@ def avg_salary_by_dept(df):
 print(avg_salary_by_dept(df))
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "pandas-q1",
+        prompt: "What's the difference between `df.loc` and `df.iloc`?",
+        options: [
+          "`loc` is label-based, `iloc` is integer-position-based — they diverge the moment you set a custom index",
+          "`loc` selects rows, `iloc` selects columns",
+          "`loc` returns a copy, `iloc` returns a view",
+          "`loc` is for a single cell, `iloc` for slices",
+        ],
+        answer: 0,
+        explanation: "With a default `RangeIndex` they look identical, which is exactly why the distinction bites later. `df.loc[0, \"name\"]` is label-by-label; `df.iloc[0, 1]` is position-by-position.",
+      },
+      {
+        id: "pandas-q2",
+        prompt: "How do you select multiple columns from a DataFrame?",
+        options: [
+          "`df.loc[\"name\":\"salary\"]`",
+          "`df[[\"name\", \"salary\"]]` — double brackets, because the inner one is a list of names",
+          "`df[\"name\", \"salary\"]`",
+          "`df.select(\"name\", \"salary\")`",
+        ],
+        answer: 1,
+        explanation: "A single string selects one column and gives you a `Series`; a list of names gives you a `DataFrame`. The double brackets are just a list literal inside the indexer.",
+      },
+      {
+        id: "pandas-q3",
+        prompt: "What does `df.groupby(\"dept\")[\"salary\"].mean()` replace?",
+        options: [
+          "A sort followed by `itertools.groupby`",
+          "A boolean mask filtering to one department at a time",
+          "The manual `defaultdict`-then-loop grouping you'd otherwise write by hand",
+          "A join between two DataFrames",
+        ],
+        answer: 2,
+        explanation: "Split, apply, combine is the pandas killer feature. `.agg(avg_pay=(\"salary\", \"mean\"), headcount=(\"name\", \"count\"))` computes several named aggregations at once.",
+      },
     ],
   },
 ];
