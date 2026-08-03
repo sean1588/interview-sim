@@ -74,6 +74,9 @@ export interface SessionContext {
   code?: string;
   language?: string;
   lastRun?: string;
+  /** Learning: the course id. Concept courses declare no language, so this is
+   * what selects their tutor persona server-side. */
+  course?: string;
   // Behavioral + System Design
   notes?: string;
   /** Target level (e.g. "senior") — calibrates the interviewer in behavioral / system-design. */

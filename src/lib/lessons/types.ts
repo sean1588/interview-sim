@@ -4,6 +4,15 @@
 
 import type { LanguageId } from "@/lib/problems";
 
+/**
+ * The courses that teach an idea rather than a language, so they declare no
+ * `language` (below) and run conversationally. Their tutor persona can't be
+ * keyed off a language, so it's keyed off the course id — this union is the
+ * compile-time link to CONCEPT_PROFILE in "@/lib/prompts": adding a concept
+ * course here without a persona there fails the build.
+ */
+export type ConceptCourseId = "distributed-systems" | "aws";
+
 export interface Exercise {
   /** Globally unique (across all courses), kebab-case. */
   id: string;

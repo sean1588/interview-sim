@@ -1,5 +1,6 @@
 import type { InterviewMode, SessionMode } from "./types/mode";
 import type { LanguageId } from "./problems";
+import type { ConceptCourseId } from "./lessons";
 import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
 
 export type { InterviewMode, SessionMode };
@@ -65,18 +66,76 @@ const TUTOR_PROFILE: Record<LanguageId, { lang: string; known: string; analogy: 
   },
 };
 
+// Concept courses declare no language, so the language table above can't pick
+// their persona — they're keyed by course id instead. Typed
+// Record<ConceptCourseId> for the same reason: shipping a concept course without
+// a persona here is a compile error, not a silent distributed-systems tutor.
+// `scope`/`mechanism`/`socratic` steer *how* the subject is taught; `recap`
+// carries the same wording into the end-of-lesson summary.
+const CONCEPT_PROFILE: Record<
+  ConceptCourseId,
+  {
+    subject: string;
+    student: string;
+    scope: string;
+    mechanism: string;
+    socratic: string;
+    recap: { focus: string; review: string; next: string };
+  }
+> = {
+  "distributed-systems": {
+    subject: "distributed systems",
+    student: "writes good code but has never operated a system at scale",
+    scope:
+      "skip what a server or a database is, and focus on what actually happens when one machine becomes many — what breaks, and the mechanism that exists to stop it breaking",
+    mechanism:
+      "Explain how Raft actually elects a leader, or why a vector clock can detect two concurrent writes when a wall clock can't.",
+    socratic:
+      "a dropped message, a clock that jumps backwards, two nodes that both think they're the leader",
+    recap: {
+      focus: "the mechanisms they worked through and which ones are worth revisiting",
+      review: "concept or mechanism",
+      next: "which idea to explore next or which mechanism to go deeper on",
+    },
+  },
+  aws: {
+    subject: "AWS",
+    student:
+      "ships software but has never been the one choosing which AWS services to build on",
+    scope:
+      "skip what a server, a queue, or a database is, and focus on what each AWS service actually gives you, what it costs, and which one is the right reach for a given job",
+    mechanism:
+      "Explain why a Lambda cold start happens and when it stops mattering, or what a DynamoDB partition key actually does to your throughput.",
+    socratic:
+      "a Lambda that needs a 40-second warmup, a bucket serving a 2 GB video to someone in Sydney, a queue that redelivers the same order twice",
+    recap: {
+      focus:
+        "the services they worked through, what each one is for, and which are worth a closer look",
+      review: "service or tradeoff",
+      next: "which service to explore next or which tradeoff to go deeper on",
+    },
+  },
+};
+
 /**
  * Which teaching persona a learning session runs. Language courses carry a
- * `language`; *concept* courses (distributed systems) carry none and have no
- * editor at all, so their persona must never mention one. One discriminated
- * selector keeps that branch in a single place rather than at each call site.
+ * `language`; *concept* courses (distributed systems, AWS) carry none and have
+ * no editor at all, so their persona must never mention one — they're selected
+ * by course id instead. One discriminated selector keeps that branch in a single
+ * place rather than at each call site.
  */
 type LearningProfile =
   | { kind: "language"; lang: string; known: string; analogy: string }
-  | { kind: "concept" };
+  | ({ kind: "concept" } & (typeof CONCEPT_PROFILE)[ConceptCourseId]);
 
-function learningProfile(language?: string): LearningProfile {
-  if (!language) return { kind: "concept" };
+function learningProfile(language?: string, course?: string): LearningProfile {
+  if (!language) {
+    // Same guard as below: an unknown course id only arrives from a stale/bogus
+    // client payload, so fall back rather than shipping an unnamed tutor.
+    const profile =
+      CONCEPT_PROFILE[course as ConceptCourseId] ?? CONCEPT_PROFILE["distributed-systems"];
+    return { kind: "concept", ...profile };
+  }
   // A non-LanguageId string can only arrive from a stale/bogus client payload;
   // fall back to Python rather than silently dropping into the concept persona.
   const profile = TUTOR_PROFILE[language as LanguageId] ?? TUTOR_PROFILE.python;
@@ -94,6 +153,8 @@ export function getSystemPrompt(
     questionPrompt?: string;
     targetLevel?: TargetLevel;
     language?: string;
+    /** Concept courses carry no language, so their persona is keyed off this. */
+    course?: string;
     /** Tutor mode: swap the evaluative persona for a teaching one. Coding,
      * system-design, and behavioral honour it (behavioral coaches STAR
      * storytelling); learning and freestyle ignore it. */
@@ -103,20 +164,21 @@ export function getSystemPrompt(
   // Learning mode is a tutorial, not an interview: the whole lesson script
   // arrives as questionPrompt and is appended verbatim. No level, no rubric.
   // The course language selects the tutor persona; a course with no language is
-  // a concept course, taught conversationally with no editor on screen.
+  // a concept course, whose persona comes from its id instead — taught
+  // conversationally with no editor on screen.
   if (mode === "learning") {
-    const profile = learningProfile(opts.language);
+    const profile = learningProfile(opts.language, opts.course);
     const lessonBlock = opts.questionPrompt ? `\n\n${opts.questionPrompt}` : "";
 
     if (profile.kind === "concept") {
-      return `You are a sharp, curious distributed systems tutor running a live lesson by voice.
-Your student is an EXPERIENCED programmer who writes good code but has never operated a system at scale. Teach to that level: skip what a server or a database is, and focus on what actually happens when one machine becomes many — what breaks, and the mechanism that exists to stop it breaking.
+      return `You are a sharp, curious ${profile.subject} tutor running a live lesson by voice.
+Your student is an EXPERIENCED programmer who ${profile.student}. Teach to that level: ${profile.scope}.
 You can SEE the lesson notes, provided below. Do not read them aloud; use them to guide the lesson and point the student at the diagrams, numbers, and links on screen.
 
 How to behave:
 - Speak naturally, 1-3 sentences at a time, like a real tutor sitting beside them. You're speaking out loud, so NEVER use markdown, code blocks, bullet points, or formatting. Say any names, numbers, or pseudocode in plain words.
-- Teach the MECHANISM, not interview tactics. Explain how Raft actually elects a leader, or why a vector clock can detect two concurrent writes when a wall clock can't. Never coach them on what to say in an interview.
-- Be Socratic. Before you explain a mechanism, describe the situation and ask them to predict what goes wrong — a dropped message, a clock that jumps backwards, two nodes that both think they're the leader — then build the answer from what they said.
+- Teach the MECHANISM, not interview tactics. ${profile.mechanism} Never coach them on what to say in an interview.
+- Be Socratic. Before you explain a mechanism, describe the situation and ask them to predict what goes wrong — ${profile.socratic} — then build the answer from what they said.
 - One idea per turn. Concrete numbers and specific failures beat adjectives; if something takes a millisecond or a hundred, say which.
 - This lesson is conversation only: there is no editor, no code to write, and no exercises. Never ask them to run, type, or submit anything, and never tell them to hit Next when their code works.
 - Be encouraging and genuinely interested, one concept or question at a time.${lessonBlock}`;
@@ -301,7 +363,8 @@ export function getKickoffPrompt(
   mode: SessionMode,
   language?: string,
   questionPrompt?: string,
-  tutor?: boolean
+  tutor?: boolean,
+  course?: string
 ): string {
   if (mode === "coding") {
     if (tutor) {
@@ -316,9 +379,9 @@ export function getKickoffPrompt(
     return "[The interview is now starting. Greet the candidate warmly, introduce yourself, present the behavioral question clearly, and invite them to walk you through a real example from their experience.]";
   }
   if (mode === "learning") {
-    const profile = learningProfile(language);
+    const profile = learningProfile(language, course);
     if (profile.kind === "concept") {
-      return `[The lesson is now starting. Greet the learner warmly as their distributed systems tutor, briefly say what this lesson covers, and point them to the lesson notes on screen. Then open on the first idea — ideally by describing a situation and asking them to predict what breaks. Assume they're an experienced programmer who has not run a system at scale, so skip the basics of servers and databases. There is no editor and no exercises in this lesson, so don't mention writing or running code.]`;
+      return `[The lesson is now starting. Greet the learner warmly as their ${profile.subject} tutor, briefly say what this lesson covers, and point them to the lesson notes on screen. Then open on the first idea — ideally by describing a situation and asking them to predict what breaks. Assume they're an experienced programmer who ${profile.student}, so ${profile.scope}. There is no editor and no exercises in this lesson, so don't mention writing or running code.]`;
     }
     const { lang } = profile;
     return `[The lesson is now starting. Greet the learner warmly as their ${lang} tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise (or, if this lesson has none, the first idea). Assume they're an experienced programmer who is new to ${lang}, so skip programming basics and focus on the ${lang}-specific ideas.]`;
@@ -348,20 +411,21 @@ export function getKickoffPrompt(
 export function getAssessSystemPrompt(
   mode: SessionMode,
   targetLevel?: TargetLevel,
-  language?: string
+  language?: string,
+  course?: string
 ): string {
   if (mode === "learning") {
-    const profile = learningProfile(language);
+    const profile = learningProfile(language, course);
     // Only the framing copy varies by course kind — the JSON keys below are the
     // contract RecapCard renders and are identical for every course.
     const copy =
       profile.kind === "concept"
         ? {
-            who: "distributed systems",
-            focus: "the mechanisms they worked through and which ones are worth revisiting",
+            who: profile.subject,
+            focus: profile.recap.focus,
             evidence: "citing a question they asked or a prediction they made",
-            review: "concept or mechanism",
-            next: "which idea to explore next or which mechanism to go deeper on",
+            review: profile.recap.review,
+            next: profile.recap.next,
           }
         : {
             who: profile.lang,

@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
 
     const code = (formData.get("code") as string | null) ?? "";
     const language = (formData.get("language") as string | null) ?? "";
+    // Learning: the course id, which is what names the tutor for a concept
+    // course (those declare no language).
+    const course = (formData.get("course") as string | null) ?? "";
     const questionId = (formData.get("questionId") as string | null) ?? "";
     const questionTitle = (formData.get("questionTitle") as string | null) ?? "";
     const questionPrompt = (formData.get("questionPrompt") as string | null) ?? "";
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
     if (kickoff) {
       session.history.push({
         role: "user",
-        content: getKickoffPrompt(mode, language, questionPrompt || undefined, tutor),
+        content: getKickoffPrompt(mode, language, questionPrompt || undefined, tutor, course),
       });
     } else {
       // Attach the live editor context (coding) and/or notes (behavioral / system-design).
@@ -91,6 +94,7 @@ export async function POST(req: NextRequest) {
         questionPrompt,
         targetLevel,
         language,
+        course,
         tutor,
       }),
     };

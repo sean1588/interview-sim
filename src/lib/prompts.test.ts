@@ -262,7 +262,7 @@ describe("learning personas", () => {
   });
 
   it("uses the concept persona with no language, and never mentions an editor", () => {
-    const concept = getSystemPrompt("learning");
+    const concept = getSystemPrompt("learning", { course: "distributed-systems" });
     expect(concept).toMatch(/distributed systems tutor/i);
     expect(concept).not.toBe(getSystemPrompt("learning", { language: "python" }));
     // A concept course has no editor and no exercises. The persona says so
@@ -288,18 +288,61 @@ describe("learning personas", () => {
   });
 
   it("opens and recaps a concept lesson without an editor either", () => {
-    const kickoff = getKickoffPrompt("learning");
+    const kickoff = getKickoffPrompt("learning", "", undefined, false, "distributed-systems");
     expect(kickoff).toMatch(/distributed systems tutor/i);
     expect(kickoff).not.toBe(getKickoffPrompt("learning", "go"));
 
     // The recap JSON shape is shared with the language courses — RecapCard
     // parses it — so only the framing copy may differ.
-    const recap = getAssessSystemPrompt("learning");
+    const recap = getAssessSystemPrompt("learning", undefined, "", "distributed-systems");
     expect(recap).toMatch(/distributed systems tutor/i);
     for (const key of ["summary", "conceptsCovered", "wentWell", "toReview", "suggestedNext"]) {
       expect(recap, `recap must request "${key}"`).toContain(`"${key}"`);
       expect(getAssessSystemPrompt("learning", undefined, "go")).toContain(`"${key}"`);
     }
+  });
+
+  // A concept course declares no language, so the language table can't name its
+  // tutor — the course id does. Before AWS existed the copy was hardcoded to
+  // "distributed systems", which would have introduced every AWS lesson with the
+  // wrong subject. These pin that each concept course names itself, everywhere.
+  it.each([
+    ["distributed-systems", /distributed systems tutor/i, /\bAWS\b/],
+    ["aws", /\bAWS tutor\b/, /distributed systems/i],
+  ])("names the %s tutor in every concept prompt", (course, itsOwn, theOther) => {
+    const surfaces = [
+      getSystemPrompt("learning", { course }),
+      getKickoffPrompt("learning", "", undefined, false, course),
+      getAssessSystemPrompt("learning", undefined, "", course),
+    ];
+    for (const prompt of surfaces) {
+      expect(prompt).toMatch(itsOwn);
+      expect(prompt, "must not carry another concept course's subject").not.toMatch(theOther);
+    }
+  });
+
+  it("keeps the concept shape for a second concept course", () => {
+    // The no-editor guarantees are the reason the concept persona exists; a new
+    // concept course must inherit all of them, not just a new name.
+    const aws = getSystemPrompt("learning", { course: "aws" });
+    expect(aws).toMatch(/there is no editor/i);
+    expect(aws).toMatch(/no exercises/i);
+    expect(aws).not.toMatch(/watch their code|in the editor|run output/i);
+    expect(aws).toMatch(/1-3 sentences/);
+  });
+
+  it("falls back to a named concept tutor for an unknown course id", () => {
+    // Same rationale as the bogus-language fallback: a stale client must not
+    // produce an unnamed "you are a  tutor" prompt.
+    expect(getSystemPrompt("learning", { course: "does-not-exist" })).toBe(
+      getSystemPrompt("learning", { course: "distributed-systems" })
+    );
+  });
+
+  it("lets the language win when a course sends both", () => {
+    // Language courses send their id too; the editor-bearing persona must not be
+    // shadowed by a course-id lookup.
+    expect(getSystemPrompt("learning", { language: "go", course: "go" })).toMatch(/\bGo tutor\b/);
   });
 
   it("still embeds the lesson script for both kinds of course", () => {
