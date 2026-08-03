@@ -126,6 +126,44 @@ print(head_tail(items))
 `,
     },
     ],
+    quiz: [
+      {
+        id: "enumerate-zip-unpacking-q1",
+        prompt: "You need both the index and the value while iterating. What's the Pythonic form?",
+        options: [
+          "`for i, color in colors.items():`",
+          "`for color in colors:` and increment a counter yourself",
+          "`for i, color in enumerate(colors):`",
+          "`for i in range(len(colors)):` then index into it",
+        ],
+        answer: 2,
+        explanation: "`enumerate` yields `(index, value)` tuples, and `for i, color` is tuple unpacking. `enumerate(colors, start=1)` counts from 1 when you want human-facing numbering.",
+      },
+      {
+        id: "enumerate-zip-unpacking-q2",
+        prompt: "What does `zip` do when the iterables have different lengths?",
+        options: [
+          "It pads the shorter one with `None`",
+          "It raises a ValueError",
+          "It cycles the shorter one until the longest is exhausted",
+          "It stops at the shortest",
+        ],
+        answer: 3,
+        explanation: "Stopping at the shortest is the default. `dict(zip(keys, vals))` is the idiomatic way to build a dict from two parallel lists — and `itertools.zip_longest` is there when you want the padding behaviour instead.",
+      },
+      {
+        id: "enumerate-zip-unpacking-q3",
+        prompt: "How do you swap two variables in Python?",
+        options: [
+          "`a, b = b, a` — multiple assignment, no temp variable",
+          "`swap(a, b)` from the standard library",
+          "`a, b = b, a` only works for immutable types",
+          "You need a temp: `t = a; a = b; b = t`",
+        ],
+        answer: 0,
+        explanation: "The right-hand side is evaluated into a tuple first, then unpacked into the targets — so the old values are safely captured before either name is rebound.",
+      },
+    ],
   },
   {
     id: "generators",
@@ -246,6 +284,44 @@ For \`n = 1000\`, expected output:
 print(sum_of_squares(1000))
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "generators-q1",
+        prompt: "What happens when you *call* a generator function?",
+        options: [
+          "It raises unless you wrap the call in `next()`",
+          "You get back an iterator — the body doesn't run yet",
+          "The body runs to the first `yield` and returns that value",
+          "The body runs completely and returns a list",
+        ],
+        answer: 1,
+        explanation: "Each `yield` hands a value to the caller and pauses the function with its local state frozen; execution resumes right after the `yield` on the next request. Nothing runs until you pull.",
+      },
+      {
+        id: "generators-q2",
+        prompt: "Why can a generator be infinite?",
+        options: [
+          "Infinite generators are a special case requiring `itertools`",
+          "They aren't — an infinite generator hangs the interpreter",
+          "Values are produced on demand, so you simply stop pulling once you have enough",
+          "The interpreter caps generators at a fixed number of yields",
+        ],
+        answer: 2,
+        explanation: "`while True: yield n; n += 1` is fine because nothing is materialized. `[next(gen) for _ in range(3)]` takes just the first three, and `itertools.islice` does the same for arbitrary windows.",
+      },
+      {
+        id: "generators-q3",
+        prompt: "When should you materialize a list instead of using a generator?",
+        options: [
+          "When the sequence is large or expensive to compute",
+          "When you're feeding the result to `sum` or `any`",
+          "Whenever the code will run more than once",
+          "When you need to index, re-iterate, or know the length",
+        ],
+        answer: 3,
+        explanation: "A generator is one-shot and has no length. Reach for it when the sequence is large, infinite, or expensive and you only need to walk it once — otherwise a list is the right shape.",
+      },
     ],
   },
   {
@@ -368,6 +444,44 @@ print(safe_div(10, 2))
 print(safe_div(10, 0))
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "eafp-q1",
+        prompt: "What does EAFP stand for, and why does Python prefer it?",
+        options: [
+          "Exceptions Are For Program Failures — so ordinary control flow shouldn't use them",
+          "Evaluate All Failure Paths — enumerate every error before acting",
+          "Early Abort For Performance — fail fast rather than validating",
+          "Easier to Ask Forgiveness than Permission — the check can be wrong by the time you act, and it litters the happy path with guards",
+        ],
+        answer: 3,
+        explanation: "LBYL — Look Before You Leap — is the Java/Go instinct. In Python exceptions are cheap and `try`/`except` is ordinary control flow, not a last resort, so acting and catching is often both safer and clearer.",
+      },
+      {
+        id: "eafp-q2",
+        prompt: "What's the one rule that makes EAFP safe?",
+        options: [
+          "Catch the narrowest exception type — never a bare `except:`",
+          "Always log the exception before handling it",
+          "Wrap each `try` around exactly one statement",
+          "Re-raise every exception after handling it",
+        ],
+        answer: 0,
+        explanation: "A bare `except:` swallows `KeyboardInterrupt`, typos, and the bugs you wanted to see crash. Catch several related types with a tuple — `except (ValueError, TypeError):` — and bind with `as` when you need the object.",
+      },
+      {
+        id: "eafp-q3",
+        prompt: "For a dict lookup with a fallback, what's better than `try`/`except KeyError`?",
+        options: [
+          "Nothing; `try`/`except` is always the Pythonic choice",
+          "`config.get(\"timeout\", 10)` — a built-in fallback with no exception machinery",
+          "`if \"timeout\" in config` — the LBYL check is clearer here",
+          "`config.setdefault(\"timeout\", 10)`",
+        ],
+        answer: 1,
+        explanation: "EAFP is the default *style*, not a mandate to use `try` everywhere. Reserve it for cases without a built-in fallback — parsing, indexing computed positions, calling code that signals failure by raising.",
+      },
     ],
   },
   {
@@ -496,6 +610,44 @@ def two_buffers():
 print(two_buffers())
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "context-managers-q1",
+        prompt: "What does a `with` block guarantee?",
+        options: [
+          "The resource is reference-counted and freed at the end of the function",
+          "Teardown runs on exit, even if the body raises — Python's answer to try-with-resources",
+          "The body runs in a separate scope",
+          "Any exception in the body is caught and suppressed",
+        ],
+        answer: 1,
+        explanation: "It's tied to a *block* rather than a function, which is the difference from Go's `defer`. The manual equivalent is a `try`/`finally` around the same code.",
+      },
+      {
+        id: "context-managers-q2",
+        prompt: "Which two dunder methods form the context-manager protocol?",
+        options: [
+          "`__with__` and `__finally__`",
+          "`__init__` and `__del__`",
+          "`__enter__` and `__exit__` — the return of `__enter__` is what `as` binds",
+          "`__open__` and `__close__`",
+        ],
+        answer: 2,
+        explanation: "`__exit__` runs even on error, which is what makes the guarantee real. For simple cases `contextlib.contextmanager` turns a generator into one: everything before `yield` is setup, everything after is teardown.",
+      },
+      {
+        id: "context-managers-q3",
+        prompt: "In a `@contextmanager` generator, how do you make teardown run even when the body raises?",
+        options: [
+          "It already does — `@contextmanager` wraps the yield automatically",
+          "Add an `except` clause that re-raises",
+          "Return `True` from the generator",
+          "Put it in a `finally` block inside the generator",
+        ],
+        answer: 3,
+        explanation: "The exception is thrown back in at the `yield` point, so code after a bare `yield` is skipped. Wrapping the `yield` in `try`/`finally` is what makes the teardown unconditional.",
+      },
     ],
   },
 ];

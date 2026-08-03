@@ -158,6 +158,44 @@ console.log(sum(1, 2, 3, 4));
 `,
     },
     ],
+    quiz: [
+      {
+        id: "typing-functions-q1",
+        prompt: "What's the type of `prefix` inside `function tag(text: string, prefix?: string)` versus `function tag2(text: string, prefix: string = \"#\")`?",
+        options: [
+          "`string | undefined` in the first; plain `string` in the second, because the default fills it in",
+          "`string | undefined` in both",
+          "`string` in both — `?` only affects the call site",
+          "`string | undefined` in the second, since a default can be overridden with `undefined`",
+        ],
+        answer: 0,
+        explanation: "A trailing `?` widens the parameter type to include `undefined` inside the body. A default value also makes the argument optional at the call site, but the parameter type doesn't include `undefined` — the default has already supplied it.",
+      },
+      {
+        id: "typing-functions-q2",
+        prompt: "Why does `arr.forEach(x => arr.push(x))` type-check even though `push` returns a number?",
+        options: [
+          "The arrow function's return is discarded before type checking",
+          "A `void`-typed callback is allowed to return a value; TS just ignores it",
+          "`forEach` accepts `any` as its callback return type",
+          "`push` is special-cased by the standard library definitions",
+        ],
+        answer: 1,
+        explanation: "`void` as a return type means \"no useful return value,\" which is distinct from `undefined`. Requiring callbacks to return exactly `undefined` would break a huge amount of ordinary code.",
+      },
+      {
+        id: "typing-functions-q3",
+        prompt: "When should you reach for function overloads in TypeScript?",
+        options: [
+          "Whenever you'd write multiple methods with the same name in Java",
+          "Whenever a parameter is optional",
+          "Only when the return type genuinely depends on the argument shapes — a union or generic is usually cleaner",
+          "Whenever a function accepts more than one parameter type",
+        ],
+        answer: 2,
+        explanation: "Unlike Java/C# you don't write multiple bodies — you declare several overload signatures above one implementation signature, and only the overloads are visible to callers. It's more machinery than a union or generic, so it should earn its place.",
+      },
+    ],
   },
   {
     id: "object-types",
@@ -326,6 +364,44 @@ console.log(\`\${b.x},\${b.y} \${currentStatus}\`);
 `,
     },
     ],
+    quiz: [
+      {
+        id: "object-types-q1",
+        prompt: "What can `type` express that `interface` cannot?",
+        options: [
+          "Optional and readonly properties",
+          "Index signatures",
+          "Unions, primitives, tuples, and mapped or conditional types",
+          "Extension of another named shape",
+        ],
+        answer: 2,
+        explanation: "For a plain object shape they're interchangeable. `interface` supports `extends` and *merges* — two declarations in scope combine, which is how you augment third-party types. `type` doesn't merge but aliases any type at all.",
+      },
+      {
+        id: "object-types-q2",
+        prompt: "What does `readonly id: number` actually guarantee?",
+        options: [
+          "The object is frozen with `Object.freeze` when constructed",
+          "The property is non-enumerable and hidden from `JSON.stringify`",
+          "The whole object graph is immutable, including nested objects",
+          "Compile-time only — it forbids reassignment but does not deep-freeze the object at runtime",
+        ],
+        answer: 3,
+        explanation: "Like everything else in the type layer, it erases. `readonly` is a checked convention, not a runtime guarantee — which is why the pitfalls lesson recommends copying (`[...xs]`) before sorting rather than trusting the annotation.",
+      },
+      {
+        id: "object-types-q3",
+        prompt: "You add `[name: string]: number` to an interface that also declares `id: string`. What happens?",
+        options: [
+          "A type error — any named property must be compatible with the index signature's value type",
+          "It compiles; named properties are exempt from the index signature",
+          "`id` is silently widened to `string | number`",
+          "The index signature is ignored for keys that are explicitly declared",
+        ],
+        answer: 0,
+        explanation: "An index signature is a claim about *every* key, so a declared property that violates it makes the type inconsistent. Keys can be `string` or `number`, and index signatures are the tool for dictionaries whose keys aren't known ahead of time.",
+      },
+    ],
   },
   {
     id: "structural-typing",
@@ -483,6 +559,44 @@ const record: DogRecord = {
 console.log(\`\${record.name} (\${record.breed}) @ \${record.createdAt}\`);
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "structural-typing-q1",
+        prompt: "`hello({ name: \"Rex\", legs: 4 })` errors, but `const d = { name: \"Rex\", legs: 4 }; hello(d)` compiles. Why?",
+        options: [
+          "`hello` is overloaded to accept extra properties from variables",
+          "The first form is a compile error in strict mode only",
+          "The excess-property check only fires on fresh object literals passed directly — it's a typo guard, not a soundness rule",
+          "Assigning to a variable strips the extra properties",
+        ],
+        answer: 2,
+        explanation: "It exists to catch typos like `colour` for `color`. Once the value flows through a variable, only the shape matters again — which is the ordinary structural rule.",
+      },
+      {
+        id: "structural-typing-q2",
+        prompt: "When would you use `A & B` rather than `interface B extends A`?",
+        options: [
+          "When you need the result to merge with later declarations",
+          "When one of the members must override the other's property types",
+          "Never — they are exactly equivalent in every position",
+          "When combining type aliases, unions, or mixing in inline shapes — `extends` is for composing named object interfaces",
+        ],
+        answer: 3,
+        explanation: "They overlap heavily; prefer whichever reads cleaner at the call site. `extends` only works between interfaces, so anything involving a union, tuple, or mapped type has to use intersection.",
+      },
+      {
+        id: "structural-typing-q3",
+        prompt: "Two interfaces declare identical members but have different names. Are they assignable to each other?",
+        options: [
+          "Yes — structural typing compares shapes, so identical members means mutually assignable",
+          "No — different names make them distinct types",
+          "Only if one explicitly extends the other",
+          "Only when both are declared in the same module",
+        ],
+        answer: 0,
+        explanation: "This is duck typing made static. It's also why *branded types* exist — intersecting with a unique erased tag is how you deliberately opt out and get nominal behavior for things like `UserId`.",
+      },
     ],
   },
 ];

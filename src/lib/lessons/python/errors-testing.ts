@@ -143,6 +143,44 @@ except ConfigError as err:
 `,
     },
     ],
+    quiz: [
+      {
+        id: "exceptions-q1",
+        prompt: "Why should you catch `Exception` rather than writing a bare `except:`?",
+        options: [
+          "There is no difference; both catch the same set",
+          "A bare except also catches `KeyboardInterrupt` and `SystemExit`, which derive from `BaseException`",
+          "A bare except is a syntax error in Python 3",
+          "A bare except can't bind the exception object with `as`",
+        ],
+        answer: 1,
+        explanation: "`BaseException` sits above `Exception` and holds the ones that mean \"stop the program.\" Prefer the narrowest type that makes sense; `Exception` is the broad-but-not-reckless fallback.",
+      },
+      {
+        id: "exceptions-q2",
+        prompt: "What is the `else` clause of a `try` statement for?",
+        options: [
+          "It's an alias for `finally`",
+          "It runs before the `except` clauses are evaluated",
+          "It runs only when no exception was raised, keeping the happy path out of the `try`",
+          "It runs when an exception was raised but not caught",
+        ],
+        answer: 2,
+        explanation: "Putting `use(result)` in `else` rather than inside the `try` means you don't accidentally catch exceptions from *it*. `finally` is the one that always runs, on exception or return.",
+      },
+      {
+        id: "exceptions-q3",
+        prompt: "What does `raise ConfigError(\"...\") from e` do?",
+        options: [
+          "Re-raises `e` with a new message",
+          "Suppresses `e` so only the new exception is shown",
+          "Converts `e` into a `ConfigError` in place",
+          "Preserves the cause — the traceback shows both, linked as \"the direct cause\"",
+        ],
+        answer: 3,
+        explanation: "It's how you translate a low-level error into a domain one without losing the trail. `from None` is the deliberate opposite — suppressing the original when it would only be noise.",
+      },
+    ],
   },
   {
     id: "pytest",
@@ -284,6 +322,44 @@ count = test_is_even()
 print(f"{count} cases passed")
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "pytest-q1",
+        prompt: "What is pytest's killer feature over unittest?",
+        options: [
+          "It generates test cases from type hints",
+          "It requires no test files, only inline assertions",
+          "You use the plain `assert` statement — pytest rewrites its internals so a failing `assert a == b` still prints a rich diff",
+          "It runs tests in parallel by default",
+        ],
+        answer: 2,
+        explanation: "No `assertEqual`, no `expect(x).toBe(y)`. Discovery is automatic too: files named `test_*.py`, functions named `test_*`, no base class and no registration.",
+      },
+      {
+        id: "pytest-q2",
+        prompt: "What does `@pytest.mark.parametrize` do?",
+        options: [
+          "Runs the test once per parameter set and reports the first failure only",
+          "Generates random inputs matching the parameter types",
+          "Marks the test as requiring a fixture with those names",
+          "Turns each case tuple into its own reported test, so one failing case doesn't hide the others",
+        ],
+        answer: 3,
+        explanation: "It replaces looping or copy-pasting inside a single test. Independent reporting is the real win — a loop would stop at the first failed assert.",
+      },
+      {
+        id: "pytest-q3",
+        prompt: "How do you use a pytest fixture?",
+        options: [
+          "Name it as a parameter of the test function — it's dependency-injected",
+          "Call it explicitly at the top of the test",
+          "Decorate the test with `@pytest.mark.usesfixture`",
+          "Import it and instantiate it in a setup method",
+        ],
+        answer: 0,
+        explanation: "`def test_default_not_admin(sample_user)` receives whatever the `sample_user` fixture returns. The parameter name *is* the wiring, which is why fixtures need no explicit registration.",
+      },
     ],
   },
 ];

@@ -109,6 +109,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-generics-basics-q1",
+        prompt: "What is a constraint in Go generics?",
+        options: [
+          "An interface describing what operations the type must support",
+          "A compile-time assertion listing allowed struct fields",
+          "A runtime check inserted at each call site",
+          "A keyword that limits the number of type parameters",
+        ],
+        answer: 0,
+        explanation: "Constraints being interfaces is Go's twist on generics. `any` means no constraint; `comparable` unlocks `==` and `!=`. Trying to use `==` under an `any` constraint won't compile — the constraint is what unlocks the operation.",
+      },
+      {
+        id: "go-generics-basics-q2",
+        prompt: "Why does `Map(nums, func(n int) string { ... })` need no explicit type arguments?",
+        options: [
+          "Type parameters default to `any` unless specified",
+          "Go infers `T` and `U` from the arguments; you can spell them out when inference can't",
+          "Generic functions never take explicit type arguments in Go",
+          "`Map` is special-cased by the compiler",
+        ],
+        answer: 1,
+        explanation: "Inference covers the common case, and `Map[int, string](...)` is available when it can't. Before Go 1.18 this kind of reusable code meant `interface{}` plus runtime type assertions — untyped and unsafe.",
+      },
+      {
+        id: "go-generics-basics-q3",
+        prompt: "What is Go's guidance on when to use generics?",
+        options: [
+          "Use them whenever a function takes a slice",
+          "Only in the standard library, never in application code",
+          "When you'd otherwise write the same code for several types, or build a general container — otherwise prefer a concrete type or a plain interface",
+          "Prefer generics by default; concrete types are a legacy style",
+        ],
+        answer: 2,
+        explanation: "The guidance is deliberately conservative. Generics are a tool for library-shaped code — containers, slice and map utilities, numeric code over several types — not a default.",
+      },
+    ],
   },
   {
     id: "go-generics-practical",
@@ -238,6 +276,44 @@ func main() {
 	}
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-generics-practical-q1",
+        prompt: "In the constraint `~int | ~float64`, what does the `~` mean?",
+        options: [
+          "Any type whose *underlying* type is that — so `type Celsius float64` still satisfies `~float64`",
+          "Approximately, allowing lossy numeric conversions",
+          "The type is optional and may be omitted",
+          "A pointer to that type is also accepted",
+        ],
+        answer: 0,
+        explanation: "Without `~`, only `float64` itself would qualify and your named types would be excluded. The `golang.org/x/exp/constraints` package predefines `Ordered`, `Integer`, and `Float`, so you rarely hand-write these.",
+      },
+      {
+        id: "go-generics-practical-q2",
+        prompt: "How do you produce the zero value of an unknown type parameter `T`?",
+        options: [
+          "`new(T)`, then dereference it",
+          "`var zero T` — you can't write a literal, so you declare one",
+          "`T{}`",
+          "`nil`, which is the zero value for every type parameter",
+        ],
+        answer: 1,
+        explanation: "`var zero T` is the idiom, and it's what generic containers return alongside a false `ok`. `T{}` doesn't compile because `T` might not be a composite type, and `nil` isn't valid for numeric or string types.",
+      },
+      {
+        id: "go-generics-practical-q3",
+        prompt: "How is the type parameter written on a method of a generic type?",
+        options: [
+          "It's inferred and omitted entirely: `func (s *Stack) Push(v T)`",
+          "Methods can't be defined on generic types",
+          "The receiver repeats it: `func (s *Stack[T]) Push(v T)`",
+          "The method declares it again: `func (s *Stack) Push[T any](v T)`",
+        ],
+        answer: 2,
+        explanation: "The receiver carries the type parameter so the method body can refer to `T`. Methods can't introduce *new* type parameters of their own — only the type declaration can.",
       },
     ],
   },

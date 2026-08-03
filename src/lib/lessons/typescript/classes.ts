@@ -125,6 +125,44 @@ console.log(v.reveal()); // expected: "compile-time / runtime" once implemented
 `,
     },
     ],
+    quiz: [
+      {
+        id: "classes-and-modifiers-q1",
+        prompt: "What's the difference between TypeScript's `private` and JavaScript's `#private`?",
+        options: [
+          "`#private` is compile-time only; TS `private` emits a WeakMap",
+          "TS `private` also blocks subclass access, while `#private` allows it",
+          "TS `private` is compile-time only and still reachable via `obj[\"field\"]`; `#private` is enforced by the runtime",
+          "They're identical; `#` is just newer syntax",
+        ],
+        answer: 2,
+        explanation: "TS `private` is a compile-time fiction — the editor blocks outside access but the field is a plain property at runtime, reachable via a cast. This is unlike Java/C#, where `private` is a real platform-enforced boundary. Reach for `#private` when you need actual encapsulation.",
+      },
+      {
+        id: "classes-and-modifiers-q2",
+        prompt: "What does `constructor(public readonly x: number) {}` do?",
+        options: [
+          "It creates a getter named `x` backed by a private field",
+          "It marks the constructor argument as required at the call site",
+          "It declares the field but you must still assign it in the body",
+          "It's a parameter property — TS declares *and* assigns the field for you, with no separate field line or `this.x = x`",
+        ],
+        answer: 3,
+        explanation: "Parameter properties kill the boilerplate of declaring a field, taking a parameter, and assigning one to the other. Any access modifier — or `readonly` — on a constructor parameter triggers it.",
+      },
+      {
+        id: "classes-and-modifiers-q3",
+        prompt: "Is `readonly` an access modifier?",
+        options: [
+          "No — it controls mutability, and composes with any of the three access modifiers",
+          "Yes — it's a fourth level between `protected` and `private`",
+          "Yes — it implies `public` and can't be combined with `private`",
+          "No — it's only valid on interface properties, not class fields",
+        ],
+        answer: 0,
+        explanation: "`public`, `private`, and `protected` control visibility; `readonly` controls whether a field can be reassigned after construction. `private readonly` and `public readonly` are both perfectly ordinary.",
+      },
+    ],
   },
   {
     id: "interfaces-abstract-generics",
@@ -248,6 +286,44 @@ const text = num.map((n) => \`value is \${n * 2}\`); // Wrapper<string>
 console.log(text.value); // expected: "value is 42" once implemented
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "interfaces-abstract-generics-q1",
+        prompt: "What does `implements` add compared to `extends`?",
+        options: [
+          "It makes the class nominally typed rather than structural",
+          "Only a check that the class has the required members — it adds no runtime behavior and copies nothing",
+          "It copies default method implementations from the interface",
+          "It registers the class so `instanceof` works against the interface",
+        ],
+        answer: 1,
+        explanation: "An interface describes a shape; `implements` asks TS to check the class against it. A class can implement several at once. Since TS is structural anyway, the class would satisfy the interface with or without the clause — `implements` just makes the failure loud and local.",
+      },
+      {
+        id: "interfaces-abstract-generics-q2",
+        prompt: "When should you use an abstract class rather than an interface?",
+        options: [
+          "When the type must be checked at runtime",
+          "When the members should be private",
+          "When subclasses share implementation — concrete methods, fields, a constructor — alongside the required holes",
+          "When you need more than one level of inheritance",
+        ],
+        answer: 2,
+        explanation: "Rule of thumb: interface for a pure contract many unrelated types satisfy; abstract class when subclasses share code. Marking a class `abstract` also makes `new`-ing it directly a compile error.",
+      },
+      {
+        id: "interfaces-abstract-generics-q3",
+        prompt: "Why declare a fluent builder method's return type as `this` rather than the class name?",
+        options: [
+          "It avoids a circular type reference in the class declaration",
+          "It lets the method be called on both instances and the constructor",
+          "It's required for methods that return the receiver",
+          "Chaining survives subclassing — each call returns the actual subtype, not the base",
+        ],
+        answer: 3,
+        explanation: "`where(c: string): Query` would erase the subtype halfway through a chain, so subclass methods would stop being available. `this` keeps the concrete type flowing through every call.",
+      },
     ],
   },
 ];

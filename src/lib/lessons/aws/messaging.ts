@@ -59,6 +59,44 @@ Set \`maxReceiveCount\` around 3-5, alarm on \`ApproximateNumberOfMessagesVisibl
 
 > [Queues & logs](/library/queues-and-logs) and [Delivery semantics](/library/delivery-semantics) in the library are the conceptual companions — at-least-once, idempotency, and the queue-vs-log distinction this lesson makes concrete.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-sqs-q1",
+        prompt: "A worker receives a message, completes the job, then crashes before calling delete. What happens?",
+        options: [
+          "The visibility timeout expires and another consumer processes the same message — the work happens twice",
+          "SQS detects the completion and removes the message",
+          "The message moves straight to the dead-letter queue",
+          "The message is lost, since it was already received",
+        ],
+        answer: 0,
+        explanation: "Receiving hides a message; only delete removes it. That's the durability guarantee and the source of at-least-once delivery. It's why idempotent consumers are a correctness requirement, not a nicety.",
+      },
+      {
+        id: "aws-sqs-q2",
+        prompt: "In a FIFO queue, ordering is guaranteed per what?",
+        options: [
+          "Per deduplication id",
+          "Per message group id — which is what allows different groups to process concurrently",
+          "Per queue, globally across all messages",
+          "Per consumer connection",
+        ],
+        answer: 1,
+        explanation: "Ordering is per message group, not per queue — that's what lets FIFO be parallel at all. Grouping by `customerId` keeps each customer's events ordered while different customers process concurrently. Choose the group id carefully: one group means one consumer's worth of throughput.",
+      },
+      {
+        id: "aws-sqs-q3",
+        prompt: "You'll need to reprocess the last week of events after fixing a consumer bug. Is SQS the right choice?",
+        options: [
+          "Yes, if you enable a dead-letter queue",
+          "Yes, provided the queue is FIFO",
+          "No — a consumed SQS message is gone. A replayable log like Kinesis is the right shape",
+          "Yes — SQS retains messages for 14 days and supports replay",
+        ],
+        answer: 2,
+        explanation: "SQS retains *undelivered* messages up to 14 days, but a successfully consumed and deleted message is gone. If a second consumer might need the same events later, or you'll want to reprocess history, that's a log you can rewind — Kinesis, not a queue.",
+      },
+    ],
   },
   {
     id: "aws-sns",
@@ -124,6 +162,44 @@ If you encrypt a topic with KMS, remember the subscriber's queue and the KMS key
 - **When consumers need to replay history** — SNS has no retention; Kinesis does.
 - **For large payloads** — 256 KB, same as SQS.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-sns-q1",
+        prompt: "Why is SNS → SQS → consumer so much more common than SNS → consumer directly?",
+        options: [
+          "SNS delivers messages out of order unless a queue buffers them",
+          "The queue adds durability, failure isolation per consumer, independent retry, and a replay window while a consumer is down",
+          "SNS cannot deliver to Lambda or HTTPS endpoints directly",
+          "SQS is required to decrypt KMS-encrypted topics",
+        ],
+        answer: 1,
+        explanation: "SNS alone delivers once and gives up when its retry policy expires — if your subscriber is broken for an hour, those messages are gone. A queue per consumer is the durable form of pub/sub on AWS.",
+      },
+      {
+        id: "aws-sns-q2",
+        prompt: "What does an SNS subscription filter policy evaluate?",
+        options: [
+          "The subscriber's IAM policy at delivery time",
+          "Nothing — filtering happens in the consumer",
+          "Message attributes, in SNS — so you don't pay to deliver messages a subscriber would discard",
+          "The message body, using JSON path expressions",
+        ],
+        answer: 2,
+        explanation: "Filter policies match on message attributes and are evaluated inside SNS. That's the difference between one topic per event type (a mess) and one topic with subscribers declaring their interest. Matching on the message *body* is EventBridge's job.",
+      },
+      {
+        id: "aws-sns-q3",
+        prompt: "You encrypt an SNS topic with KMS and subscribers silently stop receiving messages. Where do you look?",
+        options: [
+          "The topic's delivery retry policy",
+          "The subscription's filter policy",
+          "The SNS message size limit",
+          "The KMS key policy — the subscriber's queue and the key policy both need to allow the operation",
+        ],
+        answer: 3,
+        explanation: "A silently undelivered message on an encrypted topic is usually a key policy. Access to the data requires access to the key, and both the subscribing queue's policy and the KMS key policy have to permit it.",
+      },
+    ],
   },
   {
     id: "aws-eventbridge",
@@ -182,6 +258,44 @@ No consumer code runs to decide that. High-value European orders reach the fraud
 
 Use **SNS** for simple, high-throughput fan-out to consumers you control. Use **EventBridge** when the routing decision is genuinely content-based, when you want AWS service events, when you need scheduling, or when replay and schemas earn their keep. The overlap is real and both answers are defensible — what isn't defensible is not knowing which properties you're buying.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-eventbridge-q1",
+        prompt: "What routing capability does EventBridge have that SNS does not?",
+        options: [
+          "Cross-account delivery",
+          "Guaranteed message ordering",
+          "Rules match on the event body — nested fields, prefixes, numeric ranges, negations — not just message attributes",
+          "Delivery to SQS queues",
+        ],
+        answer: 2,
+        explanation: "SNS filters on message attributes; EventBridge rules match on the event's content, including nested fields with numeric comparisons and negation. That means no consumer code runs to decide whether an event is relevant. EventBridge makes no ordering guarantee at all.",
+      },
+      {
+        id: "aws-eventbridge-q2",
+        prompt: "What is the single most common use of the EventBridge default bus?",
+        options: [
+          "Fanning out application events to millions of subscribers cheaply",
+          "Buffering events durably per consumer",
+          "Enforcing ordering across a distributed workflow",
+          "Reacting to AWS's own events — an S3 upload, an ECS task stopping, a GuardDuty finding — without polling anything",
+        ],
+        answer: 3,
+        explanation: "The default bus already receives events from ~200 AWS services. All of it is flowing whether or not you use it, and you just write a rule. That reach — plus scheduling, archive/replay, and the schema registry — is what you're buying over SNS.",
+      },
+      {
+        id: "aws-eventbridge-q3",
+        prompt: "You're fanning out millions of messages an hour on a hot path. SNS or EventBridge?",
+        options: [
+          "SNS → SQS — it's faster and cheaper at high volume; EventBridge adds tens of milliseconds and ~$1 per million events",
+          "EventBridge, because the schema registry prevents producer/consumer drift",
+          "EventBridge, because it scales further than SNS",
+          "Either; throughput and cost are equivalent",
+        ],
+        answer: 0,
+        explanation: "The overlap between the two is real and both answers are often defensible — what isn't defensible is not knowing which properties you're buying. On a high-volume hot path, SNS→SQS is the leaner choice; EventBridge earns its keep when routing is genuinely content-based or you want AWS events, scheduling, or replay.",
+      },
+    ],
   },
   {
     id: "aws-kinesis",
@@ -240,6 +354,44 @@ Every record carries a **partition key** that hashes to a shard. Same trap as Dy
 
 > [Queues & logs](/library/queues-and-logs) and [Stream processing](/library/stream-processing) in the library cover this distinction conceptually; this lesson is the AWS implementation of it.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-kinesis-q1",
+        prompt: "What does \"consume\" mean in Kinesis, as opposed to SQS?",
+        options: [
+          "Acknowledging it so the shard can be rebalanced",
+          "Advancing your own cursor — records stay for the retention period and every consumer reads everything",
+          "Deleting the record, the same as SQS",
+          "Moving the record to a secondary stream",
+        ],
+        answer: 1,
+        explanation: "That's the queue-versus-log distinction. In a queue, consuming deletes. In a log, consuming advances your cursor — records persist for 24 hours to 365 days regardless of how many consumers read them, so you can add a consumer later or rewind one after a bug.",
+      },
+      {
+        id: "aws-kinesis-q2",
+        prompt: "Your stream throttles while overall utilization looks low. What's the likely cause?",
+        options: [
+          "Enhanced fan-out is disabled",
+          "The stream is in on-demand mode, which caps total throughput",
+          "A low-cardinality partition key concentrates records on one shard, and per-shard capacity is fixed at 1 MB/s in",
+          "The retention period is too short for the consumer's lag",
+        ],
+        answer: 2,
+        explanation: "Same trap as DynamoDB's partition key. Each shard takes 1 MB/s or 1,000 records/s in, and every record's partition key hashes to a shard — so a skewed key throttles you while the stream looks under-utilized overall. Ordering is also per shard, meaning per partition key.",
+      },
+      {
+        id: "aws-kinesis-q3",
+        prompt: "Your goal is simply \"get these events into S3 as Parquet.\" Which service is right?",
+        options: [
+          "Data Streams, writing your own consumer",
+          "Managed Service for Apache Flink",
+          "MSK with an S3 sink connector",
+          "Data Firehose — a managed delivery pipeline with buffering, optional Lambda transform, and Parquet conversion, and near-zero code",
+        ],
+        answer: 3,
+        explanation: "Firehose does exactly this job with no consumers to write — the tradeoff is no replay. Data Streams is the overbuild here; reach for it when you need the replayable log or multiple independent consumers.",
+      },
+    ],
   },
   {
     id: "aws-step-functions",
@@ -309,5 +461,43 @@ A \`Catch\` on each state routing to its compensating step is a saga orchestrato
 
 > [Distributed transactions](/library/distributed-transactions) in the library covers sagas, two-phase commit, and why the former wins in practice — Step Functions is how you actually build one here.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-step-functions-q1",
+        prompt: "What does Step Functions give you that chained Lambdas and queues do not?",
+        options: [
+          "Lower latency between steps",
+          "Automatic idempotency for every step",
+          "The ability to run steps longer than 15 minutes inside a single Lambda",
+          "The workflow becomes an explicit state machine with a visible execution history, so you can see exactly where any execution stopped",
+        ],
+        answer: 3,
+        explanation: "In a chained-event design the state of the workflow exists only as scattered logs. Step Functions makes it declarative and tracked: every transition recorded, retries and error handling as configuration, and a visible history per execution.",
+      },
+      {
+        id: "aws-step-functions-q2",
+        prompt: "You need to charge a card, reserve stock, and create a shipment — with the charge refunded if stock reservation fails. What pattern is this?",
+        options: [
+          "A saga — local transactions each paired with a compensating action, run in reverse on failure",
+          "Two-phase commit across the three services",
+          "An idempotency key applied to the whole workflow",
+          "A distributed lock held for the duration of the workflow",
+        ],
+        answer: 0,
+        explanation: "You can't have a distributed transaction across a payment provider, an inventory service, and a shipping service. A `Catch` on each state routing to its compensating step is a saga orchestrator written declaratively — and doing it by hand across chained Lambdas is where correctness quietly disappears.",
+      },
+      {
+        id: "aws-step-functions-q3",
+        prompt: "A high-volume workflow completes in under a minute and runs millions of times a day. Standard or Express?",
+        options: [
+          "Either; pricing is equivalent below five minutes",
+          "Express — Standard bills per state transition, which gets expensive fast at that volume",
+          "Standard — its exactly-once execution is required at high volume",
+          "Standard — Express is capped at 15 minutes and this may exceed it",
+        ],
+        answer: 1,
+        explanation: "Express is priced per invocation plus duration rather than per state transition, which is exactly what high-volume short workflows need. The tradeoffs are at-least-once execution, a five-minute ceiling, and history going to CloudWatch Logs rather than the console.",
+      },
+    ],
   },
 ];

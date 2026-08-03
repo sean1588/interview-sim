@@ -167,6 +167,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-hello-and-values-q1",
+        prompt: "What makes an identifier visible to other packages in Go?",
+        options: [
+          "Listing it in the package's `go.mod` file",
+          "An initial capital letter — that is Go's entire access-control system",
+          "An `export` keyword before the declaration",
+          "Declaring it at package level rather than inside a function",
+        ],
+        answer: 1,
+        explanation: "`User` is exported, `user` is not. There are no `public`/`private` keywords — capitalization does the whole job, which is why it's a meaningful naming decision rather than a style one.",
+      },
+      {
+        id: "go-hello-and-values-q2",
+        prompt: "Why does `var i int = 10; var f float64 = i` fail to compile?",
+        options: [
+          "`int` is 64-bit, so it can't fit in a `float64`",
+          "Numeric conversion is only allowed with `:=`",
+          "Go has no implicit conversion, not even between numeric types — you must write `float64(i)`",
+          "`var` declarations can't have both a type and an initializer",
+        ],
+        answer: 2,
+        explanation: "Types are fixed at compile time and nothing converts silently. `\"3\" + 4` doesn't compile either, which catches a whole class of bugs before you run.",
+      },
+      {
+        id: "go-hello-and-values-q3",
+        prompt: "What is `var names []string` — and can you use it immediately?",
+        options: [
+          "An uninitialized variable that panics on any access",
+          "An empty slice allocated with capacity 0",
+          "A compile error, since slices need `make`",
+          "A nil slice, and yes — `len(names)` is 0 and you can range over it",
+        ],
+        answer: 3,
+        explanation: "Every variable gets its type's zero value and is usable immediately — 0 for numbers, `\"\"` for strings, false for bools, nil for pointers, slices, maps, and interfaces. There is no undefined state to guard against. (Writing to a nil *map* is the one exception that panics.)",
+      },
+    ],
   },
   {
     id: "go-control-flow",
@@ -319,6 +357,44 @@ func main() {
 	}
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-control-flow-q1",
+        prompt: "How do you write a `while` loop in Go?",
+        options: [
+          "`do { } while condition`",
+          "`loop { }` with an explicit `break`",
+          "`for condition { }` — `for` is the only loop keyword and wears several hats",
+          "`while condition { }`, which was added in Go 1.21",
+        ],
+        answer: 2,
+        explanation: "Go has no `while`, no `do/while`, and no `foreach` keyword. `for` covers the three-clause form, the condition-only form, the infinite form, and `range` iteration.",
+      },
+      {
+        id: "go-control-flow-q2",
+        prompt: "In `if x := compute(); x > 10 { ... } else { ... }`, where is `x` in scope?",
+        options: [
+          "Only in the if branch",
+          "For the rest of the enclosing function",
+          "Only inside the condition expression itself",
+          "In both the if and the else branch, and nowhere after",
+        ],
+        answer: 3,
+        explanation: "The init statement scopes the variable to the whole if/else and no further. This is the idiomatic home for the `if err := ...; err != nil` pattern, which is why you see it constantly.",
+      },
+      {
+        id: "go-control-flow-q3",
+        prompt: "Do Go `switch` cases fall through?",
+        options: [
+          "No — cases don't fall through by default, so you never write `break`; the `fallthrough` keyword opts in",
+          "Yes, exactly like C, so every case needs a `break`",
+          "Only when the case lists multiple values",
+          "Only in an expression-less switch",
+        ],
+        answer: 0,
+        explanation: "No fallthrough is the default, which removes a classic C bug. A case can list several values (`case \"Sat\", \"Sun\":`), and a bare `switch` with no expression is a clean replacement for an if/else-if ladder.",
       },
     ],
   },
@@ -496,6 +572,44 @@ func main() {
 	countdown()
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-functions-q1",
+        prompt: "What does this print?\n\n```go\nfor i := 0; i < 3; i++ {\n\tdefer fmt.Println(i)\n}\n```",
+        options: [
+          "0, 1, 2 — defers run in the order they were scheduled",
+          "3, 3, 3 — the closure captures the loop variable",
+          "Nothing — deferred calls in a loop are discarded",
+          "2, 1, 0 — defers run LIFO and their arguments are evaluated at `defer` time",
+        ],
+        answer: 3,
+        explanation: "Two rules combine here: deferred calls run last-in-first-out, and their arguments are evaluated when `defer` executes rather than when the call finally runs. That second rule is the common surprise.",
+      },
+      {
+        id: "go-functions-q2",
+        prompt: "What is the overwhelmingly common shape of a multi-value return in Go?",
+        options: [
+          "`(result, error)` — Go's alternative to exceptions, checked at every call site",
+          "`(error, result)`, with the error first so it can't be ignored",
+          "`(value, ok)` for every fallible operation",
+          "A single struct containing both the result and an error field",
+        ],
+        answer: 0,
+        explanation: "The error is the last return value, and `if err != nil` is written constantly. That repetition *is* the error handling — made explicit at every call site instead of hidden in a `try` somewhere up the stack.",
+      },
+      {
+        id: "go-functions-q3",
+        prompt: "How do you pass an existing `[]int` to a variadic `func total(nums ...int) int`?",
+        options: [
+          "You can't; you must loop and pass elements individually",
+          "`total(xs...)` — spread the slice with `...`",
+          "`total(xs)` — a slice is accepted directly",
+          "`total(...xs)` — the spread goes before the value",
+        ],
+        answer: 1,
+        explanation: "A trailing `...T` parameter collects extra arguments into a slice, and the `xs...` call syntax spreads a slice back into those arguments. Note the ellipsis is a suffix in Go, unlike JavaScript's prefix spread.",
       },
     ],
   },

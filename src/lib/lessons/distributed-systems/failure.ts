@@ -49,6 +49,44 @@ Because the guess *will* be wrong sometimes, the important design work is limiti
 - **Quorum-based decisions**, so a single node's opinion never removes anyone from the cluster on its own.
 - **Idempotent operations**, so retrying a request to a node that turned out to be alive is harmless — which is the next lesson.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-failure-detectors-q1",
+        prompt: "What are the two error modes of a failure detector, and how do they relate?",
+        options: [
+          "Transient and permanent failures, distinguished by retry count",
+          "False positive (needless failover) and false negative (traffic to a dead node) — shortening the timeout trades one for the other",
+          "Crash detection and gray-failure detection, which are independent",
+          "Network errors and process errors, which require different timeouts",
+        ],
+        answer: 1,
+        explanation: "Nothing removes the trade. What you can do is pick the operating point deliberately, and make the consequences of a wrong guess cheap — with fencing tokens, a grace period before rebalancing, quorum decisions, and idempotent operations.",
+      },
+      {
+        id: "ds-failure-detectors-q2",
+        prompt: "What does phi-accrual failure detection report instead of a boolean?",
+        options: [
+          "A ranked list of which nodes are most likely dead",
+          "The number of consecutive missed heartbeats",
+          "A suspicion level on a log scale, so different subsystems can act at different thresholds",
+          "The estimated time until the node recovers",
+        ],
+        answer: 2,
+        explanation: "Phi-accrual tracks the recent distribution of heartbeat inter-arrival times and outputs how surprising the current silence is — φ=8 means roughly a 10⁻⁸ chance this delay is normal. You can stop routing reads at φ=3 and trigger failover at φ=10 rather than sharing one brittle boolean.",
+      },
+      {
+        id: "ds-failure-detectors-q3",
+        prompt: "What does SWIM's indirect probing add to gossip-based failure detection?",
+        options: [
+          "A total order on membership changes",
+          "O(1) message complexity instead of O(log N)",
+          "Guaranteed agreement on the member list across all nodes",
+          "\"I can't reach C, can you?\" — which cuts false positives from single-link failures dramatically",
+        ],
+        answer: 3,
+        explanation: "Gossip scales to thousands and converges in O(log N) rounds, but membership is eventually consistent. Indirect probing distinguishes \"C is dead\" from \"my link to C is dead\" — the asymmetric case that makes naive detectors flap.",
+      },
+    ],
   },
   {
     id: "ds-retries-and-backoff",
@@ -99,6 +137,44 @@ And retry **at one layer only**. Pick the layer that knows the operation's seman
 
 > [Failure & resilience](/library/failure-and-resilience) is the interview-facing companion for circuit breakers and bulkheads; here the emphasis is the arithmetic — why 3 retries at 4 layers is 81 requests, and which control actually bounds it.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-retries-and-backoff-q1",
+        prompt: "Four tiers each retry 3 times. How many requests can one user request become at the bottom tier?",
+        options: [
+          "81 — retries multiply at every layer",
+          "12 — the retries add up across tiers",
+          "3 — only the outermost layer's retries matter",
+          "4 — one per tier",
+        ],
+        answer: 0,
+        explanation: "3⁴ = 81. That's why you retry at one layer only — the one that knows the operation's semantics — and make the others fail fast.",
+      },
+      {
+        id: "ds-retries-and-backoff-q2",
+        prompt: "Why is jitter not optional when 10,000 clients fail at the same instant?",
+        options: [
+          "Deterministic sleeps cause clock drift across the fleet",
+          "Plain exponential backoff makes them all retry at exactly 100ms, then all at 200ms — a flood replaced by synchronized floods",
+          "Without jitter the backoff cap is never reached",
+          "Jitter is what makes retries idempotent",
+        ],
+        answer: 1,
+        explanation: "A failover or a deploy synchronizes every client's failure. Full jitter — `random(0, min(cap, base × 2^attempt))` — breaks it, and AWS's published measurements found it both completes work sooner and dramatically reduces contention.",
+      },
+      {
+        id: "ds-retries-and-backoff-q3",
+        prompt: "Which control most effectively bounds a retry storm regardless of how many clients there are?",
+        options: [
+          "A lower per-request timeout",
+          "More aggressive connection pooling",
+          "A retry budget — cap retries as a fraction of total requests, then fail immediately",
+          "A longer initial backoff interval",
+        ],
+        answer: 2,
+        explanation: "gRPC and Envoy default to roughly 10-20%. It bounds the multiplier no matter how many callers exist, which backoff tuning cannot. Circuit breakers, deadline propagation, and server-side load shedding are the other three controls.",
+      },
+    ],
   },
   {
     id: "ds-delivery-semantics",
@@ -159,6 +235,44 @@ You still get duplicates — the relay can publish and die before marking — wh
 
 > The library's [Delivery semantics](/library/delivery-semantics) note is the interview-facing version of this vocabulary; [Distributed transactions](/library/distributed-transactions) covers sagas and 2PC, the heavier alternative to the outbox.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-delivery-semantics-q1",
+        prompt: "Why is exactly-once *delivery* impossible?",
+        options: [
+          "Networks reorder messages, so ordering can't be preserved",
+          "Clocks disagree, so the receiver can't tell which message is newer",
+          "Message brokers cannot store state durably enough",
+          "The receiver's ack can always be lost, leaving the sender to choose between a duplicate and a loss",
+        ],
+        answer: 3,
+        explanation: "No protocol escapes that choice. What's achievable is exactly-once *effect*: at-least-once delivery plus an idempotent handler means each message affects the state once. That's what every \"exactly-once\" product actually sells.",
+      },
+      {
+        id: "ds-delivery-semantics-q2",
+        prompt: "Who must generate an idempotency key, and when?",
+        options: [
+          "The client, before the first attempt, reusing it across every retry",
+          "The server, on first receipt, returning it for the client to reuse",
+          "The message broker, at enqueue time",
+          "Either side, as long as it's globally unique",
+        ],
+        answer: 0,
+        explanation: "A server-generated id is a different id on every retry and protects nothing. Two other details make or break it: the dedup record and the effect must commit atomically, and the record needs a retention window — 24 hours is typical.",
+      },
+      {
+        id: "ds-delivery-semantics-q3",
+        prompt: "What problem does the transactional outbox solve?",
+        options: [
+          "Consumer lag during a traffic spike",
+          "The dual write — committing to the database and publishing to a queue are two systems with no shared transaction",
+          "Duplicate delivery to consumers",
+          "Message ordering across partitions",
+        ],
+        answer: 1,
+        explanation: "Writing the event to an `outbox` table in the same transaction as the business data makes it one atomic write; a relay then polls or tails the WAL and publishes. You still get duplicates when the relay publishes and dies before marking — which is exactly why consumers need idempotency keys. The two mechanisms are one design.",
+      },
+    ],
   },
   {
     id: "ds-split-brain",
@@ -208,5 +322,43 @@ Once you've diverged, you're choosing which writes to lose. The honest options, 
 
 The real lesson of this module: partial failure, bad clocks, timeout-based detection, and retries all compose. Split brain is what happens when you handle each one locally and none of them together — and the systems that survive it are the ones that decided in advance which side is allowed to lose.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-split-brain-q1",
+        prompt: "Which is NOT one of the three real preventions for split brain?",
+        options: [
+          "A longer timeout and a better health check",
+          "Quorum — only a majority may act",
+          "Fencing — the resource rejects writes carrying a stale token",
+          "STONITH — forcibly isolate the old node before taking over",
+        ],
+        answer: 0,
+        explanation: "Longer timeouts, better health checks, and extra heartbeat channels make split brain rarer, which mostly means you discover it later. Only quorum, fencing, and STONITH actually make the divergence impossible or harmless.",
+      },
+      {
+        id: "ds-split-brain-q2",
+        prompt: "Why is a two-node cluster particularly dangerous?",
+        options: [
+          "Vector clocks require at least three entries to detect conflicts",
+          "A majority is 2, so one failure stops all writes — and the pressure to \"just let one node keep going\" is what creates split brain",
+          "Two nodes cannot replicate synchronously",
+          "The tie-break always favors the node with the lower id, which may be stale",
+        ],
+        answer: 1,
+        explanation: "Use 3 nodes, or a lightweight witness/arbiter that only votes and stores no data. The other quiet reintroduction is the asymmetric partition, where each node has a different view of who is alive and naive membership protocols flap forever.",
+      },
+      {
+        id: "ds-split-brain-q3",
+        prompt: "You've already diverged. Which recovery option is best?",
+        options: [
+          "Manual reconciliation from logs, which loses nothing",
+          "Whichever side has more writes wins",
+          "Only one side was allowed to write, so the minority side's writes are discarded — clean, by design",
+          "Last-write-wins by wall clock, which resolves automatically",
+        ],
+        answer: 2,
+        explanation: "Once diverged you're choosing which writes to lose; the question is whether you decided in advance. Quorum makes it a designed outcome. Version vectors let you surface both. Last-write-wins is silent data loss — a choice, not a solution — and manual reconciliation is where you end up having designed for none of the above.",
+      },
+    ],
   },
 ];

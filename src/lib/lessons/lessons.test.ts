@@ -1,8 +1,19 @@
 import { describe, it, expect } from "vitest";
 import * as ts from "typescript";
-import { COURSES, ALL_LESSONS, getCourse, getLesson, lessonsForModule } from "./index";
+import {
+  COURSES,
+  ALL_LESSONS,
+  QUIZ_LENGTH,
+  QUIZ_OPTIONS,
+  buildLessonScript,
+  getCourse,
+  getLesson,
+  lessonsForModule,
+} from "./index";
 import { transpileTypeScript } from "@/lib/runner";
 import { ARTICLES } from "@/lib/library";
+
+const ALL_QUESTIONS = ALL_LESSONS.flatMap((l) => l.quiz);
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /** Every /library/<id> href appearing in a lesson card. */
@@ -40,6 +51,12 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("does-not-exist")).toBeUndefined();
   });
 
+  it("has globally unique, kebab-case quiz question ids across all courses", () => {
+    const ids = ALL_QUESTIONS.map((q) => q.id);
+    expect(new Set(ids).size, "duplicate quiz question id").toBe(ids.length);
+    for (const id of ids) expect(id, id).toMatch(KEBAB);
+  });
+
   it("links only to library articles that exist", () => {
     // Lesson cards cross-link the concept library instead of restating it; a
     // renamed article must not leave a dead link in a lesson.
@@ -48,6 +65,18 @@ describe("learning courses — cross-course invariants", () => {
       for (const [, articleId] of l.content.matchAll(LIBRARY_HREF)) {
         expect(ids.has(articleId), `${l.id} links to unknown article ${articleId}`).toBe(true);
       }
+    }
+  });
+
+  // The one quiz defect that's invisible when reviewing any single file: a bulk
+  // authoring pass that leaves the correct answer in the same slot every time,
+  // so "always pick A" scores full marks. Loose enough never to be flaky over
+  // hundreds of questions, tight enough to catch a whole course landing skewed.
+  it("spreads the correct answer across every option position", () => {
+    const floor = ALL_QUESTIONS.length * 0.1;
+    for (let position = 0; position < QUIZ_OPTIONS; position++) {
+      const count = ALL_QUESTIONS.filter((q) => q.answer === position).length;
+      expect(count, `only ${count} answers sit at position ${position}`).toBeGreaterThan(floor);
     }
   });
 });
@@ -78,6 +107,24 @@ describe.each(COURSES)("course: $id", (course) => {
         expect(e.title.trim(), `${e.id} title`).not.toBe("");
         expect(e.instructions.trim(), `${e.id} instructions`).not.toBe("");
         expect(e.starterCode.trim(), `${e.id} starter`).not.toBe("");
+      }
+    }
+  });
+
+  // The quiz is the one part of a lesson that is never optional — a concept
+  // course has no exercises to check understanding with, and a language course's
+  // exercises check that you can write it, not that you know when to reach for it.
+  it("gives every lesson a well-formed quiz", () => {
+    for (const l of course.lessons) {
+      expect(l.quiz.length, `${l.id} quiz length`).toBe(QUIZ_LENGTH);
+      for (const q of l.quiz) {
+        expect(q.prompt.trim(), `${q.id} prompt`).not.toBe("");
+        expect(q.explanation.trim(), `${q.id} explanation`).not.toBe("");
+        expect(q.options.length, `${q.id} option count`).toBe(QUIZ_OPTIONS);
+        expect(new Set(q.options).size, `${q.id} has duplicate options`).toBe(QUIZ_OPTIONS);
+        for (const o of q.options) expect(o.trim(), `${q.id} blank option`).not.toBe("");
+        expect(q.answer, `${q.id} answer index`).toBeGreaterThanOrEqual(0);
+        expect(q.answer, `${q.id} answer index`).toBeLessThan(QUIZ_OPTIONS);
       }
     }
   });
@@ -139,6 +186,42 @@ describe.each(CONCEPT_COURSES)("concept course: $id", ({ id, modules, minLessons
         .map(([, articleId]) => articleId);
       expect(links.length, `${m.id} links to no library article`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("buildLessonScript — quiz misses reach the tutor", () => {
+  const withExercises = ALL_LESSONS.find((l) => l.exercises.length > 0)!;
+  const conversational = ALL_LESSONS.find((l) => l.exercises.length === 0)!;
+
+  it("says nothing about the quiz until the learner gets one wrong", () => {
+    for (const lesson of [withExercises, conversational]) {
+      expect(buildLessonScript(lesson, 0)).not.toMatch(/QUIZ MISSES/);
+      expect(buildLessonScript(lesson, 0, [])).not.toMatch(/QUIZ MISSES/);
+    }
+  });
+
+  it("carries the missed question, its answer, and its explanation", () => {
+    const missed = conversational.quiz[1];
+    const script = buildLessonScript(conversational, 0, [missed.id]);
+
+    expect(script).toContain(missed.prompt);
+    expect(script).toContain(missed.options[missed.answer]);
+    expect(script).toContain(missed.explanation);
+    // Only what they actually got wrong — not the whole quiz.
+    expect(script).not.toContain(conversational.quiz[0].prompt);
+  });
+
+  it("appends misses to a lesson with exercises without disturbing the arc", () => {
+    const script = buildLessonScript(withExercises, 0, [withExercises.quiz[0].id]);
+
+    expect(script).toContain("EXERCISES");
+    expect(script).toContain(withExercises.exercises[0].title);
+    expect(script).toContain(withExercises.quiz[0].prompt);
+  });
+
+  it("ignores an id that isn't one of this lesson's questions", () => {
+    // A stale id from the previous lesson must not produce an empty misses block.
+    expect(buildLessonScript(conversational, 0, ["not-a-question"])).not.toMatch(/QUIZ MISSES/);
   });
 });
 

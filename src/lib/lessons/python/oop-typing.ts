@@ -110,6 +110,44 @@ print(Widget.count)  # expected: 2 once implemented
 `,
     },
     ],
+    quiz: [
+      {
+        id: "classes-q1",
+        prompt: "Why is `self` written explicitly in every method signature?",
+        options: [
+          "It's required only in `__init__`",
+          "It distinguishes instance methods from static ones at runtime",
+          "It's a keyword the interpreter treats specially",
+          "It's a real parameter — the instance is passed in, and you use it to reach attributes",
+        ],
+        answer: 3,
+        explanation: "Unlike JS/Java's implicit `this`, Python makes it ordinary and explicit — `self` is just the conventional name. There's also no `new` keyword: you call the class like a function.",
+      },
+      {
+        id: "classes-q2",
+        prompt: "A name assigned in the class body versus one assigned via `self` in `__init__` — what's the difference?",
+        options: [
+          "The class-body one is shared by every instance; the `self` one is per-instance",
+          "They're identical; the class body is just a shorthand",
+          "The class-body one is private; the `self` one is public",
+          "The class-body one is evaluated lazily on first access",
+        ],
+        answer: 0,
+        explanation: "Reading `instance.total` falls back to the class attribute, but *assigning* `self.total = ...` shadows it with a new instance attribute. Beware mutable class defaults — a shared `[]` is a classic footgun.",
+      },
+      {
+        id: "classes-q3",
+        prompt: "What does a double leading underscore (`__x`) actually do?",
+        options: [
+          "Prevents the attribute from appearing in `__dict__`",
+          "Triggers name mangling to `_ClassName__x` — it discourages subclass collisions, not access",
+          "Makes the attribute genuinely private and inaccessible from outside",
+          "Marks it as internal, exactly like a single underscore",
+        ],
+        answer: 1,
+        explanation: "There is no real `private` in Python. A single underscore means \"internal, hands off\" by convention; the double underscore mangles the name to avoid accidental collisions in subclasses. Nothing is truly hidden — Python trusts you.",
+      },
+    ],
   },
   {
     id: "dunders-duck-typing",
@@ -215,6 +253,44 @@ for n in Countdown(3):
     print(n)  # expected: 3, then 2, then 1 once implemented
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "dunders-duck-typing-q1",
+        prompt: "If you implement only one of `__repr__` and `__str__`, which should it be?",
+        options: [
+          "`__repr__` — it's the fallback for both, and should read like a constructor call",
+          "`__str__` — it's what `print` uses",
+          "Neither; the default is adequate for both",
+          "Both are required if you define either",
+        ],
+        answer: 0,
+        explanation: "`__repr__` is the unambiguous, developer-facing form you see in a REPL or inside a list; `__str__` is the friendly one for `print`. With only `__repr__` defined, `str()` falls back to it.",
+      },
+      {
+        id: "dunders-duck-typing-q2",
+        prompt: "Why should `__eq__` return `NotImplemented` for a foreign type rather than `False`?",
+        options: [
+          "So the comparison is deferred until both types are known",
+          "So Python can try the other operand's `__eq__` before giving up",
+          "Because returning `False` raises a TypeError in strict mode",
+          "Because `NotImplemented` is falsy anyway, so it's shorter",
+        ],
+        answer: 1,
+        explanation: "Returning `False` asserts inequality; returning `NotImplemented` says \"I don't know,\" letting the reflected operation run. By default `==` is identity, which is why you define `__eq__` for value equality at all.",
+      },
+      {
+        id: "dunders-duck-typing-q3",
+        prompt: "What makes a class work in a `for` loop?",
+        options: [
+          "Registering the class with the iterator protocol",
+          "Implementing `__len__` and `__getitem__` together",
+          "Implementing `__iter__` — conformance is having the right method, with no base class or declaration",
+          "Inheriting from `collections.abc.Iterable`",
+        ],
+        answer: 2,
+        explanation: "That's duck typing: functions don't check types, they just call the methods. Contrast with Java or Go, where a type must declare that it implements an interface. `__len__` powers `len()` and `__getitem__` powers `obj[i]` the same way.",
+      },
     ],
   },
   {
@@ -338,6 +414,44 @@ def describe(thing: Sized) -> str:
 print(describe(Box(["a", "b", "c"])))  # expected: has 3 items once implemented
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "dataclasses-typing-q1",
+        prompt: "What happens at runtime when a Python type hint is wrong?",
+        options: [
+          "The value is coerced to the annotated type",
+          "Nothing — hints are ignored by the interpreter; mypy or pyright catch them statically",
+          "A TypeError is raised at the call site",
+          "A warning is printed to stderr",
+        ],
+        answer: 1,
+        explanation: "This is the biggest mental shift from TypeScript. Checking is a separate, deliberate command — the analog of `tsc` — rather than something the runtime does for you.",
+      },
+      {
+        id: "dataclasses-typing-q2",
+        prompt: "Why must a dataclass list field use `field(default_factory=list)` rather than `= []`?",
+        options: [
+          "`default_factory` is required for all defaults in a dataclass",
+          "It's a style preference; both work identically",
+          "A bare `[]` would be a shared mutable default across every instance — the same trap as mutable function defaults",
+          "`[]` isn't a valid type annotation",
+        ],
+        answer: 2,
+        explanation: "The class body is evaluated once, so a literal `[]` would be one list shared by every instance. `default_factory` calls the factory per instance — and dataclasses actually raise an error if you try the literal.",
+      },
+      {
+        id: "dataclasses-typing-q3",
+        prompt: "What does `typing.Protocol` give you?",
+        options: [
+          "Runtime enforcement of the declared interface",
+          "Nominal typing, like an abstract base class",
+          "A way to declare abstract methods that subclasses must override",
+          "Structural typing — a class matches just by having the right methods and attributes, no inheritance",
+        ],
+        answer: 3,
+        explanation: "It's exactly TypeScript's `interface { name: string }` — conformance by shape, which is duck typing the type-checker can verify. `ABC` and inheritance are the nominal, Java-style alternative.",
+      },
     ],
   },
 ];

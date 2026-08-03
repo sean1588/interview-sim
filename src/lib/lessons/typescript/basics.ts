@@ -106,6 +106,44 @@ console.log("answer is", answer);
 `,
     },
     ],
+    quiz: [
+      {
+        id: "what-is-typescript-q1",
+        prompt: "What happens to a `: string` annotation after compilation?",
+        options: [
+          "It's stored as metadata the runtime can reflect over",
+          "It's converted to a JSDoc comment in the emitted JavaScript",
+          "It's erased — no runtime type checks, no reflectable metadata, no runtime cost",
+          "It becomes a runtime assertion that throws on a wrong type",
+        ],
+        answer: 2,
+        explanation: "This is the opposite of Java/C#, where types are enforced by the VM and partly present at runtime. In TS, if a wrong-typed value sneaks in at a boundary — JSON, an `any`, a bad cast — nothing stops it, because the type system only ever ran at compile time.",
+      },
+      {
+        id: "what-is-typescript-q2",
+        prompt: "`const dog = { name: \"Rex\", legs: 4 }` is assigned to `const n: Named = dog` where `Named` requires only `name`. Why does this compile?",
+        options: [
+          "TypeScript ignores extra properties on all assignments",
+          "`Named` is an interface, and interfaces are always satisfied implicitly at runtime",
+          "It doesn't compile — `dog` needs `implements Named`",
+          "TypeScript is structurally typed — compatibility is decided by shape, not by a declared relationship",
+        ],
+        answer: 3,
+        explanation: "A Java or C# developer expects an explicit `implements Named`. TS just compares shapes: `dog` has a `name`, so it is `Named`-shaped. (An object *literal* passed directly would trigger the separate excess-property check.)",
+      },
+      {
+        id: "what-is-typescript-q3",
+        prompt: "In this course's editor, what happens when you Run code containing a type error?",
+        options: [
+          "It runs — the code is type-stripped and executed, so the error appears only as a red squiggle",
+          "The Run button is disabled until the error is fixed",
+          "It throws a TypeError at runtime where the annotation was",
+          "It runs but prints the type error to the output console first",
+        ],
+        answer: 0,
+        explanation: "The editor is transpile-and-run with no separate type-check gate. Squiggles are your type feedback and the console is your runtime feedback — two independent signals. `tsc --noEmit` is what gates types in a real project.",
+      },
+    ],
   },
   {
     id: "primitives-and-inference",
@@ -261,6 +299,44 @@ console.log(shout(42)); // should print: not a string
 `,
     },
     ],
+    quiz: [
+      {
+        id: "primitives-and-inference-q1",
+        prompt: "What are the inferred types of `const a = \"GET\"` and `let b = \"GET\"`?",
+        options: [
+          "Both are `string`",
+          "Both are the literal type `\"GET\"`",
+          "`a` is `string`; `b` is `\"GET\"`",
+          "`a` is the literal type `\"GET\"`; `b` is widened to `string`",
+        ],
+        answer: 3,
+        explanation: "A `const` can never be reassigned, so TS narrows to the literal. A `let` can be, so TS widens to the base type. This is why `as const` matters for object literals, whose properties widen the same way.",
+      },
+      {
+        id: "primitives-and-inference-q2",
+        prompt: "What's the difference between `any` and `unknown`?",
+        options: [
+          "Anything is assignable to `unknown`, but you can do nothing with it until you narrow — `any` opts out of checking entirely",
+          "`unknown` is a runtime type check; `any` is compile-time only",
+          "`any` accepts anything; `unknown` accepts only object types",
+          "They're aliases, but `unknown` is the modern spelling",
+        ],
+        answer: 0,
+        explanation: "`any` is a hole in the type system: anything goes, nothing is caught, and it spreads to everything you pull off it. `unknown` is the safe top type — the same \"I don't know yet\" with the opposite default. Reach for it whenever a value's type is genuinely not known yet.",
+      },
+      {
+        id: "primitives-and-inference-q3",
+        prompt: "What is `never`?",
+        options: [
+          "The type of `null` under strict null checks",
+          "The bottom type — a value that can never exist, like the return of a function that always throws",
+          "The type of a variable that hasn't been assigned yet",
+          "A synonym for `void`",
+        ],
+        answer: 1,
+        explanation: "`never` is what you get for the impossible branch of an exhaustive switch, which is what makes the `assertNever` exhaustiveness trick work. `void` is different — it means \"no useful return value,\" not \"no value can exist.\"",
+      },
+    ],
   },
   {
     id: "type-vs-value",
@@ -388,6 +464,44 @@ console.log(safeUpper(raw)); // number -> (not a string)
 console.log(safeUpper("ok")); // string -> OK once you narrow
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "type-vs-value-q1",
+        prompt: "Can `type User = { id: number }` and `const User = { id: 1 }` coexist in one file?",
+        options: [
+          "Only if the type is declared with `interface` instead",
+          "Yes — types and values live in separate namespaces that don't collide",
+          "No — the second declaration shadows the first",
+          "No — it's a duplicate-identifier error",
+        ],
+        answer: 1,
+        explanation: "Type space and value space don't overlap. After compilation the `type` line is gone entirely and only the `const` survives. This is exactly what lets the `as const` + derived-union pattern reuse one name for both.",
+      },
+      {
+        id: "type-vs-value-q2",
+        prompt: "How does the `typeof` *type* operator differ from JavaScript's `typeof`?",
+        options: [
+          "It's the same operator; TypeScript just allows it in more positions",
+          "It performs a runtime check that TS then narrows on",
+          "It lives in type space and yields a type, not a runtime string",
+          "It works on types rather than values, and returns their names as strings",
+        ],
+        answer: 2,
+        explanation: "Same keyword, two different operators. `type Options = typeof defaults` derives an object type from a value, and you'll see it constantly with `as const` and `keyof typeof` to keep a single source of truth rather than hand-writing the type twice.",
+      },
+      {
+        id: "type-vs-value-q3",
+        prompt: "`const s = data as string` where `data` is actually `42`. What happens?",
+        options: [
+          "It throws immediately at the assertion",
+          "It coerces 42 to the string \"42\"",
+          "It's a compile error, since `unknown` can't be asserted to `string`",
+          "It compiles fine and crashes later — `as` performs no runtime conversion and no check",
+        ],
+        answer: 3,
+        explanation: "`as` tells the compiler \"trust me\" and it obeys. Prefer narrowing — a `typeof`/`in`/`instanceof` check — which is *verified* and reflects the real runtime value. The non-null `!` is the same unchecked promise in focused form.",
+      },
     ],
   },
 ];

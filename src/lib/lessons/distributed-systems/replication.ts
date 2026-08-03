@@ -43,6 +43,44 @@ Any node takes any write; the client (or a coordinator) writes to several replic
 
 > [Replication & quorums](/library/replication-and-quorums) is the interview-facing companion: the vocabulary and the sizing move for a design question. Here we care about *why* the leaderless write path needs conflict machinery at all.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-leaders-and-followers-q1",
+        prompt: "Why does single-leader replication have no write conflicts by construction?",
+        options: [
+          "The leader validates each write against all followers before accepting it",
+          "Followers reject any write that would conflict with one they already have",
+          "Conflicts are detected and merged automatically by the replication log",
+          "With one writer, every write to a key is already ordered, so there's no concurrency to resolve",
+        ],
+        answer: 3,
+        explanation: "That's why it's the default in Postgres, MySQL, and Kafka's per-partition model. What you pay is a write bottleneck, a failover window of typically 10-40 seconds, and follower lag.",
+      },
+      {
+        id: "ds-leaders-and-followers-q2",
+        prompt: "When is multi-leader replication the wrong call?",
+        options: [
+          "For anything with a global invariant, like \"one seat, one booking\" or \"the balance never goes below zero\"",
+          "Whenever writes originate from more than one region",
+          "Whenever the data model contains foreign keys",
+          "Whenever you need read throughput rather than write throughput",
+        ],
+        answer: 0,
+        explanation: "Multi-leader is right when writes partition naturally by geography or user and the merge is genuinely commutative. A global invariant can't be enforced by two nodes accepting writes independently — that's what a single leader or consensus is for.",
+      },
+      {
+        id: "ds-leaders-and-followers-q3",
+        prompt: "What single question determines the replication topology?",
+        options: [
+          "Does the data need to survive a region failure?",
+          "Who is allowed to accept a write for this key — one node, or several?",
+          "How many replicas can you afford to run?",
+          "Is the workload read-heavy or write-heavy?",
+        ],
+        answer: 1,
+        explanation: "One node means single leader. Several means you owe an answer to \"what happens when two of them accept at once\" — and that answer is the design. Everything else follows from it.",
+      },
+    ],
   },
   {
     id: "ds-quorums",
@@ -82,6 +120,44 @@ Note that a larger \`N\` doesn't just add durability: it adds tail latency, beca
 
 **Latency is set by the W-th response.** With \`W=2\` of 3 you wait for the second-fastest replica, which is why quorum systems often send to all \`N\` and take the first \`W\` — a cheap hedge against one slow node.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-quorums-q1",
+        prompt: "Why does `R + W > N` guarantee a read sees the latest write?",
+        options: [
+          "Because writes are applied in timestamp order across all replicas",
+          "Because the coordinator waits for all N replicas before returning",
+          "Because reads are always served by the node that accepted the write",
+          "Pigeonhole — there aren't enough replicas for the read set and write set to be disjoint, so they share at least one node",
+        ],
+        answer: 3,
+        explanation: "The overlap is forced by counting. That shared node holds the latest write, so the read sees it — given a version number to pick the newest of the returned values. No leader required, and no coordination on the write path.",
+      },
+      {
+        id: "ds-quorums-q2",
+        prompt: "Is a quorum system with `R + W > N` linearizable?",
+        options: [
+          "No — a write that fails after reaching some replicas is neither applied nor rolled back, and concurrent operations still need reconciliation",
+          "Yes, that's exactly what the inequality guarantees",
+          "Yes, provided `W = N`",
+          "Only if all replicas share a synchronized clock",
+        ],
+        answer: 0,
+        explanation: "Quorums buy freshness in the common case, not linearizability. Edge cases leak stale or lost writes, and a read concurrent with a write may or may not see it. Real linearizability needs consensus, not a quorum.",
+      },
+      {
+        id: "ds-quorums-q3",
+        prompt: "What does a sloppy quorum with hinted handoff trade away?",
+        options: [
+          "The ability to detect concurrent writes",
+          "The `R+W>N` overlap guarantee — acks come from any reachable nodes, not the ones that own the key",
+          "Durability — writes accepted this way can be lost outright",
+          "Write availability during a partition",
+        ],
+        answer: 1,
+        explanation: "During a partition the system takes `W` acks from any `W` reachable nodes. The write is durable, but it isn't on the home replicas, so the overlap argument no longer holds. The temporary holders keep hints and hand the data back later — an availability choice with a real freshness cost.",
+      },
+    ],
   },
   {
     id: "ds-consistency-menu",
@@ -130,6 +206,44 @@ Choosing linearizable everywhere is a common and expensive mistake: you pay cons
 
 > [Consistency models](/library/consistency-models) is the interview-facing companion — how to name a guarantee and justify it under questioning. Here the point is the mechanism you'd have to build to keep each promise.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-consistency-menu-q1",
+        prompt: "Which consistency model composes with things outside the system, like a user who saw a confirmation and refreshed on their phone?",
+        options: [
+          "Causal — the reply never appears above the comment it answers",
+          "Read-your-writes — you always see your own edits",
+          "Monotonic reads — you never move backwards in time",
+          "Linearizable — once a write returns, every subsequent read by anyone sees it",
+        ],
+        answer: 3,
+        explanation: "Linearizability is the only rung that makes a promise about real time to all observers, which is what lets it compose with external channels. The cost is consensus on the write path and reads that can't be served from an arbitrary replica.",
+      },
+      {
+        id: "ds-consistency-menu-q2",
+        prompt: "What is the strongest consistency model available without giving up availability during a partition?",
+        options: [
+          "Causal consistency",
+          "Linearizability",
+          "Sequential consistency",
+          "Eventual consistency",
+        ],
+        answer: 0,
+        explanation: "Causal is the ceiling under partition-tolerance-with-availability, and it's usually what people actually want when they say \"consistent\": if `a → b`, nobody sees `b` without `a`. Concurrent operations may still be observed in different orders by different readers.",
+      },
+      {
+        id: "ds-consistency-menu-q3",
+        prompt: "How do you cheaply buy read-your-writes without upgrading the whole datastore?",
+        options: [
+          "Cache the user's writes in the browser and merge them into every response",
+          "Route that user's reads to the leader for N seconds after a write, or pass the write's version and require a replica at least that fresh",
+          "Increase the replication factor so more replicas have the write",
+          "Switch the store to synchronous replication for all writes",
+        ],
+        answer: 1,
+        explanation: "The session-level guarantees are bought at the edge. Monotonic reads come from pinning a session to one replica; causal from carrying a version vector. Choosing linearizable everywhere is a common and expensive mistake — pick per operation, not per system.",
+      },
+    ],
   },
   {
     id: "ds-cap-pacelc",
@@ -185,5 +299,43 @@ Don't label the system. Label the **operation**: for this write path, during a p
 
 > The library's [Multi-region](/library/multi-region) note is the interview-facing companion, covering how to present these tradeoffs in a design discussion; here we care about which mechanism forces the choice.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-cap-pacelc-q1",
+        prompt: "Why is \"pick two of three\" a misleading framing of CAP?",
+        options: [
+          "The theorem applies only to systems with more than five nodes",
+          "C and A are the same property stated differently",
+          "P isn't a choice — networks partition whether you like it or not, so the real question is what you do when one happens",
+          "All three can be achieved with enough replicas",
+        ],
+        answer: 2,
+        explanation: "A \"CA system\" is just a system that hasn't thought about partitions. The real statement is: when a partition happens, do you refuse requests you can't make consistent, or serve them and accept divergence you'll reconcile later?",
+      },
+      {
+        id: "ds-cap-pacelc-q2",
+        prompt: "What does the \"else\" branch of PACELC describe?",
+        options: [
+          "The behavior after a partition heals and replicas reconcile",
+          "The choice between eventual and causal consistency",
+          "What happens when a majority of nodes fail simultaneously",
+          "The normal case — with a healthy network you still trade latency against consistency on every write",
+        ],
+        answer: 3,
+        explanation: "The else branch is where you live daily. A linearizable write must reach a quorum before acknowledging — a round trip, or several, and 100ms+ cross-region. That's why CAP alone is a poor design tool: it says nothing about the 99.9% of the time the network is fine.",
+      },
+      {
+        id: "ds-cap-pacelc-q3",
+        prompt: "What's the most useful way to apply PACELC to a real design?",
+        options: [
+          "Label the operation, not the system — \"booking a seat: PC/EC; updating a profile photo: PA/EL\"",
+          "Classify the database as PA/EL or PC/EC and design around that label",
+          "Choose the datastore whose classification matches your industry",
+          "Assume PC/EC and relax it only if latency becomes a problem",
+        ],
+        answer: 0,
+        explanation: "One sentence naming the behavior per write path is worth more than any classification of the database as a whole. The same product genuinely has different needs on different paths, and \"C\" in CAP means linearizability specifically — not \"my data is correct.\"",
+      },
+    ],
   },
 ];

@@ -39,6 +39,10 @@ export default function LessonWorkspace({
 
   const lastRunRef = useRef<string | undefined>(undefined);
 
+  // Quiz questions answered wrong, owned here rather than in the quiz so the
+  // tutor sees them on the next turn (see buildLessonScript).
+  const [missedQuizIds, setMissedQuizIds] = useState<string[]>([]);
+
   const setCode = useCallback(
     (value: string) => setBuffers((prev) => ({ ...prev, [exerciseIndex]: value })),
     [exerciseIndex]
@@ -67,7 +71,7 @@ export default function LessonWorkspace({
     (): SessionContext => ({
       questionId: lesson.id,
       questionTitle: lesson.title,
-      questionPrompt: buildLessonScript(lesson, exerciseIndex),
+      questionPrompt: buildLessonScript(lesson, exerciseIndex, missedQuizIds),
       code: hasExercises ? code : undefined,
       // Always sent (even on conversational lessons) so the tutor persona is the
       // course's language; with no code, the editor annotation is a no-op. A
@@ -76,7 +80,7 @@ export default function LessonWorkspace({
       course: course.id,
       lastRun: lastRunRef.current,
     }),
-    [course.language, course.id, lesson, exerciseIndex, code, hasExercises]
+    [course.language, course.id, lesson, exerciseIndex, code, hasExercises, missedQuizIds]
   );
 
   const handleEnd = useCallback(() => {
@@ -111,6 +115,8 @@ export default function LessonWorkspace({
             <div className="w-[440px] flex-none border-r border-hair min-h-0">
               <LessonMaterial
                 content={lesson.content}
+                quiz={lesson.quiz}
+                onMissedChange={setMissedQuizIds}
                 exercise={{
                   data: exercise,
                   index: exerciseIndex,
@@ -136,7 +142,11 @@ export default function LessonWorkspace({
         ) : (
           // Conversational lesson: no exercises, no editor — the notes fill the room.
           <div className="flex-1 min-w-0 min-h-0">
-            <LessonMaterial content={lesson.content} />
+            <LessonMaterial
+              content={lesson.content}
+              quiz={lesson.quiz}
+              onMissedChange={setMissedQuizIds}
+            />
           </div>
         )}
       </SessionFrame>

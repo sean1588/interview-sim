@@ -130,6 +130,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-goroutines-waitgroups-q1",
+        prompt: "What happens to running goroutines when `main` returns?",
+        options: [
+          "The runtime waits for all of them to finish first",
+          "They are detached and continue as background processes",
+          "The program panics if any goroutine is still running",
+          "The program exits and kills them — you must wait explicitly, never with `time.Sleep`",
+        ],
+        answer: 3,
+        explanation: "`go fmt.Println(\"might not run\")` in an otherwise empty main usually prints nothing. A `sync.WaitGroup` — `Add` before launching, `defer Done` inside, `Wait` to block — is the standard way to wait.",
+      },
+      {
+        id: "go-goroutines-waitgroups-q2",
+        prompt: "What is Go's concurrency proverb?",
+        options: [
+          "\"Don't communicate by sharing memory; share memory by communicating\"",
+          "\"Locks are cheaper than channels\"",
+          "\"A goroutine per request, a mutex per resource\"",
+          "\"Concurrency is parallelism\"",
+        ],
+        answer: 0,
+        explanation: "Coordinate with channels rather than locks where you can. Mutexes still exist and are right when goroutines genuinely share state — but the default reach is a channel.",
+      },
+      {
+        id: "go-goroutines-waitgroups-q3",
+        prompt: "The classic loop-variable capture gotcha — every goroutine seeing the final `i`. What changed?",
+        options: [
+          "WaitGroups were changed to snapshot loop variables",
+          "Since Go 1.22 each loop iteration gets a fresh variable, so the closure captures the value you expect",
+          "It was never real; closures always captured by value",
+          "`go vet` now rejects the pattern, but the behavior is unchanged",
+        ],
+        answer: 1,
+        explanation: "In older Go you had to pass `i` as an argument to the goroutine to avoid every one of them seeing the loop's final value. Go 1.22 gives each iteration a fresh variable, which fixes the gotcha at the language level.",
+      },
+    ],
   },
   {
     id: "go-channels",
@@ -293,6 +331,44 @@ func main() {
 `,
       },
     ],
+    quiz: [
+      {
+        id: "go-channels-q1",
+        prompt: "What does an unbuffered channel (`make(chan T)`) do on send?",
+        options: [
+          "Blocks until a receiver is ready — the send and receive rendezvous, which *is* the synchronization",
+          "Buffers one value and returns immediately",
+          "Returns an error if no receiver is waiting",
+          "Drops the value silently if nobody is listening",
+        ],
+        answer: 0,
+        explanation: "No capacity means send and receive happen together. That blocking often removes the need for a WaitGroup entirely — the handoff itself is the coordination.",
+      },
+      {
+        id: "go-channels-q2",
+        prompt: "Who should close a channel, and why does it matter?",
+        options: [
+          "Nobody; the garbage collector closes channels automatically",
+          "Only the sender — sending on a closed channel panics, and closing twice panics too",
+          "Only the receiver, once it has read everything it wants",
+          "Whichever side finishes first",
+        ],
+        answer: 1,
+        explanation: "Closing is a broadcast that says \"no more values,\" and receives after close return the zero value with `ok == false`. It isn't required cleanup — leaving a channel open is fine if nobody relies on the close signal.",
+      },
+      {
+        id: "go-channels-q3",
+        prompt: "What does `for v := range ch` do?",
+        options: [
+          "Iterates the channel's buffer without consuming values",
+          "Blocks forever unless the channel is buffered",
+          "Receives until the channel is closed — the clean way to consume a stream",
+          "Receives exactly the number of values currently buffered",
+        ],
+        answer: 2,
+        explanation: "It's the producer/consumer backbone: the producer sends and then closes, and the range loop ends. A send on a nil channel, by contrast, blocks forever.",
+      },
+    ],
   },
   {
     id: "go-select-context",
@@ -440,6 +516,44 @@ func main() {
 	fmt.Println(worker(ctx))
 }
 `,
+      },
+    ],
+    quiz: [
+      {
+        id: "go-select-context-q1",
+        prompt: "What does adding a `default` case to a `select` do?",
+        options: [
+          "Catches any panic raised inside the other cases",
+          "Makes the select loop until one of the channels is ready",
+          "Makes it non-blocking — it runs immediately if no other case is ready",
+          "Runs after every other case has been evaluated",
+        ],
+        answer: 2,
+        explanation: "Without a default, `select` blocks until one of its channel operations is ready; if several are ready it picks one at random. A default turns it into a poll.",
+      },
+      {
+        id: "go-select-context-q2",
+        prompt: "By convention, where does `context.Context` go in a function signature?",
+        options: [
+          "Last parameter, alongside the error return",
+          "In a struct field on the receiver",
+          "As a package-level variable set at startup",
+          "First parameter, for any function that does I/O or long work",
+        ],
+        answer: 3,
+        explanation: "`func Fetch(ctx context.Context, ...)` is the standard shape. The context carries cancellation, deadlines, and request-scoped data across API boundaries, and always calling the returned `cancel` (usually via `defer`) releases its resources.",
+      },
+      {
+        id: "go-select-context-q3",
+        prompt: "What is `ctx.Done()`?",
+        options: [
+          "A channel that closes when the context is cancelled or times out, so `<-ctx.Done()` unblocks",
+          "A method that blocks until all child contexts finish",
+          "A boolean reporting whether the context has expired",
+          "A callback registered to run at cancellation",
+        ],
+        answer: 0,
+        explanation: "Closing a channel broadcasts to every receiver at once, which is why it's the cancellation primitive. `ctx.Err()` then says why. Cancellation propagates down, so one signal tears down a whole tree of goroutines.",
       },
     ],
   },

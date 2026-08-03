@@ -106,6 +106,44 @@ console.log(describeError());
 `,
     },
     ],
+    quiz: [
+      {
+        id: "typing-async-q1",
+        prompt: "An `async` function body does `return 42`. What should its declared return type be?",
+        options: [
+          "`number`, matching what the body returns",
+          "`number | Promise<number>`, since it may resolve synchronously",
+          "`Awaited<number>`",
+          "`Promise<number>` — an async function always returns a promise, and `T` is the resolved value",
+        ],
+        answer: 3,
+        explanation: "Note the asymmetry: inside the body you return a plain `number`, but the declared type wraps it. `await` is the inverse, unwrapping `Promise<T>` back to `T`. Annotating it `Promise<string>` here would be a compile error even though the runtime would happily resolve a number.",
+      },
+      {
+        id: "typing-async-q2",
+        prompt: "What does `await Promise.all([getCount(), getName()])` give you type-wise?",
+        options: [
+          "A tuple with positions preserved — `[number, string]`, not a union or `any[]`",
+          "`(number | string)[]` — an array of the union",
+          "`any[]`, since the promises resolve to different types",
+          "`unknown[]` under strict mode",
+        ],
+        answer: 0,
+        explanation: "`Promise.all` is generic over a tuple, so each resolved value keeps its own type by position. That's what makes destructuring the result work with full type information.",
+      },
+      {
+        id: "typing-async-q3",
+        prompt: "Under modern strict TypeScript, what is the type of the binding in `catch (err)`?",
+        options: [
+          "It depends on what the `try` block's functions declare they throw",
+          "`unknown` — JavaScript can throw anything, so you must narrow with `instanceof` before reading properties",
+          "`Error`, the most common thrown type",
+          "`any`, which is why the checker doesn't complain",
+        ],
+        answer: 1,
+        explanation: "`useUnknownInCatchVariables` (part of `strict`) types it `unknown` because JS lets you throw a string, a number, or `null`. Unlike Java/C# there's no typed exception class in the catch clause — there's one binding and you narrow it yourself.",
+      },
+    ],
   },
   {
     id: "modules-and-tooling",
@@ -176,5 +214,43 @@ A few keys carry most of the weight:
 - **\`tsx\`** / **\`ts-node\`** — run a \`.ts\` file directly during development, no separate build step.
 - **ESLint + \`@typescript-eslint\`** — lint rules that understand the type system (e.g. flag a floating, un-awaited Promise). \`tsc\` checks *types*; ESLint enforces *style and patterns*. You want both.`,
     exercises: [],
+    quiz: [
+      {
+        id: "modules-and-tooling-q1",
+        prompt: "Why prefer `import type { User } from \"./models\"` when `User` is used only as a type?",
+        options: [
+          "It resolves faster because the compiler skips the module",
+          "It's required under `strict` mode",
+          "It allows importing types that aren't exported",
+          "It's guaranteed to be erased, so it emits no runtime import — avoiding side effects and keeping the symbol out of import cycles",
+        ],
+        answer: 3,
+        explanation: "A normal `import` also emits runtime code, which can add an edge to a cycle and trigger a use-before-initialization error during a circular load. This distinction has no analogue in Java/C#, where imports are purely compile-time. You can also inline it: `import { saveUser, type User }`.",
+      },
+      {
+        id: "modules-and-tooling-q2",
+        prompt: "What is a `.d.ts` file for?",
+        options: [
+          "Carrying types only, with no implementation — how you put a TypeScript face on plain JavaScript",
+          "Declaring the module graph for the bundler",
+          "Holding default values for optional configuration",
+          "Documenting types for the editor without affecting compilation",
+        ],
+        answer: 0,
+        explanation: "For untyped npm packages the community ships declarations separately under `@types/*` (DefinitelyTyped). Many modern packages bundle their own, so you only reach for `@types/*` when a library ships none.",
+      },
+      {
+        id: "modules-and-tooling-q3",
+        prompt: "What's the division of labour between `tsc` and ESLint with `@typescript-eslint`?",
+        options: [
+          "They do the same job; running both is redundant",
+          "`tsc` checks types; ESLint enforces style and patterns, including rules that read type information — you want both",
+          "ESLint replaced `tsc` for type checking in modern setups",
+          "`tsc` checks types and style; ESLint only handles formatting",
+        ],
+        answer: 1,
+        explanation: "`tsc --noEmit` is the canonical type-check step in CI. Type-aware lint rules catch things the type system doesn't consider errors — a floating, un-awaited Promise being the classic example.",
+      },
+    ],
   },
 ];

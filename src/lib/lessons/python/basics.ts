@@ -145,6 +145,44 @@ print(as_string, type(as_string))
 `,
     },
     ],
+    quiz: [
+      {
+        id: "hello-and-values-q1",
+        prompt: "Python is dynamically typed like JavaScript. What does \"strongly typed\" add on top?",
+        options: [
+          "A name can only ever hold one type once assigned",
+          "Types are checked by the interpreter before the program runs",
+          "No implicit coercion between unrelated types — `\"3\" + 4` raises a TypeError",
+          "Variables must be declared with a type annotation before use",
+        ],
+        answer: 2,
+        explanation: "Names aren't typed, values are — `x = 10` then `x = \"now str\"` is legal. But Python refuses to guess across types, so it won't produce `\"34\"` or `7` the way JavaScript would.",
+      },
+      {
+        id: "hello-and-values-q2",
+        prompt: "How do you format `3.14159` to two decimal places inside an f-string?",
+        options: [
+          "`f\"{value.toFixed(2)}\"`",
+          "`f\"{value, .2f}\"`",
+          "`f\"%.2f\" % value`",
+          "`f\"{value:.2f}\"` — the format spec goes after a colon",
+        ],
+        answer: 3,
+        explanation: "f-strings embed an expression in braces and take an optional `:format_spec` for width and precision. That spec is the piece JS template literals have no equivalent for.",
+      },
+      {
+        id: "hello-and-values-q3",
+        prompt: "How do you declare a constant in Python?",
+        options: [
+          "You can't — `UPPER_SNAKE_CASE` is a convention only, and nothing stops reassignment",
+          "With the `const` keyword",
+          "With `final` before the name",
+          "By assigning at module level, which makes the binding immutable",
+        ],
+        answer: 0,
+        explanation: "There's no declaration keyword at all — no `let`, `const`, or `var`. Naming a value `MAX_RETRIES` signals intent to readers and linters, but the interpreter will happily let you rebind it.",
+      },
+    ],
   },
   {
     id: "control-flow",
@@ -288,6 +326,44 @@ for value in [[], [1], "", "hi", 0, None]:
     print(f"{value} -> {is_empty(value)}")
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "control-flow-q1",
+        prompt: "What's the Pythonic way to check whether a list is empty?",
+        options: [
+          "`if len(items) == 0:`",
+          "`if items == []:`",
+          "`if items is None or len(items) < 1:`",
+          "`if not items:` — empty containers are falsy",
+        ],
+        answer: 3,
+        explanation: "`False`, `None`, `0`, `0.0`, `\"\"`, `[]`, `{}`, `()`, and `set()` are all falsy; everything else is truthy. Testing the value directly is the idiom — the length comparison works but reads as translated-from-Java.",
+      },
+      {
+        id: "control-flow-q2",
+        prompt: "How do you write `cond ? a : b` in Python?",
+        options: [
+          "`a if cond else b` — the value-if-true comes first",
+          "`cond ? a : b`, same as JavaScript",
+          "`if cond then a else b`",
+          "`cond and a or b` is the only option",
+        ],
+        answer: 0,
+        explanation: "Python's conditional expression reads in plain-English order, which is the same three parts reordered. (The `and`/`or` trick works but breaks when `a` is falsy.)",
+      },
+      {
+        id: "control-flow-q3",
+        prompt: "Python has no C-style `for (int i = 0; i < n; i++)`. How do you loop a count?",
+        options: [
+          "`for i in 0..n:`",
+          "`for i in range(n):` — you iterate over a sequence, always",
+          "`for i = 0 to n:`",
+          "`while i < n:` is the only option",
+        ],
+        answer: 1,
+        explanation: "`range(n)` yields 0 through n-1, and `range(1, 4)` takes a start and stop. Note there's no `++` operator either — you write `n += 1`.",
+      },
     ],
   },
   {
@@ -451,6 +527,44 @@ print("fixed:", append_to_fixed(2))
 `,
     },
     ],
+    quiz: [
+      {
+        id: "functions-q1",
+        prompt: "What does this print?\n\n```python\ndef bad(item, target=[]):\n    target.append(item)\n    return target\n\nprint(bad(1))\nprint(bad(2))\n```",
+        options: [
+          "`[1]` then `[1]` — the default is reset every call",
+          "A TypeError — mutable defaults aren't allowed",
+          "`[1]` then `[1, 2]` — the default is evaluated once at definition time and shared",
+          "`[1]` then `[2]` — each call gets a fresh list",
+        ],
+        answer: 2,
+        explanation: "Default values are evaluated once, when the `def` executes — not per call. The idiomatic fix is a `None` sentinel and `if target is None: target = []` inside the body.",
+      },
+      {
+        id: "functions-q2",
+        prompt: "What do `*args` and `**kwargs` collect?",
+        options: [
+          "Both collect all arguments; `**kwargs` just preserves their names",
+          "`*args` collects into a list; `**kwargs` into a set of keys",
+          "`*args` is the rest parameter; `**kwargs` unpacks a dict into parameters",
+          "`*args` collects extra positional arguments into a tuple; `**kwargs` collects extra keyword arguments into a dict",
+        ],
+        answer: 3,
+        explanation: "`log(\"INFO\", 1, 2, user=\"ada\")` gives `args == (1, 2)` and `kwargs == {'user': 'ada'}`. It's Python's rest-parameter analog, split by how the argument was passed.",
+      },
+      {
+        id: "functions-q3",
+        prompt: "Why does Python rarely need Java-style method overloading?",
+        options: [
+          "Defaults plus keyword arguments let one signature cover the cases, and callers can name arguments in any order",
+          "Python dispatches on argument types automatically",
+          "Overloading exists but is spelled `@overload`",
+          "Python functions accept any arguments, so overloads would be meaningless",
+        ],
+        answer: 0,
+        explanation: "`connect(\"db\", ssl=False)` skips `port` and names the rest; `connect(port=5433, host=\"db\")` is order-free. That doubles as self-documenting call sites, which is a second benefit over positional overloads.",
+      },
+    ],
   },
   {
     id: "modules-and-main",
@@ -582,6 +696,44 @@ Running as a script.
 #     main()
 `,
     },
+    ],
+    quiz: [
+      {
+        id: "modules-and-main-q1",
+        prompt: "What is `if __name__ == \"__main__\":` for?",
+        options: [
+          "The body runs on `python file.py` but not when the file is imported as a module",
+          "It declares the module's entry point so the interpreter can find it",
+          "It makes the module's names global rather than file-scoped",
+          "It's required for any file that defines a `main` function",
+        ],
+        answer: 0,
+        explanation: "`__name__` is `\"__main__\"` when a file runs directly and the module's name when it's imported. It's the counterpart to Go's `package main` + `func main()`, but a convention enforced by the guard rather than by the language.",
+      },
+      {
+        id: "modules-and-main-q2",
+        prompt: "Why is `if value is None:` preferred over `if value == None:`?",
+        options: [
+          "`==` fails when the value is an empty container",
+          "`None` is a singleton, so identity is the exact and idiomatic check — `==` calls `__eq__`, which a class can override",
+          "`==` raises a TypeError when the left side is `None`",
+          "`is` is faster to type; the two are otherwise identical",
+        ],
+        answer: 1,
+        explanation: "`==` compares values by calling `__eq__`; `is` compares identity — whether two names point to the same object. Since exactly one `None` instance exists, identity is precisely the question you're asking.",
+      },
+      {
+        id: "modules-and-main-q3",
+        prompt: "Do `if` and `for` blocks create a new scope in Python?",
+        options: [
+          "Only `for`, whose loop variable is block-scoped",
+          "Yes, unless you declare the name `global`",
+          "No — only functions do, and name lookup follows LEGB: Local, Enclosing, Global, Built-in",
+          "Yes, the same as JavaScript's `let`",
+        ],
+        answer: 2,
+        explanation: "A variable assigned inside an `if` is visible after it — there's no block scope. A name assigned inside a *function* is local unless you declare `global` or `nonlocal`.",
+      },
     ],
   },
 ];

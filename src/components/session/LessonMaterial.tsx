@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import type { Exercise } from "@/lib/lessons";
+import LessonQuiz from "@/components/session/LessonQuiz";
+import type { Exercise, QuizQuestion } from "@/lib/lessons";
 
 /** The current exercise plus its navigation — present only on lessons that have
  * exercises. Bundling these keeps the conversational-lesson caller from passing
@@ -15,19 +16,27 @@ export interface ExerciseView {
   onNext: () => void;
 }
 
+type TabId = "notes" | "exercise" | "quiz";
+
 /** The middle column of the lesson room: a tabbed reading area that swaps between
- * the lesson notes and the current exercise — the de-cramping fix that replaces
- * the old stack of four scroll panes. With no exercise it's just the notes, full
- * height, no tabs. */
+ * the lesson notes, the current exercise, and the end-of-lesson quiz — the
+ * de-cramping fix that replaces the old stack of four scroll panes. With no
+ * exercise it's notes and quiz only.
+ *
+ * Every pane stays mounted and is hidden rather than unmounted, so switching tabs
+ * keeps both scroll position and half-finished quiz answers. */
 export default function LessonMaterial({
   content,
+  quiz,
+  onMissedChange,
   exercise,
 }: {
   content: string;
+  quiz: QuizQuestion[];
+  onMissedChange: (missedIds: string[]) => void;
   exercise?: ExerciseView;
 }) {
-  const [tab, setTab] = useState<"notes" | "exercise">("notes");
-  const showExercise = tab === "exercise" && exercise;
+  const [tab, setTab] = useState<TabId>("notes");
 
   return (
     <div className="h-full flex flex-col min-h-0 bg-chip">
@@ -41,10 +50,19 @@ export default function LessonMaterial({
             Exercise · {exercise.index + 1}/{exercise.total}
           </Tab>
         )}
+        <Tab active={tab === "quiz"} onClick={() => setTab("quiz")}>
+          Quiz
+        </Tab>
       </div>
 
-      {showExercise ? (
-        <div className="flex-1 min-h-0 overflow-y-auto px-[22px] py-[22px]">
+      <Pane active={tab === "notes"}>
+        <div className="markdown">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+      </Pane>
+
+      {exercise && (
+        <Pane active={tab === "exercise"}>
           <div className="mb-3.5 flex items-start justify-between gap-3">
             <div>
               <div className="font-serif text-[18px] font-semibold text-ink">
@@ -69,12 +87,23 @@ export default function LessonMaterial({
           <div className="markdown">
             <ReactMarkdown>{exercise.data.instructions}</ReactMarkdown>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto px-[22px] py-[22px] markdown">
-          <ReactMarkdown>{content}</ReactMarkdown>
-        </div>
+        </Pane>
       )}
+
+      <Pane active={tab === "quiz"}>
+        <LessonQuiz quiz={quiz} onMissedChange={onMissedChange} />
+      </Pane>
+    </div>
+  );
+}
+
+/** One tab body. Hidden, not unmounted, so pane state survives tab switches. */
+function Pane({ active, children }: { active: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={`flex-1 min-h-0 overflow-y-auto px-[22px] py-[22px] ${active ? "" : "hidden"}`}
+    >
+      {children}
     </div>
   );
 }

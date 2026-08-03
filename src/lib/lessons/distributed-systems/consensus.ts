@@ -54,6 +54,44 @@ Any two majorities of the same set of \`2f+1\` nodes intersect in at least one n
 
 > The library's [Consensus & coordination](/library/consensus-and-coordination) is the interview-facing companion — when to reach for etcd or ZooKeeper in a design. This module is about what those systems are doing inside.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-why-agreement-is-hard-q1",
+        prompt: "What exactly does the FLP result prove?",
+        options: [
+          "That Byzantine faults make agreement unachievable",
+          "In a fully asynchronous system with even one possible crash, no deterministic algorithm guarantees agreement, validity, and termination in every execution",
+          "That consensus is impossible in any real distributed system",
+          "That consensus requires at least five nodes to be safe",
+        ],
+        answer: 1,
+        explanation: "FLP doesn't say consensus is impossible — it says no algorithm guarantees *termination* in every execution. The intuition is that a waiting node can't distinguish a crashed peer from a slow one, and an adversarial scheduler can always delay the message that would change its mind.",
+      },
+      {
+        id: "ds-why-agreement-is-hard-q2",
+        prompt: "In Raft and Paxos, what protects safety when an election timeout guesses wrong?",
+        options: [
+          "A synchronized clock shared across the cluster",
+          "The leader confirms its own liveness before stepping down",
+          "Majority overlap — quorums guarantee safety in every execution, regardless of whether the timeout was right",
+          "The timeout is tuned so it is never wrong in practice",
+        ],
+        answer: 2,
+        explanation: "This is the crucial split every practical protocol makes. Safety — never two leaders in one term, never two conflicting commits — is guaranteed always, by quorum intersection. Liveness is guaranteed only when the network behaves. A wrong timeout costs an unnecessary election, never a wrong decision.",
+      },
+      {
+        id: "ds-why-agreement-is-hard-q3",
+        prompt: "Why are consensus clusters odd-sized?",
+        options: [
+          "Even-sized clusters cannot form a majority at all",
+          "Odd sizes let the leader break ties with its own vote",
+          "Replication protocols require a prime number of participants",
+          "4 nodes tolerate the same single failure as 3, while making every quorum slower",
+        ],
+        answer: 3,
+        explanation: "With `2f+1` nodes you tolerate `f` failures: 3 survives 1, 5 survives 2. Going from 3 to 4 buys no extra fault tolerance but raises the quorum from 2 to 3, so every decision waits on one more node.",
+      },
+    ],
   },
   {
     id: "ds-raft-leader-election",
@@ -95,6 +133,44 @@ If every follower used exactly 150ms, they'd all become candidates at the same i
 
 Step 4's last condition — "log at least as up to date" — is what stops a node that missed the last 10,000 entries from winning and truncating committed data. It's compared by \`(lastLogTerm, lastLogIndex)\`, higher term first. Keep it in mind; the next lesson shows the commit rule it protects.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-raft-leader-election-q1",
+        prompt: "Which two rules make two leaders in the same term impossible?",
+        options: [
+          "Log freshness comparison, plus the term-adoption rule",
+          "Synchronized clocks, plus a fixed election timeout",
+          "One vote per node per term, plus a majority required to win",
+          "Randomized timeouts, plus the leader's heartbeat interval",
+        ],
+        answer: 2,
+        explanation: "Two candidates in one term would need two majorities of the same set, which must overlap in at least one node — and that node voted only once. Safety here doesn't depend on timeouts being right, clocks agreeing, or the network cooperating.",
+      },
+      {
+        id: "ds-raft-leader-election-q2",
+        prompt: "Why is the election timeout randomized rather than a fixed value?",
+        options: [
+          "It makes the protocol resistant to an attacker predicting elections",
+          "It spreads disk writes so the fsync load is smoother",
+          "It lets slower nodes participate on an equal footing",
+          "Identical timeouts make every follower become a candidate at once, splitting the vote and livelocking",
+        ],
+        answer: 3,
+        explanation: "Randomizing across a window means one node almost always times out first and wins uncontested. This is the liveness half of the FLP trade, and the constant matters: the window must comfortably exceed a normal round trip, or you elect a new leader forever.",
+      },
+      {
+        id: "ds-raft-leader-election-q3",
+        prompt: "What does the \"log at least as up to date\" vote condition prevent?",
+        options: [
+          "A node that missed thousands of entries from winning an election and truncating committed data",
+          "Two candidates from starting an election in the same term",
+          "A deposed leader from rejoining the cluster",
+          "Followers from applying entries before the leader commits them",
+        ],
+        answer: 0,
+        explanation: "It's compared by `(lastLogTerm, lastLogIndex)`, higher term first. Combined with majority overlap, it means a node missing a committed entry can never be elected — which is what makes \"committed\" actually durable.",
+      },
+    ],
   },
   {
     id: "ds-raft-log-replication",
@@ -138,6 +214,44 @@ The fix: the term-3 leader appends a **no-op entry in term 3** and commits *that
 
 Every write is one round trip from the leader to a majority — roughly one network RTT plus one disk fsync per node, so ~1–5ms within a datacenter and 100ms+ across regions. Reads are subtler than they look: serving them from the leader's memory is wrong if the leader has been silently deposed, so a linearizable read needs either a heartbeat round trip first (ReadIndex) or a lease — the next lesson.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-raft-log-replication-q1",
+        prompt: "At what point may a Raft leader reply to the client?",
+        options: [
+          "Once a majority has the entry and it is marked committed",
+          "As soon as it appends the entry to its own log",
+          "Once every follower has acknowledged the entry",
+          "Once the entry has been applied to the leader's state machine",
+        ],
+        answer: 0,
+        explanation: "Replying after the local append would be a lie — that entry can still be overwritten. An entry that reached a majority survives any `f` failures, because any future leader must win a majority that overlaps the one storing it.",
+      },
+      {
+        id: "ds-raft-log-replication-q2",
+        prompt: "Why may a leader not commit an entry from a *previous* term just by counting replicas?",
+        options: [
+          "Followers reject AppendEntries carrying an older term",
+          "A later leader whose log lacks that entry can still be elected on term grounds and would overwrite it — so it was never safely committed",
+          "Entries from old terms have already been applied by definition",
+          "The term counter would overflow if old entries were recommitted",
+        ],
+        answer: 1,
+        explanation: "This is Raft's Figure 8. The fix is to append a no-op in the current term and commit that by majority — committing a current-term entry commits everything before it transitively. It's why you often see a small no-op write right after an election.",
+      },
+      {
+        id: "ds-raft-log-replication-q3",
+        prompt: "Why can't a linearizable read simply be served from the leader's memory?",
+        options: [
+          "Reads must be replicated to a majority like writes",
+          "Followers may hold newer entries than the leader",
+          "The leader may have been silently deposed — it needs a heartbeat round trip (ReadIndex) or a lease to know it's still leader",
+          "The leader's state machine lags its log by design",
+        ],
+        answer: 2,
+        explanation: "A partitioned leader still believes it's the leader. Confirming leadership costs a heartbeat round trip, or you take the lease approach — which trades the round trip for an assumption about bounded clock drift.",
+      },
+    ],
   },
   {
     id: "ds-leases-and-fencing",
@@ -189,5 +303,43 @@ Reach for a distributed lock less often than you think. If the operation is **id
 
 > [Concurrency control](/library/concurrency-control) in the library covers the interview framing of locking and CAS; this lesson is about the specific way a lock silently stops being one.`,
     exercises: [],
+    quiz: [
+      {
+        id: "ds-leases-and-fencing-q1",
+        prompt: "A client with a 30-second lease is paused by a 40-second GC, the lease expires, another client acquires it, and the first wakes up and writes. Why doesn't \"check the lease before writing\" fix it?",
+        options: [
+          "The lease service failed to revoke the lease correctly",
+          "The check reads a cached lease value rather than the authoritative one",
+          "The second client should have waited for the first to acknowledge the expiry",
+          "The pause can land between the check and the write — a paused process can't be told anything and can't check the clock while paused",
+        ],
+        answer: 3,
+        explanation: "Nothing here is a bug in the lock service — it behaved correctly. A lease alone cannot prevent two writers, because there is always a window between validating and acting.",
+      },
+      {
+        id: "ds-leases-and-fencing-q2",
+        prompt: "Where does a fencing token move the protection to?",
+        options: [
+          "The resource being written — it records the highest token seen and rejects anything lower",
+          "The lock service, which now tracks which client holds the lease",
+          "The client, which compares its token against the current time",
+          "The network layer, which drops packets from stale holders",
+        ],
+        answer: 0,
+        explanation: "A resource can always compare two integers, whatever the writers believe about time. A lock service that hands out a token nobody validates provides no mutual exclusion — it provides advice.",
+      },
+      {
+        id: "ds-leases-and-fencing-q3",
+        prompt: "Which situation genuinely doesn't need a distributed lock?",
+        options: [
+          "Several nodes update the same counter row concurrently",
+          "The work is partitioned by key with one owner per key, so exclusion is structural",
+          "Two services occasionally write the same file on shared storage",
+          "A nightly job must not run twice across a fleet of identical workers",
+        ],
+        answer: 1,
+        explanation: "Reach for a distributed lock less often than you think. Idempotent operations are safe to repeat, key-partitioned work has structural exclusion, and a single-row invariant is better served by compare-and-set — a lock that can't be held by a dead process.",
+      },
+    ],
   },
 ];

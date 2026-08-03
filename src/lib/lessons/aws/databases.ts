@@ -57,6 +57,44 @@ Consequences that change designs: replicas share storage, so **lag is typically 
 
 > [Replication & quorums](/library/replication-and-quorums) and [Storage engines](/library/storage-engines) in the library cover the mechanics underneath — Aurora's six-copy quorum is a direct application of both.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-rds-and-aurora-q1",
+        prompt: "Your RDS instance is CPU-saturated by read queries. Does adding a Multi-AZ standby help?",
+        options: [
+          "Yes — the standby automatically absorbs read queries",
+          "Yes, but only for queries inside a transaction",
+          "No, and read replicas won't help either; only a bigger instance will",
+          "No — the standby serves no traffic. It buys availability, not throughput. Read replicas are the read-scaling feature",
+        ],
+        answer: 3,
+        explanation: "This is the distinction that gets confused most often. A Multi-AZ standby replicates synchronously and serves nothing — it exists so an AZ failure costs 60-120 seconds instead of an outage. Read replicas replicate asynchronously and serve read queries.",
+      },
+      {
+        id: "aws-rds-and-aurora-q2",
+        prompt: "A user updates their profile and the next page load shows the old values. The app reads from a read replica. What's the fix?",
+        options: [
+          "Route read-your-writes traffic to the primary — replicas lag, so a just-written row may not be there yet",
+          "Add more read replicas so the load is spread thinner",
+          "Enable Multi-AZ, which makes replicas synchronous",
+          "Increase the replica's instance size",
+        ],
+        answer: 0,
+        explanation: "Read replicas replicate asynchronously, so replica lag is a correctness problem, not just a performance one. Anything that must read its own writes has to go to the primary.",
+      },
+      {
+        id: "aws-rds-and-aurora-q3",
+        prompt: "What is Aurora's structural innovation over standard RDS?",
+        options: [
+          "It stores data in S3 rather than on block devices",
+          "It decouples compute from storage — replicas share one distributed storage layer with six copies across three AZs, so lag is tens of milliseconds and failover needs no data copy",
+          "It runs a proprietary query language optimized for AWS",
+          "It supports multiple simultaneous writers by default",
+        ],
+        answer: 1,
+        explanation: "The shared, log-structured, distributed storage layer is the whole trick. Because replicas read the same storage rather than replaying a log, lag drops to tens of milliseconds, you can run 15 replicas, failover takes ~30 seconds, and storage auto-grows to 128 TB. Note it still has exactly one writer.",
+      },
+    ],
   },
   {
     id: "aws-dynamodb",
@@ -120,6 +158,44 @@ Adaptive capacity absorbs mild skew now, but the rule stands: **choose a partiti
 
 > [Datastore selection](/library/datastore-selection) and [Sharding & partitioning](/library/sharding-and-partitioning) in the library are the interview-facing versions — this lesson is about what the partition key does to your throughput in practice.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-dynamodb-q1",
+        prompt: "Why must you enumerate your access patterns before designing a DynamoDB table?",
+        options: [
+          "Access patterns determine which region the table can live in",
+          "You cannot query what you didn't design a key for — getting the key schema wrong is a rewrite, not a tuning exercise",
+          "The table's storage class is fixed at creation and depends on read patterns",
+          "DynamoDB bills differently depending on how many patterns you declare",
+        ],
+        answer: 1,
+        explanation: "In SQL you model the data and query it however you like afterwards. In DynamoDB the key schema *is* the set of answerable questions. Discovering a new access pattern later usually means adding a GSI or restructuring the table.",
+      },
+      {
+        id: "aws-dynamodb-q2",
+        prompt: "A table using today's date as the partition key throttles under load while overall capacity looks fine. Why?",
+        options: [
+          "DynamoDB reserves capacity for the sort key, leaving less for writes",
+          "Provisioned capacity is per table per second and cannot be exceeded briefly",
+          "All of today's writes hash to a single partition — a hot partition caused by a low-cardinality key",
+          "Date keys are stored as strings, which are slower to hash",
+        ],
+        answer: 2,
+        explanation: "Throughput is spread across partitions by the partition key. A key like `2024-03-15` sends every write today to one partition. Choose a high-cardinality key with even access, and when a hot key is unavoidable, write-sharding (append a `0-9` suffix and query all ten) is the standard fix.",
+      },
+      {
+        id: "aws-dynamodb-q3",
+        prompt: "What is the key consistency difference between an LSI and a GSI?",
+        options: [
+          "A GSI is strongly consistent; an LSI is eventually consistent",
+          "Both are strongly consistent, but only the LSI can be added after table creation",
+          "Neither supports consistent reads; both are best-effort",
+          "An LSI can be read strongly consistently; a GSI is eventually consistent, always",
+        ],
+        answer: 3,
+        explanation: "An LSI shares the table's partition key and throughput and supports strongly consistent reads, but must be created with the table. A GSI is effectively a second copy of the data with a different partition key, maintained asynchronously — so it is always eventually consistent, and it has its own capacity.",
+      },
+    ],
   },
   {
     id: "aws-elasticache",
@@ -169,6 +245,44 @@ scaling          replicas + cluster-mode shards    add nodes, client-side shardi
 
 > [Caching](/library/caching) in the library covers the strategy vocabulary — cache-aside, write-through, TTL vs invalidation — that this lesson applies to the AWS service.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-elasticache-q1",
+        prompt: "A popular cache key expires and a thousand concurrent requests all miss and hit the database at once. What is this, and what's a standard mitigation?",
+        options: [
+          "A split brain — enable automatic failover on the cluster",
+          "A stampede — jitter the TTLs, let one request rebuild while others serve stale, or refresh proactively before expiry",
+          "A hot partition — shard the key across multiple cache nodes",
+          "Replica lag — promote a replica to reduce the delay",
+        ],
+        answer: 1,
+        explanation: "This is the cache stampede, and a cold cache after a restart is the same event at maximum scale — which is why warming matters. A fleet that comes back with an empty cache can take down the database it was protecting.",
+      },
+      {
+        id: "aws-elasticache-q2",
+        prompt: "A query is slow because it's missing an index. Is caching it a reasonable fix?",
+        options: [
+          "Yes, provided you set a long TTL",
+          "Only if the table is read-only",
+          "No — it hides the problem until the cache is cold at 3am. Fix the query first",
+          "Yes — caching is strictly cheaper than adding an index",
+        ],
+        answer: 2,
+        explanation: "A cache over a missing index is a bandage. It works until the cache is cold — a restart, a failover, a deploy — and then the unindexed query runs at full concurrency against a database that has forgotten how to survive it.",
+      },
+      {
+        id: "aws-elasticache-q3",
+        prompt: "Which use case argues specifically for Redis over Memcached?",
+        options: [
+          "A pure object cache where losing everything is acceptable",
+          "Caching rendered HTML fragments by key",
+          "Any workload needing more than one cache node",
+          "A leaderboard — sorted sets do ranked reads in one data structure",
+        ],
+        answer: 3,
+        explanation: "Memcached stores strings only. Redis's data types — sorted sets, hashes, streams — are the reason to pick it, and sorted sets are why game backends reach for Redis specifically. Memcached's remaining niche is a pure, multi-threaded, sharded object cache where total loss is genuinely fine.",
+      },
+    ],
   },
   {
     id: "aws-analytics",
@@ -228,5 +342,43 @@ sources  ->  raw in S3   ->  transform  ->  curated Parquet in S3  ->  Athena / 
 - **High-frequency single-row lookups.** Columnar storage is exactly wrong for that shape.
 - **Redshift when Athena would do.** A provisioned cluster running a few queries a day is expensive idle time; that's what Serverless and Athena are for.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-analytics-q1",
+        prompt: "Why is columnar storage 10-100× more efficient than row storage for `SELECT SUM(amount) GROUP BY region`?",
+        options: [
+          "It keeps the whole table in memory rather than on disk",
+          "It maintains a precomputed index for every possible aggregate",
+          "It skips rows that fail the WHERE clause without reading them",
+          "It reads only the columns the query names, and adjacent like values compress far better",
+        ],
+        answer: 3,
+        explanation: "A row store must read whole rows to get at two fields. A columnar store reads just those two column segments — far less I/O — and because like values sit adjacent, it compresses much better too. That's the entire reason a separate analytics stack exists.",
+      },
+      {
+        id: "aws-analytics-q2",
+        prompt: "An Athena query scans 1 TB and costs about $5. What single change most reliably cuts that by ~99%?",
+        options: [
+          "Store the data as partitioned Parquet, so partition pruning and columnar reads scan a fraction of the bytes",
+          "Increase the Athena workgroup's concurrency limit",
+          "Move the bucket to a cheaper storage class",
+          "Add more columns to the SELECT so the optimizer has more to work with",
+        ],
+        answer: 0,
+        explanation: "Athena bills per terabyte scanned, so file layout is the whole game. Partitioning by date lets the engine skip whole prefixes, and Parquet lets it read only the columns named. It's the difference between $5 and $0.05 per query.",
+      },
+      {
+        id: "aws-analytics-q3",
+        prompt: "A customer-facing dashboard needs sub-second loads over billions of events. What should it read from?",
+        options: [
+          "The raw S3 data lake via Redshift Spectrum",
+          "A precomputed table in RDS or DynamoDB, populated by the analytics pipeline",
+          "Athena, queried directly on page load",
+          "Redshift, queried directly on page load",
+        ],
+        answer: 1,
+        explanation: "Athena takes seconds to minutes and Redshift is optimized for throughput rather than concurrency. Anything user-facing should read a precomputed result from an OLTP store; the warehouse's job is to produce that table, not to serve the page.",
+      },
+    ],
   },
 ];

@@ -58,6 +58,44 @@ billing         per second, up   per second, up      per ms, zero at idle
 
 > Instance replacement, AMI bakes, and blue/green rollouts are the same ideas as [Deploys & rollouts](/library/deploys-and-rollouts) in the library — this lesson is about the machine underneath them.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-ec2-q1",
+        prompt: "A production service on a `t3` instance runs fine for an hour, then mysteriously grinds to a few percent of a vCPU. What happened?",
+        options: [
+          "The security group started rate-limiting connections",
+          "It exhausted its CPU credits — burstable instances throttle hard once the balance runs out",
+          "The instance was migrated to a different host",
+          "EBS ran out of provisioned IOPS",
+        ],
+        answer: 1,
+        explanation: "`t` instances accrue CPU credits and burst by spending them. Under sustained load the balance empties and the instance is throttled to its baseline, which presents as a service that suddenly stops responding. Never put a steady production workload on a burstable.",
+      },
+      {
+        id: "aws-ec2-q2",
+        prompt: "In the instance name `m7g.xlarge`, what does the `g` tell you?",
+        options: [
+          "Guaranteed capacity reservation",
+          "The generation number",
+          "Graviton — an ARM processor, roughly 20% cheaper for similar performance",
+          "GPU-attached",
+        ],
+        answer: 2,
+        explanation: "The letter after the generation is the processor/option flag: `g` is Graviton (ARM), `i` Intel, `a` AMD, `d` local disk. Graviton is roughly 20% cheaper for similar performance and most Linux workloads now run on ARM, which makes it the easiest saving in the list.",
+      },
+      {
+        id: "aws-ec2-q3",
+        prompt: "When is EC2 genuinely the right reach rather than Fargate or Lambda?",
+        options: [
+          "Whenever the workload is stateless and containerized",
+          "Whenever cost matters, since EC2 is always cheapest",
+          "Whenever the workload runs longer than 15 minutes",
+          "When you need the machine itself — a specific kernel, GPU drivers, local NVMe, or licensed software bound to a host",
+        ],
+        answer: 3,
+        explanation: "Reach for EC2 when you need the machine — not because it's familiar. If the workload is \"run this stateless container\" you'd be rebuilding what Fargate already did: AMI pipelines, autoscaling policies, patching, log agents. Note that Fargate also has no 15-minute limit, so duration alone doesn't force EC2.",
+      },
+    ],
   },
   {
     id: "aws-lambda",
@@ -112,6 +150,44 @@ Everything outside the handler runs once per environment, not once per request �
 
 Concurrency is a *regional* limit shared by every function in the account. One function scaling to 1,000 concurrent executions can starve every other function in the region. Reserved concurrency on the noisy one is how you build a bulkhead.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-lambda-q1",
+        prompt: "A CPU-bound Lambda is configured at 512 MB. Why does raising it to 1,792 MB often make it *cheaper*?",
+        options: [
+          "Higher memory functions skip the cold start entirely",
+          "AWS discounts functions above 1 GB to encourage larger allocations",
+          "CPU scales with memory — at ~1,769 MB you get a full vCPU, so it finishes more than 3× faster and billing is per millisecond",
+          "Larger memory tiers have a lower per-GB-second rate",
+        ],
+        answer: 2,
+        explanation: "Memory is the only dial, and CPU is tied to it — one full vCPU arrives at 1,769 MB. Since you're billed on duration × memory, a CPU-bound function that finishes more than proportionally faster costs less overall.",
+      },
+      {
+        id: "aws-lambda-q2",
+        prompt: "Where should you create your database connections and SDK clients in a Lambda handler file?",
+        options: [
+          "Inside the handler, so each invocation gets a clean connection",
+          "In a separate init Lambda that runs first",
+          "It makes no difference; Lambda reinitializes everything per invocation",
+          "At module scope, outside the handler — that code runs once per execution environment rather than once per request",
+        ],
+        answer: 3,
+        explanation: "Everything outside the handler runs once when the execution environment is created, not once per request. Moving client and connection setup to module scope means warm invocations skip it entirely.",
+      },
+      {
+        id: "aws-lambda-q3",
+        prompt: "One function in your account scales to 1,000 concurrent executions and other unrelated functions start failing. Why?",
+        options: [
+          "Concurrency is a regional limit shared by every function in the account, so one function can starve the rest",
+          "Lambda functions share a single execution environment per region",
+          "The functions are competing for the same ENI in the VPC",
+          "CloudWatch throttles log ingestion once a function is that busy",
+        ],
+        answer: 0,
+        explanation: "The default 1,000 concurrent executions is per region and per account, not per function. Reserved concurrency on the noisy function is how you build a bulkhead so it can't consume everyone else's capacity.",
+      },
+    ],
   },
   {
     id: "aws-containers",
@@ -156,6 +232,44 @@ Equally, **Fargate for very high-density workloads** gets expensive — you pay 
 
 Reach for a container when you have a long-running process, need more than 15 minutes, want a sidecar, need a specific runtime, or your traffic is steady enough that per-request billing stops being a bargain. Reach for Lambda when the work is event-shaped, bursty, and short.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-containers-q1",
+        prompt: "\"ECS vs Fargate vs EKS\" is a misleading framing. What are the two actual choices?",
+        options: [
+          "Container runtime and networking mode",
+          "Region and instance family",
+          "Task definition format and load balancer type",
+          "Orchestrator (ECS or EKS) and capacity (EC2 or Fargate) — any combination is valid",
+        ],
+        answer: 3,
+        explanation: "They're two independent axes. ECS and EKS decide who schedules your containers; EC2 and Fargate decide whose machines they run on. ECS on Fargate, ECS on EC2, EKS on Fargate, and EKS on EC2 are all real, valid combinations.",
+      },
+      {
+        id: "aws-containers-q2",
+        prompt: "A team of six runs six stateless HTTP services and nobody has operated Kubernetes. What is the strongest argument against EKS?",
+        options: [
+          "It is a real operational commitment — cluster upgrades, CRDs, networking plugins, RBAC on top of IAM — for capabilities this workload doesn't need",
+          "EKS cannot run stateless HTTP services",
+          "EKS does not integrate with Application Load Balancers",
+          "EKS is only available in a handful of regions",
+        ],
+        answer: 0,
+        explanation: "Choose EKS for the ecosystem or existing expertise, not because it sounds more serious. ECS on Fargate runs six stateless services with a fraction of the concepts and no control plane to keep upgraded.",
+      },
+      {
+        id: "aws-containers-q3",
+        prompt: "When does Fargate stop being the economical choice?",
+        options: [
+          "When you need more than one container per task definition",
+          "At high container density — you pay per task's reserved CPU/memory with no bin-packing, so many small tasks cost more than a few well-packed EC2 instances",
+          "For any workload running longer than 15 minutes",
+          "When the containers need a load balancer",
+        ],
+        answer: 1,
+        explanation: "Fargate charges for each task's reserved CPU and memory and gives you no ability to bin-pack. Hundreds of small tasks therefore cost more than packing them onto a handful of right-sized EC2 instances yourself.",
+      },
+    ],
   },
   {
     id: "aws-auto-scaling",
@@ -218,5 +332,43 @@ Autoscaling does not fix a bottleneck you don't control. If the constraint is a 
 
 > [Failure & resilience](/library/failure-and-resilience) in the library covers the surrounding controls — backpressure, circuit breakers, load shedding — that decide whether scaling helps or accelerates a collapse.`,
     exercises: [],
+    quiz: [
+      {
+        id: "aws-auto-scaling-q1",
+        prompt: "Which metric is the best scaling signal for a worker pool draining an SQS queue?",
+        options: [
+          "Age of the oldest message — it rises the moment you fall behind, before any host metric moves",
+          "Average CPU across the workers",
+          "Network bytes in per instance",
+          "Number of running tasks",
+        ],
+        answer: 0,
+        explanation: "Queue age is a leading indicator: it climbs as soon as arrival outpaces processing. CPU is a lagging one and, for an I/O-bound worker, may never move at all while the backlog grows.",
+      },
+      {
+        id: "aws-auto-scaling-q2",
+        prompt: "Reactive autoscaling routinely reacts five or more minutes after a spike begins. Which response addresses the root cause rather than the symptom?",
+        options: [
+          "Switch from target tracking to simple step scaling",
+          "Scale on a leading indicator and shrink boot time by baking the AMI or image",
+          "Lower the alarm threshold so it fires sooner",
+          "Increase the maximum instance count",
+        ],
+        answer: 1,
+        explanation: "The delay is the sum of metric publication, alarm evaluation, launch, and boot. A leading indicator removes the detection lag and a baked image removes the boot lag. Lowering thresholds or raising the ceiling doesn't shorten that chain.",
+      },
+      {
+        id: "aws-auto-scaling-q3",
+        prompt: "Your app tier is saturating a single primary database. What does adding twenty more app instances do?",
+        options: [
+          "Nothing measurable either way",
+          "Fixes it, because the ASG will also scale the database",
+          "Makes it worse — more connections and more contention against the tier that's actually the bottleneck",
+          "Fixes it, by spreading query load across more clients",
+        ],
+        answer: 2,
+        explanation: "Autoscaling does not fix a bottleneck you don't control. Pointing more clients at a saturated primary adds connections and contention and accelerates the collapse. Scale the tier that's actually saturated, and make sure the tier below survives what you point at it.",
+      },
+    ],
   },
 ];
