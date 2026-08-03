@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
       // coding
       code,
       language,
+      // learning: names the tutor for a concept course (no language)
+      course,
       lastRun,
       // non-coding
       notes,
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
       .join("\n");
 
     const targetLevel = isValidLevel(level) ? level : undefined;
-    const assessSystem = getAssessSystemPrompt(mode, targetLevel, language);
+    const assessSystem = getAssessSystemPrompt(mode, targetLevel, language, course);
     const userContent = buildAssessUserContent(mode, {
       transcript,
       questionTitle,

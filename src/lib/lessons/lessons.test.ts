@@ -9,12 +9,13 @@ const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const LIBRARY_HREF = /\/library\/([a-z0-9-]+)/g;
 
 describe("learning courses — cross-course invariants", () => {
-  it("registers the three language courses plus the distributed systems course", () => {
+  it("registers the three language courses plus the concept courses", () => {
     expect(COURSES.map((c) => c.id)).toEqual([
       "python",
       "typescript",
       "go",
       "distributed-systems",
+      "aws",
     ]);
   });
 
@@ -35,6 +36,7 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("typescript")?.id).toBe("typescript");
     expect(getCourse("go")?.id).toBe("go");
     expect(getCourse("distributed-systems")?.id).toBe("distributed-systems");
+    expect(getCourse("aws")?.id).toBe("aws");
     expect(getCourse("does-not-exist")).toBeUndefined();
   });
 
@@ -99,19 +101,32 @@ describe.each(COURSES)("course: $id", (course) => {
   });
 });
 
-// The distributed systems course is the first concept course: no language, no
-// editor, and its reason to exist is that it teaches the mechanism where the
-// library gives the interview answer. These pin that shape.
-describe("distributed systems course", () => {
-  const course = getCourse("distributed-systems")!;
+// Concept courses (no language, no editor) exist to teach the mechanism where
+// the library gives the interview answer, so they carry two obligations the
+// language courses don't: real per-module depth, and a link back to the library
+// from every module. Same invariant for each, so one table — the expected module
+// count is the only thing that differs.
+const CONCEPT_COURSES = [
+  { id: "distributed-systems", modules: 6, minLessons: 18 },
+  { id: "aws", modules: 7, minLessons: 21 },
+] as const;
 
-  it("is a concept course — no language, so no editor", () => {
+it("pins every concept course — a new one must be added to the table above", () => {
+  expect(COURSES.filter((c) => !c.language).map((c) => c.id)).toEqual(
+    CONCEPT_COURSES.map((c) => c.id)
+  );
+});
+
+describe.each(CONCEPT_COURSES)("concept course: $id", ({ id, modules, minLessons }) => {
+  const course = getCourse(id)!;
+
+  it("declares no language, so it renders no editor", () => {
     expect(course.language).toBeUndefined();
   });
 
-  it("covers six modules of real depth", () => {
-    expect(course.modules.length).toBe(6);
-    expect(course.lessons.length).toBeGreaterThanOrEqual(18);
+  it("covers its modules with real depth", () => {
+    expect(course.modules.length).toBe(modules);
+    expect(course.lessons.length).toBeGreaterThanOrEqual(minLessons);
     for (const m of course.modules) {
       expect(lessonsForModule(course, m.id).length, `${m.id}`).toBeGreaterThanOrEqual(3);
     }
@@ -121,7 +136,7 @@ describe("distributed systems course", () => {
     for (const m of course.modules) {
       const links = lessonsForModule(course, m.id)
         .flatMap((l) => [...l.content.matchAll(LIBRARY_HREF)])
-        .map(([, id]) => id);
+        .map(([, articleId]) => articleId);
       expect(links.length, `${m.id} links to no library article`).toBeGreaterThan(0);
     }
   });

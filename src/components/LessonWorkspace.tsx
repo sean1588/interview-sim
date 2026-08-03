@@ -71,11 +71,12 @@ export default function LessonWorkspace({
       code: hasExercises ? code : undefined,
       // Always sent (even on conversational lessons) so the tutor persona is the
       // course's language; with no code, the editor annotation is a no-op. A
-      // concept course sends undefined, which selects the concept persona.
+      // concept course sends undefined, and `course` below names the persona.
       language: course.language,
+      course: course.id,
       lastRun: lastRunRef.current,
     }),
-    [course.language, lesson, exerciseIndex, code, hasExercises]
+    [course.language, course.id, lesson, exerciseIndex, code, hasExercises]
   );
 
   const handleEnd = useCallback(() => {
@@ -83,8 +84,9 @@ export default function LessonWorkspace({
       questionTitle: lesson.title,
       code: hasExercises ? code : undefined,
       language: course.language,
+      course: course.id,
     });
-  }, [endSession, course.language, lesson.title, code, hasExercises]);
+  }, [endSession, course.language, course.id, lesson.title, code, hasExercises]);
 
   return (
     <>
