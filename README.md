@@ -22,7 +22,7 @@ Requires an OpenRouter account.
 Every session runs on voice by default; the screenshots below are in text mode so the
 conversation is legible.
 
-![The studio home page, listing the practice interview, career, and learn modes](docs/screenshots/studio.png)
+![The Interview Simulator home page, listing the practice interview, career, and learn modes](docs/screenshots/studio.png)
 
 A coding interview. The interviewer sees your editor, and **Run** grades the solution
 against the problem's test cases rather than printing stdout for you to eyeball.
