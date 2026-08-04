@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import * as ts from "typescript";
 import {
   COURSES,
@@ -282,6 +282,12 @@ describe("typescript course — starters are type-clean in the editor", () => {
   const starters = (getCourse("typescript")?.lessons ?? []).flatMap((l) =>
     l.exercises.map((e) => [e.id, e.starterCode] as const)
   );
+
+  // Parsing lib.esnext.full.d.ts dominates the first createProgram and fills
+  // `cache` for every case after it, so whichever starter sorts first was paying
+  // for all of them — and blowing the 5s default under CI load. Do it here
+  // instead: one real typecheck, billed to setup, on a setup-sized budget.
+  beforeAll(() => void squiggles("warmup", ""), 60_000);
 
   it.each(starters)("%s", (id, code) => {
     const found = squiggles(id, code);
