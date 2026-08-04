@@ -51,7 +51,7 @@ export default function Home() {
             AI-Powered Practice
           </div>
           <h1 className="mt-5 font-serif text-[56px] font-semibold leading-none tracking-tight text-ink">
-            The Interview Studio
+            Interview Simulator
           </h1>
           <p className="mt-4 font-serif text-[19px] italic text-muted">
             Real-time voice interviews. Choose your focus.
