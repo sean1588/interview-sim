@@ -1,6 +1,8 @@
 # interview-sim
 
-A voice-driven interview practice app. You talk to an interviewer, tutor, or coach out loud; it listens, responds in speech, and — where it makes sense — writes into a code editor beside the conversation.
+AI powered interview simulation for software engineers. Includes real-time voice interaction as well as a text only option. It features a practice "tutor" mode and an interview simulation mode. Coding interviews share code editor context with AI interview agent enhancing life-like simulation.
+
+Requires an OpenRouter account.
 
 **What's in it:**
 
