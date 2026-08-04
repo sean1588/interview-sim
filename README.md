@@ -17,6 +17,29 @@ Requires an OpenRouter account.
 | `/career` | A career conversation that ends with a draft resume and a job-search plan. |
 | `/history` | Past graded scorecards, stored on-device. |
 
+## What it looks like
+
+Every session runs on voice by default; the screenshots below are in text mode so the
+conversation is legible.
+
+![The studio home page, listing the practice interview, career, and learn modes](docs/screenshots/studio.png)
+
+A coding interview. The interviewer sees your editor, and **Run** grades the solution
+against the problem's test cases rather than printing stdout for you to eyeball.
+
+![A coding interview: the interviewer discussing a Two Sum solution while the output pane reports 6 of 6 cases passed](docs/screenshots/coding-interview.png)
+
+A `/learn` lesson. Notes, a runnable exercise, and an end-of-lesson quiz sit in tabs
+beside the tutor — and anything you miss on the quiz is handed to the tutor, so you can
+ask them to work through it.
+
+![A Python lesson with the quiz tab open, showing a missed question and its explanation](docs/screenshots/lesson-quiz.png)
+
+A system design interview. Your notes are live: the interviewer reads what you type and
+questions it.
+
+![A system design interview where the interviewer picks up on a tradeoff written in the design notes](docs/screenshots/system-design.png)
+
 ## Prerequisites
 
 - **Node.js 20.9+** (Next.js 16 requires it)
