@@ -20,11 +20,12 @@ const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const LIBRARY_HREF = /\/library\/([a-z0-9-]+)/g;
 
 describe("learning courses — cross-course invariants", () => {
-  it("registers the three language courses plus the concept courses", () => {
+  it("registers the language courses, the subject course, then the concept courses", () => {
     expect(COURSES.map((c) => c.id)).toEqual([
       "python",
       "typescript",
       "go",
+      "dsa",
       "distributed-systems",
       "aws",
     ]);
@@ -46,6 +47,7 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("python")?.id).toBe("python");
     expect(getCourse("typescript")?.id).toBe("typescript");
     expect(getCourse("go")?.id).toBe("go");
+    expect(getCourse("dsa")?.id).toBe("dsa");
     expect(getCourse("distributed-systems")?.id).toBe("distributed-systems");
     expect(getCourse("aws")?.id).toBe("aws");
     expect(getCourse("does-not-exist")).toBeUndefined();
@@ -225,17 +227,20 @@ describe("buildLessonScript — quiz misses reach the tutor", () => {
   });
 });
 
+// Every course whose starters run through the TypeScript pipeline — the gate
+// belongs to the language, not to one course, so a new TS-language course (DSA)
+// is covered automatically.
+const TS_STARTERS = COURSES.filter((c) => c.language === "typescript").flatMap((c) =>
+  c.lessons.flatMap((l) => l.exercises.map((e) => [e.id, e.starterCode] as const))
+);
+
 // Run-every-scaffold gate (CI-safe slice): transpile every TypeScript starter
 // the same way Run does, then CONSTRUCT the emitted JS — proving each starter is
 // syntactically valid without executing its example calls (no infinite-loop hang
 // risk in the test process). Full transpile+execute validation runs in the
-// authoring workflow and scripts/run-ts-lesson-gate.mjs. Mirrors problems.test.ts.
-describe("typescript course — every starter transpiles to valid JS", () => {
-  const tsCourse = getCourse("typescript");
-  const starters = (tsCourse?.lessons ?? []).flatMap((l) =>
-    l.exercises.map((e) => [e.id, e.starterCode] as const)
-  );
-  it.each(starters)("%s transpiles + constructs", (_id, code) => {
+// authoring workflows and scripts/run-ts-lesson-gate.mjs. Mirrors problems.test.ts.
+describe("typescript-language courses — every starter transpiles to valid JS", () => {
+  it.each(TS_STARTERS)("%s transpiles + constructs", (_id, code) => {
     const js = transpileTypeScript(ts, code);
     expect(() => new Function(js)).not.toThrow();
   });
@@ -247,7 +252,7 @@ describe("typescript course — every starter transpiles to valid JS", () => {
 // squiggle. Script scope is what surfaces collisions with browser globals
 // (Event / status / name / Cache). The transpile-construct test above can't see
 // type errors at all; this is the gate that protects the typing-course UX.
-describe("typescript course — starters are type-clean in the editor", () => {
+describe("typescript-language courses — starters are type-clean in the editor", () => {
   const INTENTIONAL = new Set(["spot-the-squiggle"]); // ships a type error on purpose
   const opts: ts.CompilerOptions = {
     strict: false,
@@ -279,17 +284,13 @@ describe("typescript course — starters are type-clean in the editor", () => {
       .map((d) => `[${d.code}] ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`);
   }
 
-  const starters = (getCourse("typescript")?.lessons ?? []).flatMap((l) =>
-    l.exercises.map((e) => [e.id, e.starterCode] as const)
-  );
-
   // Parsing lib.esnext.full.d.ts dominates the first createProgram and fills
   // `cache` for every case after it, so whichever starter sorts first was paying
   // for all of them — and blowing the 5s default under CI load. Do it here
   // instead: one real typecheck, billed to setup, on a setup-sized budget.
   beforeAll(() => void squiggles("warmup", ""), 60_000);
 
-  it.each(starters)("%s", (id, code) => {
+  it.each(TS_STARTERS)("%s", (id, code) => {
     const found = squiggles(id, code);
     if (INTENTIONAL.has(id)) {
       // The lesson teaches that a type error squiggles but doesn't block Run — so

@@ -13,6 +13,16 @@ import type { LanguageId } from "@/lib/problems";
  */
 export type ConceptCourseId = "distributed-systems" | "aws";
 
+/**
+ * The courses that teach a subject THROUGH a language rather than the language
+ * itself (DSA in TypeScript): they declare a `language` — so they get the editor
+ * and exercises — but their tutor must teach the subject, not language syntax.
+ * Same compile-time link as above: this union is keyed to SUBJECT_PROFILE in
+ * "@/lib/prompts", so adding a subject course here without a persona there
+ * fails the build.
+ */
+export type SubjectCourseId = "dsa";
+
 export interface Exercise {
   /** Globally unique (across all courses), kebab-case. */
   id: string;
@@ -85,9 +95,11 @@ export interface Course {
   /** Kebab-case, globally unique — the /learn/[course] route segment. */
   id: string;
   /**
-   * Editor + runner language, and the tutor-persona key. Omitted by *concept*
-   * courses (e.g. distributed systems), which teach an idea rather than a
-   * language: those are conversational only — no exercises, no editor.
+   * Editor + runner language, and (for language courses) the tutor-persona key.
+   * Omitted by *concept* courses (e.g. distributed systems), which teach an
+   * idea rather than a language: those are conversational only — no exercises,
+   * no editor. *Subject* courses (see SubjectCourseId) declare it for the
+   * editor but their persona is keyed off the course id instead.
    */
   language?: LanguageId;
   /** Display name, e.g. "Python" / "TypeScript". */
