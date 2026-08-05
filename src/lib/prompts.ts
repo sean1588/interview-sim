@@ -1,6 +1,6 @@
 import type { InterviewMode, SessionMode } from "./types/mode";
 import type { LanguageId } from "./problems";
-import type { ConceptCourseId } from "./lessons";
+import type { ConceptCourseId, SubjectCourseId } from "./lessons";
 import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
 
 export type { InterviewMode, SessionMode };
@@ -117,18 +117,57 @@ const CONCEPT_PROFILE: Record<
   },
 };
 
+// Subject courses have an editor like a language course but teach a topic
+// through the language (DSA in TypeScript), so neither table above fits: the
+// language table would teach syntax to a syntax-fluent student, and the concept
+// personas deny the editor exists. Keyed by course id and checked FIRST in
+// learningProfile — typed Record<SubjectCourseId> for the same compile-time
+// guarantee as its siblings.
+const SUBJECT_PROFILE: Record<
+  SubjectCourseId,
+  {
+    subject: string;
+    student: string;
+    scope: string;
+    analogy: string;
+    recap: { focus: string; review: string; next: string };
+  }
+> = {
+  dsa: {
+    subject: "data structures & algorithms",
+    student:
+      "writes TypeScript comfortably but reaches for a plain array and a nested loop by default",
+    scope:
+      "skip the syntax entirely, and focus on the mechanism — what's actually in memory, the Big-O of every operation, and which structure fits which problem",
+    analogy: "a hash map is just an array whose index you compute from the key",
+    recap: {
+      focus:
+        "the structures and techniques they worked through, and which are worth drilling again",
+      review: "structure, technique, or complexity fact",
+      next: "which structure or technique to tackle next or which exercise to re-attempt",
+    },
+  },
+};
+
 /**
  * Which teaching persona a learning session runs. Language courses carry a
  * `language`; *concept* courses (distributed systems, AWS) carry none and have
  * no editor at all, so their persona must never mention one — they're selected
- * by course id instead. One discriminated selector keeps that branch in a single
- * place rather than at each call site.
+ * by course id instead. *Subject* courses (DSA) carry a language for the editor
+ * but their persona is keyed by course id too, and wins over the language
+ * table. One discriminated selector keeps that branch in a single place rather
+ * than at each call site.
  */
 type LearningProfile =
   | { kind: "language"; lang: string; known: string; analogy: string }
+  | ({ kind: "subject" } & (typeof SUBJECT_PROFILE)[SubjectCourseId])
   | ({ kind: "concept" } & (typeof CONCEPT_PROFILE)[ConceptCourseId]);
 
 function learningProfile(language?: string, course?: string): LearningProfile {
+  // A subject course carries BOTH a language (for the editor) and a course-keyed
+  // persona; the course wins, or the DSA tutor would teach TypeScript syntax.
+  const subject = SUBJECT_PROFILE[course as SubjectCourseId];
+  if (subject) return { kind: "subject", ...subject };
   if (!language) {
     // Same guard as below: an unknown course id only arrives from a stale/bogus
     // client payload, so fall back rather than shipping an unnamed tutor.
@@ -184,14 +223,28 @@ How to behave:
 - Be encouraging and genuinely interested, one concept or question at a time.${lessonBlock}`;
     }
 
-    const { lang, known, analogy } = profile;
-    return `You are a friendly, sharp ${lang} tutor running a live lesson by voice.
-Your student is an EXPERIENCED programmer (they know ${known}) who is new to ${lang}. Teach to that level: skip what programming is, and focus on ${lang}'s syntax, idioms, and how things differ from the languages they already know.
+    // Language and subject courses share the editor-aware lesson experience;
+    // only the persona copy differs, so it's selected here and spliced into one
+    // template rather than duplicating the behavioural rules per kind.
+    const p =
+      profile.kind === "subject"
+        ? {
+            who: profile.subject,
+            level: `Your student is an EXPERIENCED programmer who ${profile.student}. Teach to that level: ${profile.scope}.`,
+            teach: `Teach the mechanism conversationally, anchored to what they already build every day ("${profile.analogy}"), and name the Big-O of whatever they're writing.`,
+          }
+        : {
+            who: profile.lang,
+            level: `Your student is an EXPERIENCED programmer (they know ${profile.known}) who is new to ${profile.lang}. Teach to that level: skip what programming is, and focus on ${profile.lang}'s syntax, idioms, and how things differ from the languages they already know.`,
+            teach: `Teach the concept conversationally, leaning on languages they already know ("${profile.analogy}").`,
+          };
+    return `You are a friendly, sharp ${p.who} tutor running a live lesson by voice.
+${p.level}
 You can SEE the lesson notes (provided below) and the student's editor — their current code and latest run output are appended to each of their messages in brackets. Do not read the notes or that bracketed context aloud; use them to guide the lesson.
 
 How to behave:
 - Speak naturally, 1-3 sentences at a time, like a real tutor sitting beside them. You're speaking out loud, so NEVER use markdown, code blocks, bullet points, or formatting. Say code in plain words.
-- Teach the concept conversationally, leaning on languages they already know ("${analogy}"). Point them at the relevant example in the notes on the right rather than dictating code.
+- ${p.teach} Point them at the relevant example in the notes on the right rather than dictating code.
 - Then have them try the current exercise in the editor. Watch their code and run output; when they're stuck, give a nudge or a leading question — never just hand them the answer.
 - When their exercise looks right, briefly celebrate and tell them to hit Next when they're ready. The student controls which exercise is shown with on-screen Prev/Next buttons — you never claim to switch exercises yourself.
 - Be encouraging and curious, one concept or question at a time.${lessonBlock}`;
@@ -383,6 +436,9 @@ export function getKickoffPrompt(
     if (profile.kind === "concept") {
       return `[The lesson is now starting. Greet the learner warmly as their ${profile.subject} tutor, briefly say what this lesson covers, and point them to the lesson notes on screen. Then open on the first idea — ideally by describing a situation and asking them to predict what breaks. Assume they're an experienced programmer who ${profile.student}, so ${profile.scope}. There is no editor and no exercises in this lesson, so don't mention writing or running code.]`;
     }
+    if (profile.kind === "subject") {
+      return `[The lesson is now starting. Greet the learner warmly as their ${profile.subject} tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise (or, if this lesson has none, the first idea). Assume they're an experienced programmer who ${profile.student}, so ${profile.scope}.]`;
+    }
     const { lang } = profile;
     return `[The lesson is now starting. Greet the learner warmly as their ${lang} tutor, briefly say what this lesson covers, point them to the lesson notes on the right, and introduce the first exercise (or, if this lesson has none, the first idea). Assume they're an experienced programmer who is new to ${lang}, so skip programming basics and focus on the ${lang}-specific ideas.]`;
   }
@@ -427,13 +483,21 @@ export function getAssessSystemPrompt(
             review: profile.recap.review,
             next: profile.recap.next,
           }
-        : {
-            who: profile.lang,
-            focus: "what they practiced and what is worth reinforcing",
-            evidence: "citing their code or questions",
-            review: "concept or idiom",
-            next: "what to practice next or which idea to build on",
-          };
+        : profile.kind === "subject"
+          ? {
+              who: profile.subject,
+              focus: profile.recap.focus,
+              evidence: "citing their code or questions",
+              review: profile.recap.review,
+              next: profile.recap.next,
+            }
+          : {
+              who: profile.lang,
+              focus: "what they practiced and what is worth reinforcing",
+              evidence: "citing their code or questions",
+              review: "concept or idiom",
+              next: "what to practice next or which idea to build on",
+            };
     return `You are a warm, encouraging ${copy.who} tutor writing a short recap of a lesson you just guided a student through by voice. This is NOT a graded evaluation — there are no scores, no pass/fail, and no hiring language. Focus on ${copy.focus}, in a supportive tone.
 
 Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):

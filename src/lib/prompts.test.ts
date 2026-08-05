@@ -277,6 +277,32 @@ describe("learning personas", () => {
     expect(concept).toMatch(/(never use|no) markdown/i);
   });
 
+  it("uses the subject persona for the DSA course — editor kept, syntax teaching dropped", () => {
+    // A subject course (DSA) declares a language for the editor, but its tutor
+    // must teach the subject. The course id wins over the language table —
+    // otherwise this prompt would tell a TypeScript-fluent student they're "new
+    // to TypeScript" and teach syntax instead of algorithms.
+    const dsa = getSystemPrompt("learning", { language: "typescript", course: "dsa" });
+    expect(dsa).toMatch(/data structures & algorithms tutor/i);
+    expect(dsa).not.toMatch(/new to TypeScript/);
+    expect(dsa).not.toBe(getSystemPrompt("learning", { language: "typescript" }));
+    // The editor-aware lesson shape is shared with the language courses.
+    expect(dsa).toMatch(/editor/i);
+    expect(dsa).toMatch(/never just hand them the answer/i);
+    expect(dsa).toMatch(/hit Next/);
+    expect(dsa).toMatch(/Big-O/);
+
+    const kickoff = getKickoffPrompt("learning", "typescript", undefined, false, "dsa");
+    expect(kickoff).toMatch(/data structures & algorithms tutor/i);
+    expect(kickoff).not.toBe(getKickoffPrompt("learning", "typescript"));
+
+    const recap = getAssessSystemPrompt("learning", undefined, "typescript", "dsa");
+    expect(recap).toMatch(/data structures & algorithms tutor/i);
+    for (const key of ["summary", "conceptsCovered", "wentWell", "toReview", "suggestedNext"]) {
+      expect(recap, `recap must request "${key}"`).toContain(`"${key}"`);
+    }
+  });
+
   it("treats an empty language as absent — that's how a concept course arrives", () => {
     // VoiceChat omits falsy context fields and /api/chat coalesces a missing
     // language to "", so "" is the wire form of "this course has no language".
