@@ -6,6 +6,15 @@ export const stacksQueuesLessons: Lesson[] = [
     module: "stacks-queues",
     title: "Stacks: Last In, First Out",
     blurb: "Matching, nesting, and undoing — wherever order reverses.",
+    graphics: [
+      {
+        id: "lifo",
+        title: "Last in, first out",
+        caption:
+          "Push to open work, pop to resolve it. Bracket matching, nesting, undo, and postorder walks all reverse arrival order.",
+        src: "/learn/dsa/dsa-stack-patterns.png",
+      },
+    ],
     content: `## The structure
 
 A stack has one rule: the only element you can touch is the most recently added one. \`push\` puts an element on top, \`pop\` removes it, \`peek\` reads it without removing — each **O(1)**.
@@ -151,6 +160,15 @@ console.log(evalRPN(["7", "2", "3", "*", "-"])); // expected: 1
     module: "stacks-queues",
     title: "Queues: First In, First Out",
     blurb: "Processing in arrival order — and the shift() trap.",
+    graphics: [
+      {
+        id: "fifo",
+        title: "First in, first out",
+        caption:
+          "Enqueue at the back, dequeue from the front. Arrival order is processing order — BFS, rate windows, and fair scheduling.",
+        src: "/learn/dsa/dsa-queues.png",
+      },
+    ],
     content: `## The structure
 
 A queue is the mirror image of a stack: **enqueue at the back, dequeue from the front**, both O(1). First in, first out — arrival order is preserved. You reach for one whenever fairness or ordering matters: buffering incoming events, task scheduling, rate limiting, and — the big one — **BFS frontiers** (the trees module's level-order traversal is exactly this queue put to work).
@@ -299,6 +317,15 @@ console.log(counter.countSince(401)); // expected: 0
     module: "stacks-queues",
     title: "Monotonic Stacks",
     blurb: "Keep the stack sorted; answer \"next greater\" in O(n).",
+    graphics: [
+      {
+        id: "next-greater",
+        title: "Next greater in one pass",
+        caption:
+          "Keep the stack sorted by value so each new bar can pop smaller predecessors and answer \"who is next greater?\" in amortized O(1) per element.",
+        src: "/learn/dsa/dsa-monotonic-stack.png",
+      },
+    ],
     content: `## The idea
 
 A **monotonic stack** is a plain stack with one added invariant: the values from bottom to top stay sorted (say, decreasing). Before pushing each new element, you first **pop everything that would violate the order**. That popping is the trick — *the element that pops you is your answer*.

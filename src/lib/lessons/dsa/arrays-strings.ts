@@ -6,6 +6,15 @@ export const arraysStringsLessons: Lesson[] = [
     module: "arrays-strings",
     title: "Two Pointers",
     blurb: "Converging indexes that replace nested loops on ordered data.",
+    graphics: [
+      {
+        id: "two-ends",
+        title: "Pointers from both ends",
+        caption:
+          "On ordered data, two indexes can walk toward (or past) each other and discard half the possibilities per step — often replacing an O(n²) nested scan.",
+        src: "/learn/dsa/dsa-two-pointers.png",
+      },
+    ],
     content: `## The problem with pairs
 
 Any question of the form "find two elements that..." has an obvious answer: nested loops, check every pair. That's O(n²) — 10,000 elements means ~50 million comparisons. Fine in a unit test, painful in a hot path.
@@ -134,6 +143,15 @@ console.log(pairWithSum([2, 3, 5, 8], 4));         // expected: null
     module: "arrays-strings",
     title: "Sliding Windows",
     blurb: "Fixed and growing windows over subarrays and substrings.",
+    graphics: [
+      {
+        id: "window",
+        title: "A window that slides",
+        caption:
+          "Maintain a contiguous range over the array or string, expand when you can, shrink when the constraint breaks — still O(n) overall if each edge only moves forward.",
+        src: "/learn/dsa/dsa-sliding-window.png",
+      },
+    ],
     content: `## Two pointers, but they bound a range
 
 A sliding window is the two-pointer variant where the pointers mark the edges of a contiguous range, and you maintain a **running summary** of what's inside instead of recomputing it from scratch each time the range moves. That reuse is the whole trick.
@@ -269,6 +287,15 @@ console.log(longestUniqueRun("pwwkew"));   // expected: 3  ("wke")
     module: "arrays-strings",
     title: "Prefix Sums",
     blurb: "Precompute running totals; answer range queries in O(1).",
+    graphics: [
+      {
+        id: "running-total",
+        title: "Running totals",
+        caption:
+          "Precompute cumulative sums once; any subarray sum becomes two lookups. Trade a linear prep for constant-time range answers.",
+        src: "/learn/dsa/dsa-prefix-sums.png",
+      },
+    ],
     content: `## Pay once, query forever
 
 "What's the sum of elements i through j?" asked once is a loop. Asked thousands of times against the same array — analytics buckets, time-series ranges, game boards — it's a performance bug: O(n) per query, O(n·m) for m queries.

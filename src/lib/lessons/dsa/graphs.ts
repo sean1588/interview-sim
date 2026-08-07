@@ -6,6 +6,15 @@ export const graphsLessons: Lesson[] = [
     module: "graphs",
     title: "Representing Graphs",
     blurb: "Vertices, edges, and why adjacency lists usually win.",
+    graphics: [
+      {
+        id: "adjacency-list",
+        title: "Graph ↔ adjacency list",
+        caption:
+          "Nodes and edges on the left; per-vertex neighbor lists on the right. Sparse graphs almost always prefer lists over a full matrix.",
+        src: "/learn/dsa/dsa-graph-representation.png",
+      },
+    ],
     content: `Graphs are relationships without hierarchy: a set of **vertices** and a set of **edges** connecting them. Edges can be **directed** (\`follows\` on a social app: A→B doesn't imply B→A) or **undirected** (\`friendsWith\`), **weighted** (road lengths) or not. The tree you spent the last module on is just a special case — a connected graph with no cycles. Drop the "no cycles" guarantee and everything from here on has to earn its termination.
 
 You've built graphs ad hoc plenty of times: an object mapping user ids to arrays of follower ids **is** an adjacency list. This lesson just names the structure and its trade-offs.
@@ -138,6 +147,15 @@ console.log(inDegrees(3, [[0, 1], [1, 2]])); // expected [ 0, 1, 1 ]`,
     module: "graphs",
     title: "Graph DFS & BFS",
     blurb: "The visited set, connected components, and shortest hops.",
+    graphics: [
+      {
+        id: "visited-frontier",
+        title: "Explore with a visited set",
+        caption:
+          "Mark nodes as you go so you never reprocess them. Visited plus a stack (DFS) or queue (BFS) unlocks components and shortest unweighted paths.",
+        src: "/learn/dsa/dsa-graph-traversal.png",
+      },
+    ],
     content: `Tree DFS and BFS transfer to graphs almost verbatim — with one non-negotiable addition. Trees can't loop back on themselves; graphs can. Traverse a cycle without protection and you revisit the same vertices forever. **The fix is a visited set, checked before every enqueue or recursive call.** Omit it and your traversal is an infinite loop — not slow, not wrong, *hung*. This is the same "have I seen this before?" Set you've reached for in dedup work; here it's load-bearing.
 
 \`\`\`ts
@@ -294,6 +312,15 @@ console.log(shortestHops(6, roads, 0, 5)); // expected -1 (unreachable)`,
     module: "graphs",
     title: "Topological Sort",
     blurb: "Kahn's algorithm: dependency order for DAGs, cycles detected free.",
+    graphics: [
+      {
+        id: "dependency-order",
+        title: "Respect the edges",
+        caption:
+          "On a DAG, topological order lines tasks so every dependency appears before its dependents. A cycle means no valid order.",
+        src: "/learn/dsa/dsa-topological-sort.png",
+      },
+    ],
     content: `A **topological order** of a directed graph is a linear arrangement of its vertices where every edge points forward — dependencies before dependents. It's the shape of every dependency problem you've met: build systems compiling modules in import order, course prerequisites, task schedulers, resolving a package lockfile. If your problem sounds like "X must happen before Y," you're looking at a topological sort.
 
 Only **DAGs** (directed *acyclic* graphs) have one. A cycle — A needs B needs C needs A — makes any linear order impossible, and real systems hit this constantly (circular imports, deadlocked task specs). A good algorithm should *tell* you when that happens, not loop or produce garbage.

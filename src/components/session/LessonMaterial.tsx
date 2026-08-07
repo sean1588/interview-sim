@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import LessonQuiz from "@/components/session/LessonQuiz";
-import type { Exercise, QuizQuestion } from "@/lib/lessons";
+import type { Exercise, LessonGraphic, QuizQuestion } from "@/lib/lessons";
 
 /** The current exercise plus its navigation — present only on lessons that have
  * exercises. Bundling these keeps the conversational-lesson caller from passing
@@ -16,12 +16,12 @@ export interface ExerciseView {
   onNext: () => void;
 }
 
-type TabId = "notes" | "exercise" | "quiz";
+type TabId = "notes" | "exercise" | "graphics" | "quiz";
 
 /** The middle column of the lesson room: a tabbed reading area that swaps between
- * the lesson notes, the current exercise, and the end-of-lesson quiz — the
- * de-cramping fix that replaces the old stack of four scroll panes. With no
- * exercise it's notes and quiz only.
+ * the lesson notes, the current exercise, concept graphics, and the end-of-lesson
+ * quiz — the de-cramping fix that replaces the old stack of four scroll panes.
+ * Exercise and Graphics tabs appear only when the lesson has those assets.
  *
  * Every pane stays mounted and is hidden rather than unmounted, so switching tabs
  * keeps both scroll position and half-finished quiz answers. */
@@ -30,13 +30,16 @@ export default function LessonMaterial({
   quiz,
   onMissedChange,
   exercise,
+  graphics,
 }: {
   content: string;
   quiz: QuizQuestion[];
   onMissedChange: (missedIds: string[]) => void;
   exercise?: ExerciseView;
+  graphics?: LessonGraphic[];
 }) {
   const [tab, setTab] = useState<TabId>("notes");
+  const hasGraphics = !!graphics && graphics.length > 0;
 
   return (
     <div className="h-full flex flex-col min-h-0 bg-chip">
@@ -48,6 +51,11 @@ export default function LessonMaterial({
         {exercise && (
           <Tab active={tab === "exercise"} onClick={() => setTab("exercise")}>
             Exercise · {exercise.index + 1}/{exercise.total}
+          </Tab>
+        )}
+        {hasGraphics && (
+          <Tab active={tab === "graphics"} onClick={() => setTab("graphics")}>
+            Graphics
           </Tab>
         )}
         <Tab active={tab === "quiz"} onClick={() => setTab("quiz")}>
@@ -86,6 +94,33 @@ export default function LessonMaterial({
           </div>
           <div className="markdown">
             <ReactMarkdown>{exercise.data.instructions}</ReactMarkdown>
+          </div>
+        </Pane>
+      )}
+
+      {hasGraphics && (
+        <Pane active={tab === "graphics"}>
+          <div className="flex flex-col gap-7">
+            {graphics.map((g) => (
+              <figure key={g.id} className="m-0">
+                <div className="font-serif text-[18px] font-semibold text-ink">
+                  {g.title}
+                </div>
+                <div className="mt-3 overflow-hidden rounded-[10px] border border-edge bg-inset">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- static public lesson art */}
+                  <img
+                    src={g.src}
+                    alt={g.title}
+                    className="block w-full h-auto"
+                  />
+                </div>
+                {g.caption && (
+                  <figcaption className="mt-2.5 font-sans text-[13px] leading-relaxed text-ink-muted">
+                    {g.caption}
+                  </figcaption>
+                )}
+              </figure>
+            ))}
           </div>
         </Pane>
       )}

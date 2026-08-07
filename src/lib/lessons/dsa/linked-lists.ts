@@ -6,6 +6,15 @@ export const linkedListsLessons: Lesson[] = [
     module: "linked-lists",
     title: "Nodes and Links",
     blurb: "What a linked list buys you, and what it costs.",
+    graphics: [
+      {
+        id: "nodes-and-links",
+        title: "Nodes and next links",
+        caption:
+          "Each node holds a value and a pointer to the next. Cheap insert/delete at a known node; random access costs a walk.",
+        src: "/learn/dsa/dsa-linked-list-basics.png",
+      },
+    ],
     content: `## Nodes and links
 
 A linked list is the simplest "structure made of references": each node holds a value and a pointer to the next node. That's the whole thing.
@@ -212,6 +221,15 @@ console.log("has 7:", contains(sample, 7));   // expected: false`,
     module: "linked-lists",
     title: "Fast & Slow Pointers",
     blurb: "Two runners at different speeds find middles and cycles.",
+    graphics: [
+      {
+        id: "tortoise-hare",
+        title: "Tortoise and hare",
+        caption:
+          "One pointer steps once, the other twice. They meet in a cycle, or the fast one finds the middle when it hits the end.",
+        src: "/learn/dsa/dsa-fast-slow-pointers.png",
+      },
+    ],
     content: `## Two runners, one list
 
 The fast/slow (or "runner") technique: walk **two** pointers through the same list at different speeds. It answers questions about a list's *shape* — where's the middle? does it loop? — in one pass, with O(1) extra space, without knowing the length up front.
@@ -408,6 +426,15 @@ console.log("empty has cycle:", hasCycle(null));        // expected: false`,
     module: "linked-lists",
     title: "Reversing In Place",
     blurb: "The prev/cur/next pointer dance, and in-place edits generally.",
+    graphics: [
+      {
+        id: "flip-links",
+        title: "Flip the arrows",
+        caption:
+          "In-place reverse rewires next pointers with a prev/cur/next dance — same nodes, opposite direction, O(1) extra space.",
+        src: "/learn/dsa/dsa-reverse-list.png",
+      },
+    ],
     content: `## The pointer dance
 
 Reversing a linked list in place is *the* signature list interview question — not because reversing is useful daily, but because it's the cleanest test of disciplined pointer surgery.
