@@ -12,7 +12,7 @@ export const sortingSearchingLessons: Lesson[] = [
         title: "Halve the search space",
         caption:
           "On sorted data, compare the midpoint and discard half. Log n probes if the boundaries and loop invariant stay honest.",
-        src: "/learn/dsa/dsa-binary-search.png",
+        src: "/lesson-graphics/dsa/dsa-binary-search.png",
       },
     ],
     content: `You've scanned arrays for a value a thousand times — \`indexOf\`, \`find\`, a \`for\` loop. All O(n): worst case touches every element. Binary search is what you get when the data is **sorted**: one comparison against the middle element tells you which half the target *can't* be in, so each step discards half the candidates.
@@ -143,7 +143,7 @@ console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
         title: "Binary search the answer",
         caption:
           "When the feasible region is monotonic on a range, binary search over the answer itself — not just over array indexes.",
-        src: "/learn/dsa/dsa-search-the-answer.png",
+        src: "/lesson-graphics/dsa/dsa-search-the-answer.png",
       },
     ],
     content: `Strip binary search to its essentials and the array disappears. What it actually needs is a **monotonic predicate**: a boolean function over an ordered domain that reads \`false, false, false, true, true, true\` — once it flips to true, it never flips back. Any such predicate has a boundary (the *first true*), and binary search finds it in O(log n) probes. You don't need an array in memory — just the ability to evaluate the predicate at any point.
@@ -287,7 +287,7 @@ console.log("isBad probes:", checker.callCount()); // expected: ~20 (log2 of 1,0
         title: "Three faces of sorting",
         caption:
           "Merge combines sorted halves, bubble/selection swap locally, quick partitions around a pivot. Know the shape; reach for the built-in for production.",
-        src: "/learn/dsa/dsa-sorting-survey.png",
+        src: "/lesson-graphics/dsa/dsa-sorting-survey.png",
       },
     ],
     content: `Three mechanisms cover what's inside virtually every real sort.

@@ -12,7 +12,7 @@ export const complexityLessons: Lesson[] = [
         title: "How work grows with n",
         caption:
           "Same input size, very different futures: constant stays flat while linear, super-linear, and quadratic curves peel away. Big-O names the shape of that growth, not a stopwatch reading.",
-        src: "/learn/dsa/dsa-big-o.png",
+        src: "/lesson-graphics/dsa/dsa-big-o.png",
       },
     ],
     content: `You already have the instinct for this. You've written a \`.map()\` with a \`.includes()\` check inside it, watched it fly on test data, and then watched it crawl in production once the array had 50,000 items instead of 50. That feeling — "why did this suddenly get slow" — is Big-O showing up uninvited. Big-O gives that instinct a name and a vocabulary.
@@ -164,7 +164,7 @@ for (const label of ["getMiddle", "findMax", "hasPairSum"]) {
         title: "Buy speed with memory",
         caption:
           "The classic trade: spend extra space (a filled map or set) so each later query is cheap, instead of rescanning a sparse structure every time.",
-        src: "/learn/dsa/dsa-time-vs-space.png",
+        src: "/lesson-graphics/dsa/dsa-time-vs-space.png",
       },
     ],
     content: `The single most common move in an interview — and in real production code — is spending memory to buy speed. You allocate a Set, a Map, or an array of precomputed results, and in exchange you erase a factor of n from your time complexity.
@@ -286,7 +286,7 @@ for (const id of idsToLookUp) {
         title: "Spot nested work",
         caption:
           "Complexity is read from structure: a single pass is linear; nested loops or a scan inside a loop compound. Library helpers like includes hide the same cost.",
-        src: "/learn/dsa/dsa-reading-complexity.png",
+        src: "/lesson-graphics/dsa/dsa-reading-complexity.png",
       },
     ],
     content: `Big-O isn't something you compute from a formula — it's something you read off the shape of the code. A few rules get you most of the way there.

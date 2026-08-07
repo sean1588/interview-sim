@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Generate DSA lesson concept illustrations via OpenRouter image models
- * and write them to public/learn/dsa/.
+ * and write them to public/lesson-graphics/dsa/.
  *
  * Usage:
  *   node scripts/gen-dsa-graphics.mjs                 # all lessons
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const OUT_DIR = join(ROOT, "public", "learn", "dsa");
+const OUT_DIR = join(ROOT, "public", "lesson-graphics", "dsa");
 
 const DEFAULT_MODEL = "openai/gpt-image-2";
 const ENDPOINT = "https://openrouter.ai/api/v1/images";

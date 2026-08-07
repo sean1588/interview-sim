@@ -12,7 +12,7 @@ export const stacksQueuesLessons: Lesson[] = [
         title: "Last in, first out",
         caption:
           "Push to open work, pop to resolve it. Bracket matching, nesting, undo, and postorder walks all reverse arrival order.",
-        src: "/learn/dsa/dsa-stack-patterns.png",
+        src: "/lesson-graphics/dsa/dsa-stack-patterns.png",
       },
     ],
     content: `## The structure
@@ -166,7 +166,7 @@ console.log(evalRPN(["7", "2", "3", "*", "-"])); // expected: 1
         title: "First in, first out",
         caption:
           "Enqueue at the back, dequeue from the front. Arrival order is processing order — BFS, rate windows, and fair scheduling.",
-        src: "/learn/dsa/dsa-queues.png",
+        src: "/lesson-graphics/dsa/dsa-queues.png",
       },
     ],
     content: `## The structure
@@ -323,7 +323,7 @@ console.log(counter.countSince(401)); // expected: 0
         title: "Next greater in one pass",
         caption:
           "Keep the stack sorted by value so each new bar can pop smaller predecessors and answer \"who is next greater?\" in amortized O(1) per element.",
-        src: "/learn/dsa/dsa-monotonic-stack.png",
+        src: "/lesson-graphics/dsa/dsa-monotonic-stack.png",
       },
     ],
     content: `## The idea

@@ -68,7 +68,7 @@ export interface LessonGraphic {
   title: string;
   /** 1–2 sentences tying the figure to the concept; plain text. */
   caption?: string;
-  /** Public path, e.g. `/learn/dsa/dsa-big-o.png`. */
+  /** Public path, e.g. `/lesson-graphics/dsa/dsa-big-o.png`. */
   src: string;
 }
 

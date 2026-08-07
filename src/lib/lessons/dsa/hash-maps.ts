@@ -12,7 +12,7 @@ export const hashMapsLessons: Lesson[] = [
         title: "Hash into buckets",
         caption:
           "A hash function scatters keys into slots. Collisions chain in the same bucket — average O(1), worst-case linear if everything piles into one slot.",
-        src: "/learn/dsa/dsa-hash-mechanics.png",
+        src: "/lesson-graphics/dsa/dsa-hash-mechanics.png",
       },
     ],
     content: `You use \`Map\` and \`Set\` daily. Here's what's actually in memory when you call \`map.get(key)\`.
@@ -199,7 +199,7 @@ dist.forEach((count, i) => {
         title: "Count, then decide",
         caption:
           "Tally every element into a map, then answer with the counts. Anagrams, majorities, and many \"how many of X\" problems fall out of this pattern.",
-        src: "/learn/dsa/dsa-frequency-maps.png",
+        src: "/lesson-graphics/dsa/dsa-frequency-maps.png",
       },
     ],
     content: `You've built this ad hoc every time you tallied results into an object keyed by id. Named and generalized, it's the **frequency map**: one O(n) pass building \`Map<item, count>\`, then answer questions from the counts instead of from the raw data.
@@ -340,7 +340,7 @@ console.log(isAnagram("ab", "abc")); // expect false (length check)`,
         title: "Remember what you've seen",
         caption:
           "A Set or Map is working memory: first time is new, second time is the signal. Duplicates, two-sum complements, and first-repeat all live here.",
-        src: "/learn/dsa/dsa-seen-before.png",
+        src: "/lesson-graphics/dsa/dsa-seen-before.png",
       },
     ],
     content: `Frequency maps count *after* seeing everything. This family asks a question **mid-pass**: *have I seen this before?* A \`Set\` (or a \`Map\`, when you need to remember *where* or *what*) acts as the pass's memory.

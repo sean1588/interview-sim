@@ -12,7 +12,7 @@ export const arraysStringsLessons: Lesson[] = [
         title: "Pointers from both ends",
         caption:
           "On ordered data, two indexes can walk toward (or past) each other and discard half the possibilities per step — often replacing an O(n²) nested scan.",
-        src: "/learn/dsa/dsa-two-pointers.png",
+        src: "/lesson-graphics/dsa/dsa-two-pointers.png",
       },
     ],
     content: `## The problem with pairs
@@ -149,7 +149,7 @@ console.log(pairWithSum([2, 3, 5, 8], 4));         // expected: null
         title: "A window that slides",
         caption:
           "Maintain a contiguous range over the array or string, expand when you can, shrink when the constraint breaks — still O(n) overall if each edge only moves forward.",
-        src: "/learn/dsa/dsa-sliding-window.png",
+        src: "/lesson-graphics/dsa/dsa-sliding-window.png",
       },
     ],
     content: `## Two pointers, but they bound a range
@@ -293,7 +293,7 @@ console.log(longestUniqueRun("pwwkew"));   // expected: 3  ("wke")
         title: "Running totals",
         caption:
           "Precompute cumulative sums once; any subarray sum becomes two lookups. Trade a linear prep for constant-time range answers.",
-        src: "/learn/dsa/dsa-prefix-sums.png",
+        src: "/lesson-graphics/dsa/dsa-prefix-sums.png",
       },
     ],
     content: `## Pay once, query forever

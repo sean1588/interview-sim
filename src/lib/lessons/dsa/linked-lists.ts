@@ -12,7 +12,7 @@ export const linkedListsLessons: Lesson[] = [
         title: "Nodes and next links",
         caption:
           "Each node holds a value and a pointer to the next. Cheap insert/delete at a known node; random access costs a walk.",
-        src: "/learn/dsa/dsa-linked-list-basics.png",
+        src: "/lesson-graphics/dsa/dsa-linked-list-basics.png",
       },
     ],
     content: `## Nodes and links
@@ -227,7 +227,7 @@ console.log("has 7:", contains(sample, 7));   // expected: false`,
         title: "Tortoise and hare",
         caption:
           "One pointer steps once, the other twice. They meet in a cycle, or the fast one finds the middle when it hits the end.",
-        src: "/learn/dsa/dsa-fast-slow-pointers.png",
+        src: "/lesson-graphics/dsa/dsa-fast-slow-pointers.png",
       },
     ],
     content: `## Two runners, one list
@@ -432,7 +432,7 @@ console.log("empty has cycle:", hasCycle(null));        // expected: false`,
         title: "Flip the arrows",
         caption:
           "In-place reverse rewires next pointers with a prev/cur/next dance — same nodes, opposite direction, O(1) extra space.",
-        src: "/learn/dsa/dsa-reverse-list.png",
+        src: "/lesson-graphics/dsa/dsa-reverse-list.png",
       },
     ],
     content: `## The pointer dance

@@ -12,7 +12,7 @@ export const treesLessons: Lesson[] = [
         title: "Root, left, right",
         caption:
           "A binary tree is hierarchy: each node has at most two children. A BST adds the ordering invariant that makes search logarithmic when balanced.",
-        src: "/learn/dsa/dsa-tree-basics.png",
+        src: "/lesson-graphics/dsa/dsa-tree-basics.png",
       },
     ],
     content: `# Binary Trees and BSTs
@@ -180,7 +180,7 @@ console.log(treeHeight(null)); // expected: 0`,
         title: "Depth-first recursion",
         caption:
           "Dive a branch to the bottom, then backtrack. Preorder, inorder, and postorder are just when you visit relative to the two recursive calls.",
-        src: "/learn/dsa/dsa-dfs-recursion.png",
+        src: "/lesson-graphics/dsa/dsa-dfs-recursion.png",
       },
     ],
     content: `# Depth-First Traversals
@@ -346,7 +346,7 @@ console.log(treeSum(null)); // expected: 0`,
         title: "Level by level",
         caption:
           "A queue expands the frontier one level at a time. Nearest nodes first — the tree version of breadth-first search.",
-        src: "/learn/dsa/dsa-bfs-level-order.png",
+        src: "/lesson-graphics/dsa/dsa-bfs-level-order.png",
       },
     ],
     content: `# Breadth-First: Level Order
