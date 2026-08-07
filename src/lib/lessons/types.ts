@@ -56,6 +56,26 @@ export interface QuizQuestion {
   explanation: string;
 }
 
+/**
+ * A concept illustration shown in the lesson's Graphics tab. Optional — most
+ * courses have none; DSA lessons carry one (or a few) figures that visualize
+ * the idea the notes describe.
+ */
+export interface LessonGraphic {
+  /**
+   * Stable id within the lesson, kebab-case. Unlike Exercise/QuizQuestion ids,
+   * this is only ever used as a render key inside the owning lesson — never
+   * looked up globally — so it doesn't need cross-course uniqueness.
+   */
+  id: string;
+  /** Short label above the figure. */
+  title: string;
+  /** 1–2 sentences tying the figure to the concept; plain text. */
+  caption?: string;
+  /** Public path, e.g. `/lesson-graphics/dsa/dsa-big-o.png`. */
+  src: string;
+}
+
 export interface Lesson {
   /** Globally unique (across all courses), kebab-case — the /learn/[course]/[lessonId] segment. */
   id: string;
@@ -77,6 +97,11 @@ export interface Lesson {
    * the learner misses are fed back to the tutor (see buildLessonScript).
    */
   quiz: QuizQuestion[];
+  /**
+   * Optional concept illustrations for the Graphics tab. Omitted or empty when
+   * the lesson has no figure — the tab is hidden in that case.
+   */
+  graphics?: LessonGraphic[];
 }
 
 /** Questions per lesson quiz. Enforced by the lesson bank tests. */

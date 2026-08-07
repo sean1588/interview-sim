@@ -6,6 +6,15 @@ export const hashMapsLessons: Lesson[] = [
     module: "hash-maps",
     title: "How a Hash Map Actually Works",
     blurb: "Hash to a bucket, chain on collision — why O(1) is \"average\".",
+    graphics: [
+      {
+        id: "buckets",
+        title: "Hash into buckets",
+        caption:
+          "A hash function scatters keys into slots. Collisions chain in the same bucket — average O(1), worst-case linear if everything piles into one slot.",
+        src: "/lesson-graphics/dsa/dsa-hash-mechanics.png",
+      },
+    ],
     content: `You use \`Map\` and \`Set\` daily. Here's what's actually in memory when you call \`map.get(key)\`.
 
 ## The mechanism
@@ -184,6 +193,15 @@ dist.forEach((count, i) => {
     module: "hash-maps",
     title: "Frequency Counting",
     blurb: "The count-everything-first pattern behind a huge problem family.",
+    graphics: [
+      {
+        id: "count-first",
+        title: "Count, then decide",
+        caption:
+          "Tally every element into a map, then answer with the counts. Anagrams, majorities, and many \"how many of X\" problems fall out of this pattern.",
+        src: "/lesson-graphics/dsa/dsa-frequency-maps.png",
+      },
+    ],
     content: `You've built this ad hoc every time you tallied results into an object keyed by id. Named and generalized, it's the **frequency map**: one O(n) pass building \`Map<item, count>\`, then answer questions from the counts instead of from the raw data.
 
 ## Why it matters
@@ -316,6 +334,15 @@ console.log(isAnagram("ab", "abc")); // expect false (length check)`,
     module: "hash-maps",
     title: "Seen-Before Patterns",
     blurb: "Sets and Maps as memory: dedupe, detect, and pair in one pass.",
+    graphics: [
+      {
+        id: "first-seen",
+        title: "Remember what you've seen",
+        caption:
+          "A Set or Map is working memory: first time is new, second time is the signal. Duplicates, two-sum complements, and first-repeat all live here.",
+        src: "/lesson-graphics/dsa/dsa-seen-before.png",
+      },
+    ],
     content: `Frequency maps count *after* seeing everything. This family asks a question **mid-pass**: *have I seen this before?* A \`Set\` (or a \`Map\`, when you need to remember *where* or *what*) acts as the pass's memory.
 
 ## The shape: check, then insert

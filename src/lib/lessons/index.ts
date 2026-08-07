@@ -15,6 +15,7 @@ import { awsCourse } from "./aws";
 export type {
   Course,
   Lesson,
+  LessonGraphic,
   Exercise,
   Module,
   ConceptCourseId,

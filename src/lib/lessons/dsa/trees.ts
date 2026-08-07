@@ -6,6 +6,15 @@ export const treesLessons: Lesson[] = [
     module: "trees",
     title: "Binary Trees and BSTs",
     blurb: "Hierarchy, the BST ordering invariant, and why balance matters.",
+    graphics: [
+      {
+        id: "binary-tree",
+        title: "Root, left, right",
+        caption:
+          "A binary tree is hierarchy: each node has at most two children. A BST adds the ordering invariant that makes search logarithmic when balanced.",
+        src: "/lesson-graphics/dsa/dsa-tree-basics.png",
+      },
+    ],
     content: `# Binary Trees and BSTs
 
 You've been using trees all along — the DOM, your file system, nested JSON. A tree is just nodes with a single **root**, where each node points down at **children**; nodes with no children are **leaves**. The **height** is the longest root-to-leaf path. A **binary** tree caps children at two, which is enough structure to make searching cheap.
@@ -165,6 +174,15 @@ console.log(treeHeight(null)); // expected: 0`,
     module: "trees",
     title: "Depth-First Traversals",
     blurb: "Preorder, inorder, postorder — recursion as a tree walker.",
+    graphics: [
+      {
+        id: "go-deep",
+        title: "Depth-first recursion",
+        caption:
+          "Dive a branch to the bottom, then backtrack. Preorder, inorder, and postorder are just when you visit relative to the two recursive calls.",
+        src: "/lesson-graphics/dsa/dsa-dfs-recursion.png",
+      },
+    ],
     content: `# Depth-First Traversals
 
 Depth-first search commits fully to one subtree before touching the other: it dives left until it can't, then backs up and tries the next branch. Recursion is DFS's natural form because **the call stack is the path back up** — the same stack mechanics from the stacks lesson, except the runtime maintains it for you. Each frame remembers "I was at this node, and I still owe the right subtree."
@@ -322,6 +340,15 @@ console.log(treeSum(null)); // expected: 0`,
     module: "trees",
     title: "Breadth-First: Level Order",
     blurb: "A queue turns a tree into levels; nearest-first search.",
+    graphics: [
+      {
+        id: "level-waves",
+        title: "Level by level",
+        caption:
+          "A queue expands the frontier one level at a time. Nearest nodes first — the tree version of breadth-first search.",
+        src: "/lesson-graphics/dsa/dsa-bfs-level-order.png",
+      },
+    ],
     content: `# Breadth-First: Level Order
 
 DFS plunges down; **BFS** sweeps across. It visits the root, then everything at depth 1, then depth 2 — the tree as horizontal slices. The engine is exactly the queue from the last module: dequeue a node, enqueue its children. Children land *behind* everything already waiting, which is precisely what makes shallow nodes come out before deep ones.

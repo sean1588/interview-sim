@@ -6,6 +6,15 @@ export const sortingSearchingLessons: Lesson[] = [
     module: "sorting-searching",
     title: "Binary Search",
     blurb: "Halve the sorted search space; get the boundaries right.",
+    graphics: [
+      {
+        id: "halve-space",
+        title: "Halve the search space",
+        caption:
+          "On sorted data, compare the midpoint and discard half. Log n probes if the boundaries and loop invariant stay honest.",
+        src: "/lesson-graphics/dsa/dsa-binary-search.png",
+      },
+    ],
     content: `You've scanned arrays for a value a thousand times — \`indexOf\`, \`find\`, a \`for\` loop. All O(n): worst case touches every element. Binary search is what you get when the data is **sorted**: one comparison against the middle element tells you which half the target *can't* be in, so each step discards half the candidates.
 
 That halving is the entire story. n → n/2 → n/4 → … hits 1 in log₂ n steps. For 1,000,000 elements that's **20 comparisons** instead of a million; for a billion, 30. "Is it sorted?" should be the first question you ask about any lookup problem.
@@ -128,6 +137,15 @@ console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
     module: "sorting-searching",
     title: "Binary Searching the Answer",
     blurb: "The first-true boundary: binary search beyond arrays.",
+    graphics: [
+      {
+        id: "answer-space",
+        title: "Binary search the answer",
+        caption:
+          "When the feasible region is monotonic on a range, binary search over the answer itself — not just over array indexes.",
+        src: "/lesson-graphics/dsa/dsa-search-the-answer.png",
+      },
+    ],
     content: `Strip binary search to its essentials and the array disappears. What it actually needs is a **monotonic predicate**: a boolean function over an ordered domain that reads \`false, false, false, true, true, true\` — once it flips to true, it never flips back. Any such predicate has a boundary (the *first true*), and binary search finds it in O(log n) probes. You don't need an array in memory — just the ability to evaluate the predicate at any point.
 
 Recast problems you already know into this frame:
@@ -263,6 +281,15 @@ console.log("isBad probes:", checker.callCount()); // expected: ~20 (log2 of 1,0
     module: "sorting-searching",
     title: "How Sorting Actually Works",
     blurb: "Insertion, merge, quick — and using the built-in well.",
+    graphics: [
+      {
+        id: "sort-family",
+        title: "Three faces of sorting",
+        caption:
+          "Merge combines sorted halves, bubble/selection swap locally, quick partitions around a pivot. Know the shape; reach for the built-in for production.",
+        src: "/lesson-graphics/dsa/dsa-sorting-survey.png",
+      },
+    ],
     content: `Three mechanisms cover what's inside virtually every real sort.
 
 **Insertion sort** grows a sorted prefix: take the next element, shift it backward until it sits in place. O(n²) — at n = 1,000,000 that's ~10¹² steps, never your main sort — but on tiny (≲16 elements) or nearly-sorted input it's the fastest thing running: no recursion, no allocation, and almost no shifts when things are close to ordered. That's exactly why production sorts use it as their base case.

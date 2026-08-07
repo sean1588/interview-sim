@@ -6,6 +6,15 @@ export const complexityLessons: Lesson[] = [
     module: "complexity",
     title: "Big-O: How Work Grows",
     blurb: "Growth classes, dropping constants, and worst vs average case.",
+    graphics: [
+      {
+        id: "growth-curves",
+        title: "How work grows with n",
+        caption:
+          "Same input size, very different futures: constant stays flat while linear, super-linear, and quadratic curves peel away. Big-O names the shape of that growth, not a stopwatch reading.",
+        src: "/lesson-graphics/dsa/dsa-big-o.png",
+      },
+    ],
     content: `You already have the instinct for this. You've written a \`.map()\` with a \`.includes()\` check inside it, watched it fly on test data, and then watched it crawl in production once the array had 50,000 items instead of 50. That feeling — "why did this suddenly get slow" — is Big-O showing up uninvited. Big-O gives that instinct a name and a vocabulary.
 
 Big-O does **not** measure how fast your code runs on one input. It measures how the *amount of work* grows as the input grows. Two functions can both finish in 2ms on a 10-item array and still have wildly different futures.
@@ -149,6 +158,15 @@ for (const label of ["getMiddle", "findMax", "hasPairSum"]) {
     module: "complexity",
     title: "Trading Space for Time",
     blurb: "Memory is a resource you can spend to buy speed.",
+    graphics: [
+      {
+        id: "space-for-time",
+        title: "Buy speed with memory",
+        caption:
+          "The classic trade: spend extra space (a filled map or set) so each later query is cheap, instead of rescanning a sparse structure every time.",
+        src: "/lesson-graphics/dsa/dsa-time-vs-space.png",
+      },
+    ],
     content: `The single most common move in an interview — and in real production code — is spending memory to buy speed. You allocate a Set, a Map, or an array of precomputed results, and in exchange you erase a factor of n from your time complexity.
 
 The canonical example is two-sum. Given an array and a target, find two numbers that add to it. The naive approach checks every pair: nested loops, O(n²) time, and O(1) extra space since you're not storing anything beyond the input. The traded version makes one pass, and for each number checks a Map for its complement (\`target - x\`); if it's not there yet, it stores the current number keyed by itself. That's O(n) time — one map lookup and one map insert per element, both O(1) average — at the cost of O(n) space for the Map itself.
@@ -262,6 +280,15 @@ for (const id of idsToLookUp) {
     module: "complexity",
     title: "Reading Code for Complexity",
     blurb: "Loops, halving, and hidden costs inside library calls.",
+    graphics: [
+      {
+        id: "read-the-shape",
+        title: "Spot nested work",
+        caption:
+          "Complexity is read from structure: a single pass is linear; nested loops or a scan inside a loop compound. Library helpers like includes hide the same cost.",
+        src: "/lesson-graphics/dsa/dsa-reading-complexity.png",
+      },
+    ],
     content: `Big-O isn't something you compute from a formula — it's something you read off the shape of the code. A few rules get you most of the way there.
 
 **Sequential loops add.** Two separate \`for\` loops over the same array, one after another, is O(n) + O(n) = O(2n), which is still O(n). You don't multiply just because there are two loops — you multiply only when one loop runs *inside* another.

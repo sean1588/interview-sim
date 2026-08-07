@@ -116,6 +116,7 @@ export default function LessonWorkspace({
               <LessonMaterial
                 content={lesson.content}
                 quiz={lesson.quiz}
+                graphics={lesson.graphics}
                 onMissedChange={setMissedQuizIds}
                 exercise={{
                   data: exercise,
@@ -145,6 +146,7 @@ export default function LessonWorkspace({
             <LessonMaterial
               content={lesson.content}
               quiz={lesson.quiz}
+              graphics={lesson.graphics}
               onMissedChange={setMissedQuizIds}
             />
           </div>
