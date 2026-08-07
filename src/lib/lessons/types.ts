@@ -62,7 +62,11 @@ export interface QuizQuestion {
  * the idea the notes describe.
  */
 export interface LessonGraphic {
-  /** Stable id within the lesson, kebab-case. */
+  /**
+   * Stable id within the lesson, kebab-case. Unlike Exercise/QuizQuestion ids,
+   * this is only ever used as a render key inside the owning lesson — never
+   * looked up globally — so it doesn't need cross-course uniqueness.
+   */
   id: string;
   /** Short label above the figure. */
   title: string;

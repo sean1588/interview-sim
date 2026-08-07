@@ -11,6 +11,11 @@
  *   node scripts/gen-dsa-graphics.mjs --dry-run
  *
  * Requires OPENROUTER_API_KEY in the environment.
+ *
+ * Output PNGs are committed straight into the repo rather than generated at
+ * build time or served from a CDN — there are few enough (one per lesson)
+ * that a build step or asset host would be pure overhead. Re-run this script
+ * and commit the new PNGs when a lesson's figure needs to change.
  */
 
 import { writeFile, mkdir } from "node:fs/promises";
@@ -457,14 +462,17 @@ async function main() {
         aspectRatio: opts.aspectRatio,
         apiKey,
       });
-      const outPath = join(OUT_DIR, `${lesson.id}.${ext}`);
-      await writeFile(outPath, bytes);
-      // Keep a stable .png alias when the model returns jpeg, so lesson srcs
-      // that point at .png still work during A/B model trials.
+      // Lesson graphics reference a fixed `.png` src; a model that returns
+      // jpeg bytes must not be aliased under a .png name (mismatched
+      // extension/content confuses anything that trusts the extension).
       if (ext !== "png") {
-        await writeFile(join(OUT_DIR, `${lesson.id}.png`), bytes);
+        throw new Error(
+          `model returned ${ext} image data, but lesson graphics only support .png — rerun with a PNG-capable model`
+        );
       }
-      console.log(`ok (${bytes.length} bytes → ${lesson.id}.${ext})`);
+      const outPath = join(OUT_DIR, `${lesson.id}.png`);
+      await writeFile(outPath, bytes);
+      console.log(`ok (${bytes.length} bytes → ${lesson.id}.png)`);
       ok++;
     } catch (err) {
       console.log("FAILED");
