@@ -23,7 +23,7 @@ class MemoryStorage {
   }
 }
 
-const KEY = "interview-sim:layout:expanded";
+const KEY = "interview-sim:layout:expanded:v1";
 
 function installStorage(ls: unknown = new MemoryStorage()) {
   (globalThis as { window?: unknown }).window = { localStorage: ls };

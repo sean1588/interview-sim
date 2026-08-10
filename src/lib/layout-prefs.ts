@@ -3,7 +3,7 @@
  * SessionFrame instance (interviews and lessons alike), not a per-session flag.
  */
 
-const KEY = "interview-sim:layout:expanded";
+const KEY = "interview-sim:layout:expanded:v1";
 
 /** All persistence is on-device and client-only: on the server (SSR) there is
  * no localStorage, so every reader returns false and every writer is a no-op. */
@@ -41,8 +41,8 @@ export function setExpanded(value: boolean): void {
 }
 
 // --- React external-store glue -------------------------------------------
-// A cached, referentially-stable snapshot so `useSyncExternalStore` can read
-// localStorage without a hydration mismatch or an effect that sets state.
+// A cached snapshot to avoid re-reading localStorage on every render, while
+// letting `useSyncExternalStore` stay in sync on changes (no hydration mismatch).
 const listeners = new Set<() => void>();
 let snapshot: boolean | null = null;
 
