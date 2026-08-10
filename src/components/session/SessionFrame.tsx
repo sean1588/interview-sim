@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "./icons";
+import { ChevronLeft, Collapse, Expand } from "./icons";
+import {
+  expandedServerSnapshot,
+  expandedSnapshot,
+  setExpanded,
+  subscribeExpanded,
+} from "@/lib/layout-prefs";
 
 /** Seconds since mount, formatted mm:ss — drives the LIVE clock. The session is
  * "live" from the moment you enter the room. */
@@ -57,11 +63,14 @@ export default function SessionFrame({
   children,
 }: SessionFrameProps) {
   const elapsed = useElapsed();
+  const expanded = useSyncExternalStore(subscribeExpanded, expandedSnapshot, expandedServerSnapshot);
 
   return (
     <div className="h-screen w-full bg-app flex justify-center p-3 sm:p-5 overflow-hidden">
       <div
-        className="w-full max-w-[1440px] flex flex-col bg-frame text-ink rounded-[7px] border border-edge overflow-hidden"
+        className={`w-full flex flex-col bg-frame text-ink rounded-[7px] border border-edge overflow-hidden ${
+          expanded ? "" : "max-w-[1440px]"
+        }`}
         style={{ boxShadow: "0 30px 70px rgba(60,40,20,.22)" }}
       >
         {/* Header */}
@@ -89,6 +98,14 @@ export default function SessionFrame({
               <span className="h-[7px] w-[7px] rounded-full bg-gold animate-livedot" />
               LIVE · {elapsed}
             </span>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              aria-label={expanded ? "Return to normal width" : "Expand to full width"}
+              title={expanded ? "Return to normal width" : "Expand to full width"}
+              className="inline-flex items-center justify-center rounded-[7px] border border-edge bg-chip p-2 text-ink-muted transition-colors hover:border-cognac/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
+            >
+              {expanded ? <Collapse size={15} /> : <Expand size={15} />}
+            </button>
             {controls}
             {error && <span className="text-red-700 text-xs max-w-[200px] truncate">{error}</span>}
             <button
