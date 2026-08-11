@@ -104,3 +104,27 @@ export function Send(props: IconProps) {
     </Stroke>
   );
 }
+
+/** Diagonal corner arrows — the "grow to full width" toggle in its unexpanded state. */
+export function Expand(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M15 3h6v6" />
+      <path d="M9 21H3v-6" />
+      <line x1="21" y1="3" x2="14" y2="10" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </Stroke>
+  );
+}
+
+/** Inward corner arrows — the same toggle's expanded state. */
+export function Collapse(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M4 14h6v6" />
+      <path d="M20 10h-6V4" />
+      <line x1="21" y1="3" x2="14" y2="10" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </Stroke>
+  );
+}
