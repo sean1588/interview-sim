@@ -11,7 +11,7 @@ import type { LanguageId } from "@/lib/problems";
  * compile-time link to CONCEPT_PROFILE in "@/lib/prompts": adding a concept
  * course here without a persona there fails the build.
  */
-export type ConceptCourseId = "distributed-systems" | "aws";
+export type ConceptCourseId = "distributed-systems" | "aws" | "applied-ai";
 
 /**
  * The courses that teach a subject THROUGH a language rather than the language

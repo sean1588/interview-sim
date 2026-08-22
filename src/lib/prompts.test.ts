@@ -335,6 +335,7 @@ describe("learning personas", () => {
   it.each([
     ["distributed-systems", /distributed systems tutor/i, /\bAWS\b/],
     ["aws", /\bAWS tutor\b/, /distributed systems/i],
+    ["applied-ai", /\bapplied AI tutor\b/, /distributed systems/i],
   ])("names the %s tutor in every concept prompt", (course, itsOwn, theOther) => {
     const surfaces = [
       getSystemPrompt("learning", { course }),
