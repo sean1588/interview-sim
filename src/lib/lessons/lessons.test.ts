@@ -30,6 +30,7 @@ describe("learning courses — cross-course invariants", () => {
       "dsa",
       "distributed-systems",
       "aws",
+      "applied-ai",
     ]);
   });
 
@@ -52,6 +53,7 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("dsa")?.id).toBe("dsa");
     expect(getCourse("distributed-systems")?.id).toBe("distributed-systems");
     expect(getCourse("aws")?.id).toBe("aws");
+    expect(getCourse("applied-ai")?.id).toBe("applied-ai");
     expect(getCourse("does-not-exist")).toBeUndefined();
   });
 
@@ -178,6 +180,7 @@ describe.each(COURSES)("course: $id", (course) => {
 const CONCEPT_COURSES = [
   { id: "distributed-systems", modules: 6, minLessons: 18 },
   { id: "aws", modules: 7, minLessons: 21 },
+  { id: "applied-ai", modules: 7, minLessons: 24 },
 ] as const;
 
 it("pins every concept course — a new one must be added to the table above", () => {

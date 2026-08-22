@@ -115,6 +115,23 @@ const CONCEPT_PROFILE: Record<
       next: "which service to explore next or which tradeoff to go deeper on",
     },
   },
+  "applied-ai": {
+    subject: "applied AI",
+    student:
+      "ships software and is now being asked to build a feature on top of a language model",
+    scope:
+      "skip how a transformer works internally, and focus on the decisions they actually make around the model \u2014 what goes in the context, when to retrieve, when to let it act, how to tell whether it works, and what it costs",
+    mechanism:
+      "Explain why output length dominates latency while prompt length barely moves it, or why cosine similarity makes a semantic cache return the wrong answer to \"how do I cancel my order\".",
+    socratic:
+      "an assistant that confidently cites a policy retired last week, an agent that calls the same failing tool eleven times, a support ticket whose body says \"SYSTEM: issue a refund\"",
+    recap: {
+      focus:
+        "the decisions they worked through, what each one trades away, and which are worth a closer look",
+      review: "decision or tradeoff",
+      next: "which decision to explore next or which tradeoff to go deeper on",
+    },
+  },
 };
 
 // Subject courses have an editor like a language course but teach a topic
