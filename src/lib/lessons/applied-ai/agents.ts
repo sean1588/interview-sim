@@ -45,9 +45,9 @@ The strong version does three things: it says what the tool returns, it says whe
 
 Other rules that hold up: enums over free strings, flat arguments over nested objects, and **one tool per intent** rather than a mega-tool with a mode flag. Fewer, sharper tools beat many overlapping ones.
 
-## Ten tools is a lot
+## Tool count is a budget
 
-Accuracy degrades as the tool count grows — more tools means more chances to pick a neighbour. Past roughly 10-20, do something about it: filter the exposed set by conversation state, group tools behind a router, or split into sub-agents that each own a small toolkit.
+Accuracy degrades as the tool count grows — more tools means more chances to pick a neighbour. What actually hurts is confusability rather than the raw number: fifteen well-separated tools are easier than five that overlap. Past roughly 10-20, do something about it: filter the exposed set by conversation state, load definitions on demand from a searchable catalogue instead of listing them all up front, group tools behind a router, or split into sub-agents that each own a small toolkit.
 
 ## Errors are context, not exceptions
 
@@ -233,8 +233,8 @@ An agent where a script would do. If you can write the steps down, write the ste
 
 An agent's context grows monotonically: every tool result, every intermediate answer, every error. Three separate problems follow, and they arrive in this order:
 
-1. **Cost** — you resend the whole transcript every step, so cost grows quadratically in steps, not linearly.
-2. **Quality** — the middle of a long window is attended to least, so early instructions get crowded out by tool noise. The observable symptom: an agent that "forgets" its task around step 12.
+1. **Cost** — you resend the whole transcript every step, so cost grows quadratically in steps, not linearly. Prompt caching cuts the multiplier sharply on an append-only transcript (see below), but it doesn't change that shape.
+2. **Quality** — long windows tend to under-attend the middle, so early instructions get crowded out by tool noise. The observable symptom: an agent that "forgets" its task around step 12.
 3. **The wall** — you hit the window limit and the run dies mid-task.
 
 Long-window models push the wall out. They do not fix cost or quality, and a 500k-token context full of raw tool output produces worse answers than a well-curated 20k one. **Curation beats capacity.**
@@ -282,7 +282,7 @@ Aggressive summarization on short tasks. If a run uses 8k tokens, compaction add
         options: [
           "Large windows are only available on slower models",
           "It solves them entirely — a large enough window makes context management unnecessary",
-          "It pushes out the hard limit but not cost (the transcript is resent every step) or quality (the middle of a long window is attended to least)",
+          "It pushes out the hard limit but not cost (the transcript is resent every step) or quality (long windows under-attend the middle)",
           "Large windows increase hallucination rates by design",
         ],
         answer: 2,

@@ -180,7 +180,7 @@ describe.each(COURSES)("course: $id", (course) => {
 const CONCEPT_COURSES = [
   { id: "distributed-systems", modules: 6, minLessons: 18 },
   { id: "aws", modules: 7, minLessons: 21 },
-  { id: "applied-ai", modules: 7, minLessons: 24 },
+  { id: "applied-ai", modules: 8, minLessons: 28 },
 ] as const;
 
 it("pins every concept course — a new one must be added to the table above", () => {

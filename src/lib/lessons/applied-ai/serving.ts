@@ -50,7 +50,7 @@ Also budget your own pipeline honestly: retrieval 20ms, reranking 150ms, two too
 ## Levers that work, in rough order of payoff
 
 1. **Generate fewer tokens** — cap length, ask for terse output, skip the preamble. Biggest lever, almost always.
-2. **Prompt caching** — collapses prefill on a stable prefix; often a large TTFT win for free.
+2. **Prompt caching** — collapses prefill on a stable prefix; often a large TTFT win at no quality cost (some providers price cache *writes* at a premium, so it pays back on prefixes you actually reuse).
 3. **Smaller model** — a tier down is often several times faster; combine with a cascade so quality holds.
 4. **Parallelize your own steps** — retrieval, safety checks, and metadata lookups rarely need to be serial.
 5. **Speculative UI** — start rendering scaffolding, show retrieved sources while generation runs.
@@ -141,7 +141,7 @@ GOOD                                    BAD
 [user turn]            volatile
 \`\`\`
 
-Anything volatile at the top invalidates everything after it. This single ordering mistake is one of the most common — and most expensive — in production AI code. Note also that caches have short TTLs (minutes), so the win is on hot paths and multi-turn conversations, not on a request that arrives once an hour.
+Anything volatile at the top invalidates everything after it. This single ordering mistake is one of the most common — and most expensive — in production AI code. Note also that cache entries are short-lived by default (minutes, though some providers sell longer-lived tiers), so the win is on hot paths and multi-turn conversations, not on a request that arrives once an hour.
 
 ## Exact-match caching: mind the keys
 
@@ -326,7 +326,7 @@ Model doesn't follow your FORMAT      -> prompt, then structured output.
 Model doesn't match your STYLE/TONE   -> few-shot, then fine-tuning.
 Model is too SLOW or EXPENSIVE        -> smaller model + fine-tuning.
 Model can't do your SPECIALIZED TASK  -> fine-tuning, after evals prove it.
-Model needs CURRENT information       -> tools. Nothing else works.
+Model needs REAL-TIME information     -> tools. Nothing else works.
 \`\`\`
 
 ## Why "fine-tune it on our docs" fails
@@ -350,7 +350,7 @@ The one place fine-tuning wins on the cost row is worth noting: if a long few-sh
 ## What fine-tuning is genuinely good at
 
 - **Format and style adherence** so consistent you stop paying for examples in every prompt.
-- **Distilling a big model into a small one** for one narrow task: generate labelled outputs with the frontier model, fine-tune a small model on them, serve the small one. This is often a 10-30x cost reduction at comparable task quality, and it's the most under-used technique in applied AI.
+- **Distilling a big model into a small one** for one narrow task: generate labelled outputs with the frontier model, fine-tune a small model on them, serve the small one. This is often a 10-30x cost reduction at comparable task quality, and it's the most under-used technique in applied AI. Check the provider's terms first: training a model outside their platform on their outputs is frequently restricted, while their own distillation offering is the sanctioned path.
 - **Domain vocabulary and conventions** — legal, clinical, or internal shorthand where the base model's register is wrong.
 - **Latency**, indirectly, by making a small fast model good enough.
 

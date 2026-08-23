@@ -13,11 +13,12 @@ An embedding model maps a chunk of text to a fixed-length vector — say 768 or 
 Similarity is nearly always **cosine similarity** — the angle between vectors, ignoring magnitude:
 
 \`\`\`
-cos(a, b) = (a . b) / (|a| |b|)     1.0 identical direction
-                                    0.0 unrelated
+cos(a, b) = (a . b) / (|a| |b|)     1.0  identical direction
+                                    0.0  orthogonal, no relation
+                                   -1.0  opposite direction
 \`\`\`
 
-Normalize your vectors once at write time and cosine similarity becomes a dot product, which is what makes billion-scale search tractable.
+Normalize your document vectors at write time and the query vector at query time, and cosine similarity collapses to a plain dot product, which is what makes billion-scale search tractable.
 
 ## What embeddings do NOT encode
 
@@ -176,7 +177,7 @@ Elaborate chunking for a corpus that fits in the context window. If your entire 
           "The embedding model is too small for short text",
           "Chunks are too small — the answer spans multiple chunks, and each retrieved fragment lacks the surrounding context needed to be usable",
           "Cosine similarity over-weights short chunks, so long relevant ones never rank",
-          "The index needs more overlap between chunks, which would double recall",
+          "The reranker is discarding the longer chunks in favour of shorter, denser ones",
         ],
         answer: 1,
         explanation: "Small chunks embed precisely, which is why similarity looks good, but a fragment like \"must be filed within 30 days\" is unusable without knowing what and by whom. Increase size, add overlap, and prepend a heading breadcrumb.",
@@ -211,7 +212,7 @@ Elaborate chunking for a corpus that fits in the context window. If your entire 
     id: "ai-rag-pipeline",
     module: "retrieval",
     title: "The RAG Pipeline End to End",
-    blurb: "the five stages, the metric that belongs to each, and how to tell which one is failing.",
+    blurb: "the five stages, the metrics that tell you which one is failing, and how to work through them in order.",
     content: `## The stages
 
 \`\`\`
@@ -224,7 +225,7 @@ QUERY -> [1] rewrite -> [2] retrieve -> [3] rerank -> [4] assemble -> [5] genera
 
 **3. Rerank.** A cross-encoder scores each (query, chunk) pair jointly and reorders. Keep the top 3-8. This is the step most first-generation RAG systems skip and the one with the largest quality jump for the effort.
 
-**4. Assemble.** Order the survivors, dedupe near-identical chunks, tag each with its source so the model can cite it, and enforce a token budget. Best chunks go first or last — not buried in the middle.
+**4. Assemble.** Order the survivors, dedupe near-identical chunks, tag each with its source so the model can cite it, and enforce a token budget. Best chunks go first or last — long windows tend to under-attend the middle.
 
 **5. Generate.** Answer *only* from the context. Cite sources. Have a defined output for "not in the context."
 

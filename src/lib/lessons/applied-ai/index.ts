@@ -23,6 +23,7 @@ import { foundationsLessons } from "./foundations";
 import { promptingLessons } from "./prompting";
 import { retrievalLessons } from "./retrieval";
 import { agentsLessons } from "./agents";
+import { frameworksLessons } from "./frameworks";
 import { evaluationLessons } from "./evaluation";
 import { servingLessons } from "./serving";
 import { productionLessons } from "./production";
@@ -31,7 +32,8 @@ const MODULES: Module[] = [
   { id: "foundations", title: "Foundations", blurb: "The stateless token-to-token call every feature is built on: what tokens cost you, why output length dominates latency, what temperature really controls, and how to pick a model without guessing." },
   { id: "prompting", title: "Prompting", blurb: "The five parts of a working prompt and where each belongs, structured output you can actually parse, examples versus rules, and treating prompts as versioned code with an eval diff attached." },
   { id: "retrieval", title: "Retrieval & RAG", blurb: "What an embedding does and doesn't encode, chunking decisions that cap quality before a query runs, the five-stage pipeline, and why keyword search never went away." },
-  { id: "agents", title: "Tools & Agents", blurb: "Tool calling as an untrusted plan your code enforces, the loop and the termination conditions it needs, context as a budget rather than a bucket, and when multiple agents genuinely help." },
+  { id: "agents", title: "Tools & Agents", blurb: "Tool calling as an untrusted plan your code enforces, the loop and the termination conditions it needs, context as a budget rather than a bucket, when multiple agents genuinely help, and MCP as the protocol standardizing the tool layer." },
+  { id: "frameworks", title: "LangChain & LangGraph", blurb: "The build-versus-adopt call, the v1 agent surface and its middleware hooks, and LangGraph as a state machine with durable checkpoints and human-in-the-loop interrupts." },
   { id: "evaluation", title: "Evaluation", blurb: "The 50-case CSV that turns \"seems better\" into a number, LLM judges and the biases that make a naive one useless, and the error analysis that beats any dashboard." },
   { id: "serving", title: "Latency & Cost", blurb: "TTFT versus total time, three caches with three different correctness stories, where the bill actually comes from, and the fine-tuning decision most teams get backwards." },
   { id: "production", title: "Production & Safety", blurb: "Prompt injection and the trifecta that turns it into a breach, guardrails that hold because they're code, tracing a non-deterministic system, and the order of operations for shipping." },
@@ -42,6 +44,7 @@ const LESSONS: Lesson[] = [
   ...promptingLessons,
   ...retrievalLessons,
   ...agentsLessons,
+  ...frameworksLessons,
   ...evaluationLessons,
   ...servingLessons,
   ...productionLessons,
