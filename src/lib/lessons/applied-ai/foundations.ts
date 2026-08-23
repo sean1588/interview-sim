@@ -25,13 +25,13 @@ Two properties of that primitive decide almost every architectural choice you wi
 Tokens are subword fragments produced by the tokenizer, not words:
 
 \`\`\`
-"unbelievable"          -> ["un", "bel", "iev", "able"]     4 tokens
+"unbelievable"          -> ["un", "bel", "ievable"]         3 tokens
 "the cat sat"           -> ["the", " cat", " sat"]          3 tokens
 "{\\"user_id\\": 12345}"   -> ~9 tokens (punctuation is expensive)
-"日本語"                  -> often 1 token per character
+"日本語"                  -> 2-4 tokens (non-Latin costs more)
 \`\`\`
 
-The rough English rule is **~4 characters per token**, or ~750 words per 1000 tokens. Code, JSON, and non-Latin scripts run considerably worse — JSON keys repeated across 500 records is real money.
+The rough English rule is **~4 characters per token**, or ~750 words per 1000 tokens. Code, JSON, and non-Latin scripts run considerably worse — JSON keys repeated across 500 records is real money. Exact splits differ by tokenizer and shift between model generations, so count with the provider's tokenizer rather than trusting a rule of thumb.
 
 This matters because tokens are the unit of *everything*: billing, the context limit, and latency. "Make the response shorter" is simultaneously a cost fix, a latency fix, and a context fix.
 
@@ -123,6 +123,8 @@ temperature = 0.7   mild flattening           the sane default for prose
 temperature = 1.5   heavy flattening          creative, and increasingly incoherent
 \`\`\`
 
+Ranges are provider-specific: some cap temperature at 1.0, others allow up to 2.0, and several reasoning models don't expose sampling knobs at all. Check the API you're actually on before you tune.
+
 **top_p** (nucleus sampling) truncates instead of rescaling: keep the smallest set of tokens whose probabilities sum to *p*, sample from those, discard the rest. \`top_p = 0.9\` cuts the long tail of nonsense while leaving genuine alternatives in play.
 
 Tune one, not both. Moving temperature and top_p together makes the effect of each impossible to reason about, and the interaction is not intuitive.
@@ -134,6 +136,8 @@ This trips up nearly everyone. Even at temperature 0 you can get different outpu
 - **Floating-point non-associativity.** GPU kernels reduce in whatever order the batch scheduler produced, and \`(a+b)+c != a+(b+c)\` in floats. When the top two tokens are within a rounding error, the tie can break either way — then the whole continuation diverges.
 - **Batching.** Your request is batched with other users' requests. Different batch composition, different kernel path, different rounding.
 - **The provider changes the model under you.** A version alias like \`latest\` silently repoints. Even a pinned version can sit behind a changed serving stack or quantization.
+
+Some providers offer a \`seed\` parameter. It pins the *sampler's* random draw, so it only does anything above temperature 0 — none of the three causes above are sampling randomness. Even where it applies it is best-effort: it cannot touch batch-dependent kernel paths, a changed serving stack, or a repointed model version. The conclusion below is unchanged.
 
 The practical consequence: **treat non-determinism as a property of the system, not a bug to eliminate.** Don't write tests that assert exact output strings. Don't build features whose correctness requires two calls to agree. Do pin explicit model versions so you at least control the *big* jumps.
 
@@ -265,7 +269,7 @@ Defaulting every call to the frontier model "for quality," then discovering at s
         id: "ai-model-selection-q1",
         prompt: "Why is \"always use the most capable model\" a poor default rather than merely an expensive one?",
         options: [
-          "Frontier models are less accurate on simple tasks because they overthink them",
+          "Frontier models are tuned for long-form output, so they ignore short-answer instructions",
           "Capability rises sub-linearly while price rises super-linearly, so on easy tasks you pay a large multiple for zero measurable gain — and usually add latency too",
           "Frontier models cannot emit structured output",
           "Providers throttle frontier models so heavily that they are never viable in production",

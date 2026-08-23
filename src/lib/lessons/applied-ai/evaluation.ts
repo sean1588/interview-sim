@@ -61,7 +61,7 @@ That is a completely different story from "87%", and it is the story you needed.
 
 ## Running them
 
-Fast, deterministic, and in CI where possible. Set a temperature of 0 to reduce noise (accepting it isn't true determinism), pin the model version, and run each case a few times if you're measuring something noisy. Report per-case results, not just the aggregate, so a diff is reviewable.
+Fast, deterministic, and in CI where possible. Set temperature to 0 where the API exposes it to reduce noise (accepting it isn't true determinism, and that some reasoning endpoints don't offer the knob at all), pin the model version, and run each case a few times if you're measuring something noisy. Report per-case results, not just the aggregate, so a diff is reviewable.
 
 Then hold the line: **a prompt or model change ships only with an eval diff attached.**
 
@@ -76,7 +76,7 @@ Building an eval platform before you have twenty cases. Start with a CSV and a s
         id: "ai-eval-sets-q1",
         prompt: "Your overall eval score improves from 85% to 87% after a prompt change. Why might you still roll it back?",
         options: [
-          "A 2-point gain is within noise for any eval set size",
+          "Eval gains never justify shipping without a full A/B test first",
           "Per-slice results may show a critical category — like \"answer isn't in the corpus\" — collapsing while easy cases improve",
           "Improvements under 5% are conventionally treated as regressions",
           "Because prompt changes should be evaluated only with an LLM judge",
@@ -167,8 +167,8 @@ This is the step that gets skipped, and it's what separates a judge from a rando
 
 1. Have a human grade 50-100 cases.
 2. Run the judge on the same cases.
-3. Measure agreement (Cohen's kappa, or plain agreement rate).
-4. Below ~80% agreement, the judge is measuring something other than what you care about — fix the rubric and repeat.
+3. Measure agreement — the raw agreement rate to start, and Cohen's kappa once your pass rate is lopsided, since kappa corrects for the agreement you would get by chance alone.
+4. Below ~80% raw agreement (or a kappa under ~0.6), the judge is measuring something other than what you care about — fix the rubric and repeat.
 5. Re-calibrate whenever the judge model or rubric changes.
 
 **An uncalibrated judge is a number that feels like evidence.** That's worse than no number, because you'll act on it.
@@ -281,7 +281,7 @@ The output is two things: a ranked fix list, and a batch of new eval cases.
 Model and prompt changes are behaviour changes, so they get the same rollout discipline as code:
 
 \`\`\`
-shadow      run the new version alongside, compare outputs, serve neither
+shadow      both run on real traffic; users see the old output, new one logged
 canary      1-5% of traffic, watch automatic + implicit metrics
 A/B         real split, measure the outcome you actually care about
 ramp        widen if metrics hold
@@ -329,7 +329,7 @@ Optimizing a metric that doesn't track user value — thumbs-up rate rewards agr
           "It removes the need for offline evals entirely",
           "With no ground truth available, the diff between old and new outputs on real traffic gives you a curated review queue of exactly the cases where behaviour changed",
           "It eliminates cost, since shadow requests aren't billed",
-          "It guarantees the new version cannot affect users, which canaries cannot",
+          "Shadow traffic lets the new version learn from real users before you launch it",
         ],
         answer: 1,
         explanation: "You often can't score either version absolutely, but you can see where they disagree. Agreement is uninteresting; disagreement is the entire set of cases worth a human look before you ramp.",

@@ -18,9 +18,9 @@ Production prompts converge on the same five parts, roughly in this order:
 5. OUTPUT FORMAT    the schema or structure, stated last
 \`\`\`
 
-The ordering is not arbitrary and it is not stylistic. Two effects drive it.
+The ordering is not arbitrary and it is not stylistic. Two effects drive it — and on very long inputs the first one rearranges the list, as below.
 
-**Position matters.** Models attend most reliably to the beginning and the end of the window, and least reliably to the middle. So: put the *task* first so everything after is read in light of it, put the *format* last so it is the freshest instruction when generation starts, and put bulk context in the middle where a small attention deficit is survivable.
+**Position matters.** Models attend most reliably to the beginning and the end of the window, and least reliably to the middle — the two edges are prime real estate, and the middle is where a small attention deficit is survivable, which is why bulk context goes there. Which edge gets the task is genuinely contested, and on long inputs the block above inverts: Anthropic's long-context guidance puts the document *first* — above the instructions, examples, and query — and ends with the query itself, while the convention above leads with the task so everything after is read in light of it. What survives either arrangement is the rule underneath: never bury a critical instruction mid-document, and put whatever must be freshest at generation time — the output format, or the query — at the very end. Follow your provider's guidance, then check it against your eval set.
 
 **Long context is not free recall.** Give a model 100k tokens and ask about a fact buried at 60%, and retrieval accuracy sags. This is the practical reason "just paste everything in" is not a strategy: relevance beats volume, and it beats it at *every* context size.
 
@@ -61,15 +61,15 @@ Prompt engineering as a substitute for retrieval or tooling. If the model doesn'
     quiz: [
       {
         id: "ai-prompt-anatomy-q1",
-        prompt: "Where should bulk context (a long document) sit relative to the task description and the output format?",
+        prompt: "A prompt buries a hard constraint (\"never quote a price\") in the middle of a 30-page document. Why is that the worst place for it?",
         options: [
-          "Context last, so it is freshest in the model's attention when generation begins",
-          "Between them — task first so the document is read purposefully, format last so it is freshest at generation time",
-          "Context first, before the task, so the model reads with an open mind",
+          "It will be the first thing dropped if the request exceeds the context window",
+          "Attention is least reliable in the middle of a long window, so an instruction there is the one most likely to be missed",
+          "Constraints are only applied if they appear after the data they constrain",
           "It makes no difference; attention is uniform across the context window",
         ],
         answer: 1,
-        explanation: "Attention is strongest at the start and end of the window and weakest in the middle. The task belongs first so everything after is read in light of it, the format belongs last so it is the freshest instruction, and bulk context goes in the middle where a small deficit is survivable.",
+        explanation: "Both edges of the window get the most reliable attention and the middle gets the least — which is exactly why bulk context belongs there and instructions do not. Providers disagree about whether the task leads or trails a long document; they agree a critical constraint must not sit buried inside it.",
       },
       {
         id: "ai-prompt-anatomy-q2",
@@ -109,7 +109,9 @@ Prompt engineering as a substitute for retrieval or tooling. If the model doesn'
                      ~95-99% valid. Fails on long outputs and edge inputs.
 
 2. JSON MODE         provider flag forcing syntactically valid JSON
-                     100% parseable. Shape is still not guaranteed.
+                     Parseable whenever generation completes; a response
+                     truncated at max_tokens still breaks. Shape is never
+                     guaranteed.
 
 3. CONSTRAINED       provider validates against YOUR schema during decoding
    DECODING          (structured outputs / tool schemas)
@@ -122,7 +124,7 @@ If your provider supports it, use it. It removes an entire class of production i
 
 ## Tool calling is structured output wearing a hat
 
-A function-call schema and a structured-output schema are the same mechanism. This is worth knowing because on providers where tool calling is better supported than structured outputs, "define a tool the model must call" is the sturdier way to get typed data — you never actually execute the tool, you just read the arguments.
+A function-call schema and a structured-output schema are the same mechanism underneath. This is worth knowing because on providers where tool calling is better supported than structured outputs, "define a tool the model must call" is the sturdier way to get typed data — you never actually execute the tool, you just read the arguments. One caveat: this only buys you a guarantee where the provider enforces tool schemas strictly (OpenAI's \`strict: true\` and its equivalents). Everywhere else the arguments are best-effort, and you validate them like any other untrusted input.
 
 ## Designing schemas the model can actually fill
 
@@ -172,7 +174,7 @@ Forcing structure on genuinely prose output. Wrapping a three-paragraph explanat
         prompt: "What does JSON mode guarantee that asking nicely doesn't — and what does it still NOT guarantee?",
         options: [
           "It guarantees your required fields exist, but not their types",
-          "It guarantees syntactically valid JSON, but not that the object matches your schema — fields and enum values can still be wrong",
+          "It makes the output parseable, but doesn't guarantee the object matches your schema — fields and enum values can still be wrong",
           "It guarantees both syntax and schema; constrained decoding only adds speed",
           "It guarantees nothing extra; it is the same mechanism with a different name",
         ],
@@ -212,7 +214,7 @@ Forcing structure on genuinely prose output. Wrapping a three-paragraph explanat
     blurb: "when a few examples beat a page of rules, and when one prompt should have been three.",
     content: `## Examples specify what prose can't
 
-Some things are hard to describe and trivial to demonstrate: tone, formatting conventions, how much detail is enough, where the boundary between two labels falls. For those, **2-5 examples usually outperform a paragraph of rules**, and cost fewer tokens.
+Some things are hard to describe and trivial to demonstrate: tone, formatting conventions, how much detail is enough, where the boundary between two labels falls. For those, **2-5 examples usually outperform a paragraph of rules** — and they are cheaper than the many paragraphs it would take to pin the same thing down in prose.
 
 The gains come almost entirely from the first few examples. One example fixes format. Three fix format plus the obvious edge cases. Twenty rarely beats five — and by then you're paying real prefill on every call for diminishing returns.
 
