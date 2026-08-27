@@ -15,14 +15,17 @@ import { transpileAndRun } from "./ts-lesson-check.mjs";
 // browser worker swallows such rejections, so match it rather than counting them.
 process.on("unhandledRejection", () => {});
 
-const { COURSES } = await import("/tmp/lessons-bundle.mjs");
+const { COURSES, resolveLesson } = await import("/tmp/lessons-bundle.mjs");
 
 let pass = 0;
 let fail = 0;
 const failures = [];
 
-for (const course of COURSES.filter((c) => c.language === "typescript")) {
-  for (const lesson of course.lessons) {
+// A course may be taught in several languages (DSA), so its starters are
+// resolved for TypeScript specifically rather than read off the lesson raw.
+for (const course of COURSES.filter((c) => c.languages?.includes("typescript"))) {
+  for (const raw of course.lessons) {
+    const lesson = resolveLesson(raw, "typescript");
     for (const ex of lesson.exercises) {
       try {
         transpileAndRun(ex.starterCode);

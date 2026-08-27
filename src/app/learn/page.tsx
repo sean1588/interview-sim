@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COURSES } from "@/lib/lessons";
+import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 
 export default function LearnHome() {
   return (
@@ -37,7 +37,7 @@ export default function LearnHome() {
                     Learn {course.title}
                   </h2>
                   <p className="mt-1.5 font-serif text-[16px] font-medium leading-[1.55] text-ink-body">
-                    {course.tagline}
+                    {forLanguage(course.tagline, defaultLanguage(course))}
                   </p>
                   <p className="mt-3 font-sans text-[12px] text-faint">
                     {course.lessons.length} lessons · {course.modules.length} modules

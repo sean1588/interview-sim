@@ -37,7 +37,7 @@ const LESSONS: Lesson[] = [
 
 export const typescriptCourse: Course = {
   id: "typescript",
-  language: "typescript",
+  languages: ["typescript"],
   title: "TypeScript",
   tagline: "A guided course for JavaScript developers picking up TypeScript and its type system.",
   icon: "🔷",

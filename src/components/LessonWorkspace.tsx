@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import RecapCard, { RecapData } from "@/components/RecapCard";
 import SessionFrame from "@/components/session/SessionFrame";
 import LessonMaterial from "@/components/session/LessonMaterial";
 import { useSession } from "@/components/useSession";
-import { buildLessonScript, type Course, type Lesson } from "@/lib/lessons";
+import { useCourseLanguage } from "@/components/useCourseLanguage";
+import { buildLessonScript, resolveLesson, type Course, type Lesson } from "@/lib/lessons";
 import type { RunResult } from "@/lib/runner";
 
 export default function LessonWorkspace({
@@ -18,24 +19,34 @@ export default function LessonWorkspace({
   lesson: Lesson;
 }) {
   const hasExercises = lesson.exercises.length > 0;
+
+  // Which language this course is being taken in. One course (DSA) teaches the
+  // same subject in more than one, so the choice lives in a shared store rather
+  // than in this component — the course overview sets it too, and both must agree.
+  const [language, selectLanguage] = useCourseLanguage(course.id, course.languages);
+
+  // Everything downstream — notes, exercises, quiz, tutor script — works in plain
+  // strings, so the lesson is resolved for the chosen language exactly once here.
+  const resolved = useMemo(() => resolveLesson(lesson, language), [lesson, language]);
+
   // The editor needs a language to run and highlight, so it belongs only to a
-  // course that declares one. A concept course (no language) is conversational
+  // course that declares one. A concept course (no languages) is conversational
   // throughout — its lessons carry no exercises either. Holding the language
   // rather than a boolean is what lets CodeEditor's props narrow below.
-  const editorLanguage = hasExercises ? course.language : undefined;
+  const editorLanguage = hasExercises ? language : undefined;
   const [exerciseIndex, setExerciseIndex] = useState(0);
-  const exercise = hasExercises ? lesson.exercises[exerciseIndex] : null;
+  const exercise = hasExercises ? resolved.exercises[exerciseIndex] : null;
 
   const { sessionId, assessing, result: recap, error, endSession, closeResult } =
     useSession<RecapData>("learning");
 
-  // One code buffer per exercise, seeded lazily from its starter scaffold.
-  const [buffers, setBuffers] = useState<Record<number, string>>(() => {
-    const init: Record<number, string> = {};
-    if (hasExercises) init[0] = lesson.exercises[0].starterCode;
-    return init;
-  });
-  const code = exercise ? buffers[exerciseIndex] ?? exercise.starterCode : "";
+  // One code buffer per exercise *per language*, seeded lazily from that
+  // language's starter scaffold. Keying by language as well is what lets a
+  // learner switch to Python and back without losing the TypeScript they wrote —
+  // a single index key would hand the other language's buffer to the editor.
+  const bufferKey = `${language ?? "none"}:${exerciseIndex}`;
+  const [buffers, setBuffers] = useState<Record<string, string>>({});
+  const code = exercise ? buffers[bufferKey] ?? exercise.starterCode : "";
 
   const lastRunRef = useRef<string | undefined>(undefined);
 
@@ -44,20 +55,28 @@ export default function LessonWorkspace({
   const [missedQuizIds, setMissedQuizIds] = useState<string[]>([]);
 
   const setCode = useCallback(
-    (value: string) => setBuffers((prev) => ({ ...prev, [exerciseIndex]: value })),
-    [exerciseIndex]
+    (value: string) => setBuffers((prev) => ({ ...prev, [bufferKey]: value })),
+    [bufferKey]
   );
 
   const goToExercise = useCallback(
     (idx: number) => {
-      if (idx < 0 || idx >= lesson.exercises.length) return;
+      if (idx < 0 || idx >= resolved.exercises.length) return;
       setExerciseIndex(idx);
-      setBuffers((prev) =>
-        idx in prev ? prev : { ...prev, [idx]: lesson.exercises[idx].starterCode }
-      );
       lastRunRef.current = undefined;
     },
-    [lesson.exercises]
+    [resolved.exercises.length]
+  );
+
+  // A language switch invalidates the last run: its output came from code the
+  // learner is no longer looking at, and the tutor would read it as current.
+  const handleLanguageChange = useCallback(
+    (next: typeof language) => {
+      if (!next) return;
+      selectLanguage(next);
+      lastRunRef.current = undefined;
+    },
+    [selectLanguage]
   );
 
   const handleRun = useCallback((res: RunResult) => {
@@ -69,35 +88,35 @@ export default function LessonWorkspace({
   // sees the whole arc and where the learner is) plus live editor state.
   const getContext = useCallback(
     (): SessionContext => ({
-      questionId: lesson.id,
-      questionTitle: lesson.title,
-      questionPrompt: buildLessonScript(lesson, exerciseIndex, missedQuizIds),
+      questionId: resolved.id,
+      questionTitle: resolved.title,
+      questionPrompt: buildLessonScript(resolved, exerciseIndex, missedQuizIds),
       code: hasExercises ? code : undefined,
       // Always sent (even on conversational lessons) so the tutor persona is the
       // course's language; with no code, the editor annotation is a no-op. A
       // concept course sends undefined, and `course` below names the persona.
-      language: course.language,
+      language,
       course: course.id,
       lastRun: lastRunRef.current,
     }),
-    [course.language, course.id, lesson, exerciseIndex, code, hasExercises, missedQuizIds]
+    [language, course.id, resolved, exerciseIndex, code, hasExercises, missedQuizIds]
   );
 
   const handleEnd = useCallback(() => {
     endSession({
-      questionTitle: lesson.title,
+      questionTitle: resolved.title,
       code: hasExercises ? code : undefined,
-      language: course.language,
+      language,
       course: course.id,
     });
-  }, [endSession, course.language, course.id, lesson.title, code, hasExercises]);
+  }, [endSession, language, course.id, resolved.title, code, hasExercises]);
 
   return (
     <>
       <SessionFrame
         root={{ label: "Lessons", href: `/learn/${course.id}` }}
-        title={lesson.title}
-        pill={lesson.module}
+        title={resolved.title}
+        pill={resolved.module}
         endLabel="End Lesson"
         endBusyLabel="Wrapping up…"
         ending={assessing}
@@ -114,14 +133,14 @@ export default function LessonWorkspace({
             {/* Lesson material — tabbed Notes / Exercise */}
             <div className="w-[440px] flex-none border-r border-hair min-h-0">
               <LessonMaterial
-                content={lesson.content}
-                quiz={lesson.quiz}
-                graphics={lesson.graphics}
+                content={resolved.content}
+                quiz={resolved.quiz}
+                graphics={resolved.graphics}
                 onMissedChange={setMissedQuizIds}
                 exercise={{
                   data: exercise,
                   index: exerciseIndex,
-                  total: lesson.exercises.length,
+                  total: resolved.exercises.length,
                   onPrev: () => goToExercise(exerciseIndex - 1),
                   onNext: () => goToExercise(exerciseIndex + 1),
                 }}
@@ -133,9 +152,11 @@ export default function LessonWorkspace({
               <CodeEditor
                 code={code}
                 language={editorLanguage}
-                languages={[editorLanguage]}
+                // A subject course taught in more than one language drives the
+                // editor's own picker; a single-language course renders it fixed.
+                languages={course.languages ?? [editorLanguage]}
                 onCodeChange={setCode}
-                onLanguageChange={() => {}}
+                onLanguageChange={handleLanguageChange}
                 onRun={handleRun}
               />
             </div>
@@ -144,9 +165,9 @@ export default function LessonWorkspace({
           // Conversational lesson: no exercises, no editor — the notes fill the room.
           <div className="flex-1 min-w-0 min-h-0">
             <LessonMaterial
-              content={lesson.content}
-              quiz={lesson.quiz}
-              graphics={lesson.graphics}
+              content={resolved.content}
+              quiz={resolved.quiz}
+              graphics={resolved.graphics}
               onMissedChange={setMissedQuizIds}
             />
           </div>

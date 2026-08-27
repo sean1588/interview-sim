@@ -15,7 +15,8 @@ export const sortingSearchingLessons: Lesson[] = [
         src: "/lesson-graphics/dsa/dsa-binary-search.png",
       },
     ],
-    content: `You've scanned arrays for a value a thousand times — \`indexOf\`, \`find\`, a \`for\` loop. All O(n): worst case touches every element. Binary search is what you get when the data is **sorted**: one comparison against the middle element tells you which half the target *can't* be in, so each step discards half the candidates.
+    content: {
+      typescript: `You've scanned arrays for a value a thousand times — \`indexOf\`, \`find\`, a \`for\` loop. All O(n): worst case touches every element. Binary search is what you get when the data is **sorted**: one comparison against the middle element tells you which half the target *can't* be in, so each step discards half the candidates.
 
 That halving is the entire story. n → n/2 → n/4 → … hits 1 in log₂ n steps. For 1,000,000 elements that's **20 comparisons** instead of a million; for a billion, 30. "Is it sorted?" should be the first question you ask about any lookup problem.
 
@@ -43,16 +44,71 @@ Two disciplines kill the classic bugs:
 The precondition is absolute: **the array must be sorted.** On unsorted data binary search doesn't throw — it confidently returns wrong answers, typically \`-1\` for an element that's right there. Nothing checks sortedness at runtime; it's a contract you carry in your head.
 
 Variant preview: with duplicates, the loop above returns *some* matching index — no promise which. Bias it — on a hit, record the index and keep searching **left** — and the same loop finds the *first* occurrence. That biased shape is the bridge to the next lesson.`,
+      python: `You've scanned lists for a value a thousand times — \`index()\`, \`in\`, a \`for\` loop. All O(n): worst case touches every element. Binary search is what you get when the data is **sorted**: one comparison against the middle element tells you which half the target *can't* be in, so each step discards half the candidates.
+
+That halving is the entire story. n → n/2 → n/4 → … hits 1 in log₂ n steps. For 1,000,000 elements that's **20 comparisons** instead of a million; for a billion, 30. "Is it sorted?" should be the first question you ask about any lookup problem.
+
+The canonical loop — one convention, used course-wide: **inclusive bounds**.
+
+\`\`\`python
+def binary_search(nums, target):
+    lo = 0
+    hi = len(nums) - 1          # inclusive: hi is a real candidate
+    while lo <= hi:             # <= because a 1-element range is still live
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[mid] < target:
+            lo = mid + 1        # mid is ruled out — skip past it
+        else:
+            hi = mid - 1        # mid is ruled out — skip past it
+    return -1
+\`\`\`
+
+Use \`//\`, not \`/\`: \`/\` yields a float, and \`nums[2.0]\` raises \`TypeError\`. This is the one place the Python version of the loop bites people who ported it from another language.
+
+Two disciplines kill the classic bugs:
+
+1. **Every branch must shrink the range.** Always \`mid + 1\` or \`mid - 1\`, never \`lo = mid\` or \`hi = mid\`. With inclusive bounds, keeping \`mid\` in the range can leave a 2-element range unchanged forever — the infinite loop everyone writes exactly once.
+2. **The loop condition matches the bound convention.** Inclusive \`hi\` pairs with \`lo <= hi\`. Mixing conventions (inclusive bounds with \`lo < hi\`, or exclusive with \`<=\`) is where off-by-one bugs breed. Pick one convention and never improvise.
+
+The precondition is absolute: **the list must be sorted.** On unsorted data binary search doesn't raise — it confidently returns wrong answers, typically \`-1\` for an element that's right there. Nothing checks sortedness at runtime; it's a contract you carry in your head.
+
+**In production, don't write this loop.** The \`bisect\` module is in the standard library and is implemented in C: \`bisect_left(nums, x)\` gives the leftmost insertion point, \`bisect_right\` the rightmost, and \`insort\` inserts while keeping order. An exact-match search is two lines on top of it:
+
+\`\`\`python
+from bisect import bisect_left
+
+i = bisect_left(nums, target)
+found = i if i < len(nums) and nums[i] == target else -1
+\`\`\`
+
+You write the loop by hand to own the boundary reasoning — which \`bisect\` still requires of you, because choosing between \`bisect_left\` and \`bisect_right\` *is* the boundary question.
+
+Variant preview: with duplicates, the loop above returns *some* matching index — no promise which. Bias it — on a hit, record the index and keep searching **left** — and the same loop finds the *first* occurrence (exactly what \`bisect_left\` returns). That biased shape is the bridge to the next lesson.`,
+    },
     exercises: [
     {
       id: "dsa-binary-search-impl",
       title: "The canonical loop",
-      instructions: `Implement \`binarySearch(sorted, target)\` returning the index of \`target\`, or \`-1\` if absent.
+      instructions: {
+        typescript: `Implement \`binarySearch(sorted, target)\` returning the index of \`target\`, or \`-1\` if absent.
 
 Use the course convention: inclusive \`lo\`/\`hi\` (\`hi = sorted.length - 1\`) with \`while (lo <= hi)\`. The bug-killer rule: **every branch must shrink the range** — move to \`mid + 1\` or \`mid - 1\`, never to \`mid\` itself, or a 2-element range can loop forever.
 
 Expected output: \`5\`, \`-1\`, \`0\`, \`9\` — a hit, a miss, and both edge elements.`,
-      starterCode: `function binarySearch(sorted: number[], target: number): number {
+        python: `Implement \`binary_search(nums, target)\` returning the index of \`target\`, or \`-1\` if absent.
+
+Use the course convention: inclusive \`lo\`/\`hi\` (\`hi = len(nums) - 1\`) with \`while lo <= hi\`. The bug-killer rule: **every branch must shrink the range** — move to \`mid + 1\` or \`mid - 1\`, never to \`mid\` itself, or a 2-element range can loop forever.
+
+Use integer division for the midpoint: \`mid = (lo + hi) // 2\`. A \`/\` gives a float and indexing with it raises \`TypeError\`.
+
+(Write it by hand here; \`bisect\` is the production answer, and the next exercise leans on the same boundary reasoning it needs.)
+
+Expected output: \`5\`, \`-1\`, \`0\`, \`9\` — a hit, a miss, and both edge elements.`,
+      },
+      starterCode: {
+        typescript: `function binarySearch(sorted: number[], target: number): number {
   // TODO: inclusive bounds — lo = 0, hi = sorted.length - 1
   // while (lo <= hi):
   //   mid = Math.floor((lo + hi) / 2)
@@ -69,16 +125,44 @@ console.log(binarySearch(sortedNums, 40)); // expected: -1 (miss)
 console.log(binarySearch(sortedNums, 2)); // expected: 0  (first element)
 console.log(binarySearch(sortedNums, 91)); // expected: 9  (last element)
 `,
+        python: `def binary_search(nums, target):
+    # TODO: inclusive bounds — lo = 0, hi = len(nums) - 1
+    # while lo <= hi:
+    #   mid = (lo + hi) // 2        (integer division!)
+    #   nums[mid] == target -> return mid
+    #   nums[mid] < target  -> lo = mid + 1   (shrink!)
+    #   otherwise           -> hi = mid - 1   (shrink!)
+    return -1
+
+
+sorted_nums = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]
+
+print(binary_search(sorted_nums, 23))  # expected: 5  (hit in the middle)
+print(binary_search(sorted_nums, 40))  # expected: -1 (miss)
+print(binary_search(sorted_nums, 2))   # expected: 0  (first element)
+print(binary_search(sorted_nums, 91))  # expected: 9  (last element)
+`,
+      },
     },
     {
       id: "dsa-first-occurrence",
       title: "First occurrence",
-      instructions: `Implement \`firstOccurrence(sorted, target)\` returning the **leftmost** index of \`target\` among duplicates, or \`-1\` if absent.
+      instructions: {
+        typescript: `Implement \`firstOccurrence(sorted, target)\` returning the **leftmost** index of \`target\` among duplicates, or \`-1\` if absent.
 
 Same inclusive-bounds loop as \`binarySearch\`, one change: on a hit, don't return — **record the index and keep searching left** (\`hi = mid - 1\`). Earlier occurrences can only live to the left; the last index you recorded is the answer.
 
 Expected output: \`2\` (leftmost of the run of 7s), \`6\`, \`-1\`.`,
-      starterCode: `function firstOccurrence(sorted: number[], target: number): number {
+        python: `Implement \`first_occurrence(nums, target)\` returning the **leftmost** index of \`target\` among duplicates, or \`-1\` if absent.
+
+Same inclusive-bounds loop as \`binary_search\`, one change: on a hit, don't return — **record the index and keep searching left** (\`hi = mid - 1\`). Earlier occurrences can only live to the left; the last index you recorded is the answer.
+
+This is precisely what \`bisect_left\` computes (modulo the absent case), which is why choosing \`bisect_left\` over \`bisect_right\` is the same decision as biasing this loop left.
+
+Expected output: \`2\` (leftmost of the run of 7s), \`6\`, \`-1\`.`,
+      },
+      starterCode: {
+        typescript: `function firstOccurrence(sorted: number[], target: number): number {
   // TODO: same lo/hi/mid loop as binarySearch, with one change —
   // on a hit, RECORD the index and keep searching LEFT (hi = mid - 1)
   // instead of returning. Return the last recorded index (or -1).
@@ -91,6 +175,20 @@ console.log(firstOccurrence(withDupes, 7)); // expected: 2 (leftmost of the run 
 console.log(firstOccurrence(withDupes, 9)); // expected: 6 (single occurrence)
 console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
 `,
+        python: `def first_occurrence(nums, target):
+    # TODO: same lo/hi/mid loop as binary_search, with one change —
+    # on a hit, RECORD the index and keep searching LEFT (hi = mid - 1)
+    # instead of returning. Return the last recorded index (or -1).
+    return -1
+
+
+with_dupes = [1, 3, 7, 7, 7, 7, 9, 12]
+
+print(first_occurrence(with_dupes, 7))  # expected: 2 (leftmost of the run of 7s)
+print(first_occurrence(with_dupes, 9))  # expected: 6 (single occurrence)
+print(first_occurrence(with_dupes, 5))  # expected: -1 (absent)
+`,
+      },
     },
     ],
     quiz: [
@@ -108,7 +206,10 @@ console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
     },
     {
       id: "dsa-binary-search-q2",
-      prompt: "In the inclusive-bounds loop (`while (lo <= hi)`), why must the branches use `lo = mid + 1` / `hi = mid - 1` instead of `lo = mid` / `hi = mid`?",
+      prompt: {
+        typescript: "In the inclusive-bounds loop (`while (lo <= hi)`), why must the branches use `lo = mid + 1` / `hi = mid - 1` instead of `lo = mid` / `hi = mid`?",
+        python: "In the inclusive-bounds loop (`while lo <= hi`), why must the branches use `lo = mid + 1` / `hi = mid - 1` instead of `lo = mid` / `hi = mid`?",
+      },
       options: [
         "Keeping `mid` in the range can leave a small range unchanged, so the loop never terminates",
         "Using `mid` directly would skip over the target and return -1 on valid hits",
@@ -120,7 +221,10 @@ console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
     },
     {
       id: "dsa-binary-search-q3",
-      prompt: "You run `binarySearch` on an array that is NOT sorted. What happens?",
+      prompt: {
+        typescript: "You run `binarySearch` on an array that is NOT sorted. What happens?",
+        python: "You run `binary_search` on a list that is NOT sorted. What happens?",
+      },
       options: [
         "It throws an error when it detects out-of-order elements",
         "It returns confidently wrong answers — often -1 for an element that is present — with no error",
@@ -128,7 +232,10 @@ console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
         "It works as long as the target happens to be near the middle",
       ],
       answer: 1,
-      explanation: "Nothing validates sortedness at runtime. The comparisons discard halves based on an ordering assumption that doesn't hold, so the search silently walks away from the target.",
+      explanation: {
+        typescript: "Nothing validates sortedness at runtime. The comparisons discard halves based on an ordering assumption that doesn't hold, so the search silently walks away from the target.",
+        python: "Nothing validates sortedness at runtime — no exception is raised. The comparisons discard halves based on an ordering assumption that doesn’t hold, so the search silently walks away from the target.",
+      },
     },
     ],
   },
@@ -146,7 +253,8 @@ console.log(firstOccurrence(withDupes, 5)); // expected: -1 (absent)
         src: "/lesson-graphics/dsa/dsa-search-the-answer.png",
       },
     ],
-    content: `Strip binary search to its essentials and the array disappears. What it actually needs is a **monotonic predicate**: a boolean function over an ordered domain that reads \`false, false, false, true, true, true\` — once it flips to true, it never flips back. Any such predicate has a boundary (the *first true*), and binary search finds it in O(log n) probes. You don't need an array in memory — just the ability to evaluate the predicate at any point.
+    content: {
+      typescript: `Strip binary search to its essentials and the array disappears. What it actually needs is a **monotonic predicate**: a boolean function over an ordered domain that reads \`false, false, false, true, true, true\` — once it flips to true, it never flips back. Any such predicate has a boundary (the *first true*), and binary search finds it in O(log n) probes. You don't need an array in memory — just the ability to evaluate the predicate at any point.
 
 Recast problems you already know into this frame:
 
@@ -169,16 +277,53 @@ return lo;                         // lo === hi: the first true (or n)
 Note the asymmetry, because it's the whole trick: on true you set \`hi = mid\`, **not** \`mid - 1\`. A true at \`mid\` might be the first true — you must never discard a possible answer. A false at \`mid\` can't be the answer, so \`lo = mid + 1\` is safe. The loop still terminates because \`mid\` is always strictly less than \`hi\` while \`lo < hi\`, so \`hi = mid\` genuinely shrinks the range.
 
 Why this frame earns its keep: **the predicate is often expensive.** Each \`canFinish(capacity)\` probe is an O(n) simulation; each \`isBad(version)\` might be a full CI run. Twenty probes to cover a million candidates is the difference between feasible and absurd.`,
+      python: `Strip binary search to its essentials and the list disappears. What it actually needs is a **monotonic predicate**: a boolean function over an ordered domain that reads \`False, False, False, True, True, True\` — once it flips to true, it never flips back. Any such predicate has a boundary (the *first true*), and binary search finds it in O(log n) probes. You don't need a list in memory — just the ability to evaluate the predicate at any point.
+
+Recast problems you already know into this frame:
+
+- **Insertion point** — over indices, \`nums[i] >= target\` is False…False, True…True. The first true is where the target belongs — and it's exactly what \`bisect.bisect_left\` returns.
+- **First bad version** — builds go good, good, good, bad, bad. \`is_bad(v)\` is monotonic; the boundary is the culprit build. \`git bisect\` is exactly this search.
+- **Capacity/speed problems** — "smallest shipping capacity that finishes within D days." \`can_finish(capacity)\` is monotonic: if capacity c works, every larger capacity works too. You binary search over *candidate answers*, not over data.
+
+The first-true loop is a different shape from exact-match — learn both, never blend them:
+
+\`\`\`python
+lo, hi = 0, n              # hi EXCLUSIVE — returning n means "no true exists"
+while lo < hi:
+    mid = (lo + hi) // 2
+    if predicate(mid):
+        hi = mid           # mid might BE the boundary — keep it in range
+    else:
+        lo = mid + 1       # mid is definitely not the answer — discard it
+return lo                  # lo == hi: the first true (or n)
+\`\`\`
+
+Note the asymmetry, because it's the whole trick: on true you set \`hi = mid\`, **not** \`mid - 1\`. A true at \`mid\` might be the first true — you must never discard a possible answer. A false at \`mid\` can't be the answer, so \`lo = mid + 1\` is safe. The loop still terminates because \`mid\` is always strictly less than \`hi\` while \`lo < hi\`, so \`hi = mid\` genuinely shrinks the range.
+
+\`bisect\` covers the index case, but not this one: it compares *values in a sorted sequence*, so it can't help when the predicate is a simulation or a CI run. Learning the loop is what generalizes. (If you want to press \`bisect\` into service anyway, \`bisect_left(range(n), True, key=predicate)\` works on Python 3.10+, where \`key=\` was added — clever, and usually less readable than the six lines above.)
+
+Why this frame earns its keep: **the predicate is often expensive.** Each \`can_finish(capacity)\` probe is an O(n) simulation; each \`is_bad(version)\` might be a full CI run. Twenty probes to cover a million candidates is the difference between feasible and absurd.`,
+    },
     exercises: [
     {
       id: "dsa-insertion-point",
       title: "Insertion point",
-      instructions: `Implement \`insertionPoint(sorted, target)\` — the first index whose value is \`>= target\`, or \`n\` (the length) if no such index exists.
+      instructions: {
+        typescript: `Implement \`insertionPoint(sorted, target)\` — the first index whose value is \`>= target\`, or \`n\` (the length) if no such index exists.
 
 This is the **first-true** shape, not exact-match: exclusive \`hi = sorted.length\`, \`while (lo < hi)\`, and on true set \`hi = mid\` (mid might *be* the boundary — never discard a possible answer), on false \`lo = mid + 1\`. Return \`lo\`. Contrast with the exact-match loop: there every branch skips past \`mid\`; here the true branch keeps it.
 
 Expected output: \`2\` (value present), \`3\` (fits between elements), \`5\` (past the end → n).`,
-      starterCode: `function insertionPoint(sorted: number[], target: number): number {
+        python: `Implement \`insertion_point(nums, target)\` — the first index whose value is \`>= target\`, or \`n\` (the length) if no such index exists.
+
+This is the **first-true** shape, not exact-match: exclusive \`hi = len(nums)\`, \`while lo < hi\`, and on true set \`hi = mid\` (mid might *be* the boundary — never discard a possible answer), on false \`lo = mid + 1\`. Return \`lo\`. Contrast with the exact-match loop: there every branch skips past \`mid\`; here the true branch keeps it.
+
+You are re-implementing \`bisect.bisect_left\` — compare your result against it once you're done.
+
+Expected output: \`2\` (value present), \`3\` (fits between elements), \`5\` (past the end → n).`,
+      },
+      starterCode: {
+        typescript: `function insertionPoint(sorted: number[], target: number): number {
   // TODO: first-true boundary loop — note how it differs from exact-match:
   //   lo = 0, hi = sorted.length   (hi is EXCLUSIVE; returning n means "no index qualifies")
   //   while (lo < hi):
@@ -195,16 +340,42 @@ console.log(insertionPoint(sortedVals, 30)); // expected: 2 (value present)
 console.log(insertionPoint(sortedVals, 35)); // expected: 3 (fits between 30 and 40)
 console.log(insertionPoint(sortedVals, 99)); // expected: 5 (past the end -> n)
 `,
+        python: `def insertion_point(nums, target):
+    # TODO: first-true boundary loop — note how it differs from exact-match:
+    #   lo, hi = 0, len(nums)   (hi is EXCLUSIVE; returning n means "no index qualifies")
+    #   while lo < hi:
+    #     mid = (lo + hi) // 2
+    #     nums[mid] >= target -> hi = mid      (mid might BE the answer — keep it)
+    #     otherwise           -> lo = mid + 1  (mid is ruled out — discard it)
+    #   return lo
+    return 0
+
+
+sorted_vals = [10, 20, 30, 40, 50]
+
+print(insertion_point(sorted_vals, 30))  # expected: 2 (value present)
+print(insertion_point(sorted_vals, 35))  # expected: 3 (fits between 30 and 40)
+print(insertion_point(sorted_vals, 99))  # expected: 5 (past the end -> n)
+`,
+      },
     },
     {
       id: "dsa-first-bad-version",
       title: "First bad version",
-      instructions: `The checker is **given complete**: \`isBad(version)\` returns true from a hidden threshold onward and counts how many times you call it. Implement \`firstBad(n)\` to find the first bad version using the boundary loop over \`1..n\`: \`while (lo < hi)\`, bad → \`hi = mid\`, good → \`lo = mid + 1\`.
+      instructions: {
+        typescript: `The checker is **given complete**: \`isBad(version)\` returns true from a hidden threshold onward and counts how many times you call it. Implement \`firstBad(n)\` to find the first bad version using the boundary loop over \`1..n\`: \`while (lo < hi)\`, bad → \`hi = mid\`, good → \`lo = mid + 1\`.
 
 The probe count is the point — call \`isBad\` only inside the loop.
 
 Expected output: \`first bad version: 722018\` and \`isBad probes:\` around 20 — log₂ of 1,000,000 probes, when each probe could be a full CI run.`,
-      starterCode: `// GIVEN (complete): a build checker. Versions are bad from a hidden
+        python: `The checker is **given complete**: \`is_bad(version)\` returns True from a hidden threshold onward and counts how many times you call it. Implement \`first_bad(n)\` to find the first bad version using the boundary loop over \`1..n\`: \`while lo < hi\`, bad → \`hi = mid\`, good → \`lo = mid + 1\`.
+
+The probe count is the point — call \`is_bad\` only inside the loop.
+
+Expected output: \`first bad version: 722018\` and \`is_bad probes:\` around 20 — log₂ of 1,000,000 probes, when each probe could be a full CI run.`,
+      },
+      starterCode: {
+        typescript: `// GIVEN (complete): a build checker. Versions are bad from a hidden
 // threshold onward, and every isBad call is counted — the probe count
 // is the whole point of this exercise.
 function makeChecker(hiddenFirstBad: number) {
@@ -235,6 +406,41 @@ const found = firstBad(1_000_000);
 console.log("first bad version:", found); // expected: 722018
 console.log("isBad probes:", checker.callCount()); // expected: ~20 (log2 of 1,000,000)
 `,
+        python: `# GIVEN (complete): a build checker. Versions are bad from a hidden
+# threshold onward, and every is_bad call is counted — the probe count
+# is the whole point of this exercise.
+def make_checker(hidden_first_bad):
+    state = {"calls": 0}
+
+    def is_bad(version):
+        state["calls"] += 1
+        return version >= hidden_first_bad
+
+    def call_count():
+        return state["calls"]
+
+    return is_bad, call_count
+
+
+is_bad, call_count = make_checker(722_018)
+
+
+def first_bad(n):
+    # TODO: boundary search over versions 1..n using is_bad(version):
+    #   lo, hi = 1, n
+    #   while lo < hi:
+    #     mid = (lo + hi) // 2
+    #     is_bad(mid) -> hi = mid      (mid might be the first bad one — keep it)
+    #     otherwise   -> lo = mid + 1
+    #   return lo
+    return 1
+
+
+found = first_bad(1_000_000)
+print("first bad version:", found)     # expected: 722018
+print("is_bad probes:", call_count())  # expected: ~20 (log2 of 1,000,000)
+`,
+      },
     },
     ],
     quiz: [
@@ -290,7 +496,8 @@ console.log("isBad probes:", checker.callCount()); // expected: ~20 (log2 of 1,0
         src: "/lesson-graphics/dsa/dsa-sorting-survey.png",
       },
     ],
-    content: `Three mechanisms cover what's inside virtually every real sort.
+    content: {
+      typescript: `Three mechanisms cover what's inside virtually every real sort.
 
 **Insertion sort** grows a sorted prefix: take the next element, shift it backward until it sits in place. O(n²) — at n = 1,000,000 that's ~10¹² steps, never your main sort — but on tiny (≲16 elements) or nearly-sorted input it's the fastest thing running: no recursion, no allocation, and almost no shifts when things are close to ordered. That's exactly why production sorts use it as their base case.
 
@@ -308,16 +515,57 @@ Now the layer you actually ship. JavaScript's default \`.sort()\` compares eleme
 \`\`\`
 
 Always pass a comparator for numbers. The contract: return negative to put \`a\` first, positive to put \`b\` first, zero for a tie — \`(a, b) => a - b\` ascending, \`b - a\` descending. Two more things worth knowing: \`.sort()\` **mutates** the array in place (use \`toSorted()\` — or copy first — when you need the original intact), and the spec requires \`Array.prototype.sort\` to be stable, so layered comparator tricks are safe in every modern engine.`,
+      python: `Three mechanisms cover what's inside virtually every real sort.
+
+**Insertion sort** grows a sorted prefix: take the next element, shift it backward until it sits in place. O(n²) — at n = 1,000,000 that's ~10¹² steps, never your main sort — but on tiny (≲64 elements) or nearly-sorted input it's the fastest thing running: no recursion, no allocation, and almost no shifts when things are close to ordered. That's exactly why production sorts use it as their base case.
+
+**Merge sort** splits in half, recursively sorts each half, then **merges** two sorted halves with two pointers: repeatedly take the smaller head, then drain whichever side has a leftover tail. The merge is O(n + m); the whole sort is **O(n log n) guaranteed** — no input can degrade it. It's stable, at the cost of O(n) extra space for the merge buffer.
+
+**Quicksort** partitions in place around a pivot — smaller elements left, larger right — then recurses on both sides. O(n log n) average with great constants and no extra list, but adversarial pivots (say, first-element pivots on already-sorted input) degrade it to O(n²).
+
+**Stability**, defined once, properly: a stable sort keeps *equal* elements in their original relative order. That's what makes layered sorting work — sort orders by date, then stably sort by customer, and within each customer the date order survives. Unstable sorts silently scramble that second-level order.
+
+Now the layer you actually ship. CPython's sort is **Timsort**: a merge sort that finds already-sorted runs and merges them, falling back to insertion sort ("binary insertion sort") on short runs. It is **stable by language guarantee**, and it is adaptive — nearly-sorted input approaches O(n).
+
+Python's sorting API has no comparator. Instead of answering "which of these two comes first?", you supply \`key=\`, a function computing the value to sort *by*:
+
+\`\`\`python
+sorted(nums)                                   # numbers sort numerically. No trap here.
+sorted(words, key=len)                         # by length
+sorted(people, key=lambda p: (p["age"], p["name"]))   # age, then name
+sorted(nums, reverse=True)                     # descending
+\`\`\`
+
+The **tuple key** is the idiom worth internalizing: \`(p["age"], p["name"])\` compares element by element, so it expresses "sort by age, break ties by name" in one expression — no comparator, no chained sorts. \`key=\` is also called exactly once per element (unlike a comparator, called O(n log n) times), so an expensive key is cheap here.
+
+Three things that do bite:
+
+- **\`sorted()\` returns a new list; \`list.sort()\` mutates and returns \`None\`.** \`x = mylist.sort()\` binds \`None\` — a very common bug.
+- **Strings sort lexicographically.** Numbers read from a CSV or JSON are strings, and \`sorted(["10", "9", "1"])\` gives \`['1', '10', '9']\`. Fix it at the key: \`sorted(values, key=int)\`.
+- **Mixed types raise.** \`sorted([1, "a"])\` raises \`TypeError: '<' not supported between instances of 'str' and 'int'\` — Python 3 refuses rather than inventing an order, which is a mercy.
+
+If you genuinely need comparator semantics (porting old code, or an ordering that can't be expressed as a key), \`functools.cmp_to_key\` wraps a two-argument comparator into a key function.`,
+    },
     exercises: [
     {
       id: "dsa-merge-step",
       title: "The merge step",
-      instructions: `Implement \`merge(a, b)\` combining two **already-sorted** arrays into one sorted array in O(n + m): two pointers, repeatedly push the smaller head and advance that pointer.
+      instructions: {
+        typescript: `Implement \`merge(a, b)\` combining two **already-sorted** arrays into one sorted array in O(n + m): two pointers, repeatedly push the smaller head and advance that pointer.
 
 Don't forget the **tail drain**: when one array runs out, the other still has elements — append them all. Forgetting the drain is *the* classic merge bug, and the one-empty-array example will catch it.
 
 Expected output: \`[1, 2, 4, 5, 8, 9]\`, \`[1, 2, 5, 10, 11]\`, \`[3, 6]\`.`,
-      starterCode: `function merge(a: number[], b: number[]): number[] {
+        python: `Implement \`merge(a, b)\` combining two **already-sorted** lists into one sorted list in O(n + m): two pointers, repeatedly append the smaller head and advance that pointer.
+
+Don't forget the **tail drain**: when one list runs out, the other still has elements — append them all (a slice like \`a[i:]\` does it in one step). Forgetting the drain is *the* classic merge bug, and the one-empty-list example will catch it.
+
+(\`heapq.merge\` does this for any number of sorted inputs, lazily — worth knowing after you've written it once.)
+
+Expected output: \`[1, 2, 4, 5, 8, 9]\`, \`[1, 2, 5, 10, 11]\`, \`[3, 6]\`.`,
+      },
+      starterCode: {
+        typescript: `function merge(a: number[], b: number[]): number[] {
   // TODO: two pointers i (into a) and j (into b).
   // While both have elements left, push the smaller and advance its pointer.
   // Then DRAIN the leftover tail — exactly one array still has elements,
@@ -329,17 +577,44 @@ console.log(merge([1, 4, 9], [2, 5, 8])); // expected: [1, 2, 4, 5, 8, 9]
 console.log(merge([1, 2, 10, 11], [5])); // expected: [1, 2, 5, 10, 11]
 console.log(merge([], [3, 6])); // expected: [3, 6]
 `,
+        python: `def merge(a, b):
+    # TODO: two pointers i (into a) and j (into b).
+    # While both have elements left, append the smaller and advance its pointer.
+    # Then DRAIN the leftover tail — exactly one list still has elements,
+    # and forgetting this drain is the classic bug. (a[i:] and b[j:] help.)
+    return []
+
+
+print(merge([1, 4, 9], [2, 5, 8]))    # expected: [1, 2, 4, 5, 8, 9]
+print(merge([1, 2, 10, 11], [5]))     # expected: [1, 2, 5, 10, 11]
+print(merge([], [3, 6]))              # expected: [3, 6]
+`,
+      },
     },
     {
       id: "dsa-comparator-fix",
-      title: "Fix the comparator",
-      instructions: `The starter shows the default-\`.sort()\` trap live: \`[10, 9, 1, 200].sort()\` prints \`[1, 10, 200, 9]\` (string comparison). Two TODOs:
+      title: {
+        typescript: "Fix the comparator",
+        python: "Fix the sort key",
+      },
+      instructions: {
+        typescript: `The starter shows the default-\`.sort()\` trap live: \`[10, 9, 1, 200].sort()\` prints \`[1, 10, 200, 9]\` (string comparison). Two TODOs:
 
 1. \`numericSort(nums)\` — return a new numerically-sorted array **without mutating the input**. Either \`toSorted((a, b) => a - b)\` or copy-then-sort (\`[...nums].sort(...)\`).
 2. \`byAgeThenName(people)\` — sort by \`age\` ascending, break ties by \`name\` (\`localeCompare\`). One comparator: compare ages; if equal, compare names.
 
 Expected output: \`[1, 9, 10, 200]\`, the untouched input \`[10, 9, 1, 200]\`, then Alex (28), Bo (35), Dana (35).`,
-      starterCode: `// Surprise: with no comparator, .sort() compares elements as STRINGS.
+        python: `The starter shows the string-sorting trap live: these values came out of a CSV, so they're strings, and \`sorted(["10", "9", "1", "200"])\` gives \`['1', '10', '200', '9']\` — lexicographic order. Two TODOs:
+
+1. \`numeric_sort(values)\` — return a new list of the same strings ordered by **numeric** value. The fix belongs in the key: \`key=int\`.
+2. \`by_age_then_name(people)\` — sort by \`age\` ascending, break ties by \`name\`. Use a **tuple key**: \`key=lambda p: (p["age"], p["name"])\`. Tuples compare element by element, so one key expresses both levels — no comparator and no second sort needed.
+
+Note \`sorted()\` returns a new list and never touches the input, which is why the "input untouched" check passes for free. Had you called \`values.sort()\`, you'd have mutated the caller's list and bound \`None\`.
+
+Expected output: \`['1', '9', '10', '200']\`, the untouched input \`['10', '9', '1', '200']\`, then Alex (28), Bo (35), Dana (35).`,
+      },
+      starterCode: {
+        typescript: `// Surprise: with no comparator, .sort() compares elements as STRINGS.
 const sortedWrong = [10, 9, 1, 200].sort();
 console.log("default sort:", sortedWrong); // [1, 10, 200, 9] — "9" > "200" as strings
 
@@ -373,20 +648,66 @@ const team: Person[] = [
 console.log("byAgeThenName:", byAgeThenName(team));
 // expected order: Alex (28), Bo (35), Dana (35)
 `,
+        python: `# Surprise: these came out of a CSV, so they are STRINGS —
+# and strings compare lexicographically, character by character.
+from_csv = ["10", "9", "1", "200"]
+print("default sort:", sorted(from_csv))  # ['1', '10', '200', '9'] — "200" < "9"!
+
+
+def numeric_sort(values):
+    # TODO: return a NEW list of the same strings, ordered by NUMERIC value.
+    # The fix goes in the key, not in the data: sorted(values, key=...)
+    return list(values)
+
+
+def by_age_then_name(people):
+    # TODO: return a NEW list sorted by age ascending, ties broken by name.
+    # Use a TUPLE key — tuples compare element by element, so one key
+    # expresses both levels: key=lambda p: (p["age"], p["name"])
+    return list(people)
+
+
+print("numeric_sort:", numeric_sort(from_csv))  # expected: ['1', '9', '10', '200']
+print("input untouched:", from_csv)             # expected: ['10', '9', '1', '200']
+
+team = [
+    {"name": "Dana", "age": 35},
+    {"name": "Alex", "age": 28},
+    {"name": "Bo", "age": 35},
+]
+for person in by_age_then_name(team):
+    print(person["name"], person["age"])
+# expected order: Alex 28, Bo 35, Dana 35
+`,
+      },
     },
     ],
     quiz: [
     {
       id: "dsa-sorting-survey-q1",
-      prompt: "What does `[10, 9, 1].sort()` evaluate to, and why?",
-      options: [
+      prompt: {
+        typescript: "What does `[10, 9, 1].sort()` evaluate to, and why?",
+        python: "A column of numbers read from a CSV arrives as strings. What does `sorted([\"10\", \"9\", \"1\"])` evaluate to, and why?",
+      },
+      options: {
+        typescript: [
         "`[1, 10, 9]` — without a comparator, elements are compared as strings",
         "`[1, 9, 10]` — numbers sort numerically by default",
         "`[10, 9, 1]` — sort returns a new array and leaves the original order here",
         "It throws a TypeError — numeric arrays require a comparator",
+        ],
+        python: [
+        "`['1', '10', '9']` — strings compare lexicographically, character by character",
+        "`['1', '9', '10']` — Python recognises numeric strings and orders them numerically",
+        "`['10', '9', '1']` — `sorted()` leaves the order untouched when every element is a string",
+        "It raises a `TypeError` — numeric strings have no defined ordering",
       ],
+      },
       answer: 0,
-      explanation: "The default comparator stringifies: \"10\" < \"9\" because \"1\" < \"9\" character-by-character. Always pass `(a, b) => a - b` for numbers.",
+      explanation: {
+        typescript: "The default comparator stringifies: \"10\" < \"9\" because \"1\" < \"9\" character-by-character. Always pass `(a, b) => a - b` for numbers.",
+        python: "Strings order character by character, so `\"10\" < \"9\"` because `\"1\" < \"9\"`. The fix belongs in the key — `sorted(values, key=int)` — not in a comparator. (A genuinely mixed list like `[1, \"a\"]` is what raises `TypeError`.)",
+      },
     },
     {
       id: "dsa-sorting-survey-q2",
@@ -402,15 +723,29 @@ console.log("byAgeThenName:", byAgeThenName(team));
     },
     {
       id: "dsa-sorting-survey-q3",
-      prompt: "Why do production sorts (like V8's) switch to insertion sort for small subarrays instead of recursing all the way down?",
-      options: [
+      prompt: {
+        typescript: "Why do production sorts (like V8's) switch to insertion sort for small subarrays instead of recursing all the way down?",
+        python: "Why does CPython\'s Timsort fall back to insertion sort on short runs instead of merging all the way down?",
+      },
+      options: {
+        typescript: [
         "Insertion sort becomes O(n log n) once the input is below a size threshold",
         "Insertion sort is unstable, which makes it faster on small inputs",
         "On tiny or nearly-sorted input, insertion sort's low overhead beats the recursive machinery despite its O(n²) worst case",
         "Merge sort produces incorrect results on arrays shorter than the threshold",
+        ],
+        python: [
+        "Insertion sort becomes O(n log n) once the input is below a size threshold",
+        "Insertion sort is unstable, which makes it faster on small inputs",
+        "On tiny or nearly-sorted input, insertion sort's low overhead beats the merging machinery despite its O(n²) worst case",
+        "Merge sort produces incorrect results on lists shorter than the threshold",
       ],
+      },
       answer: 2,
-      explanation: "Big-O describes growth, not constants. At n ≈ 16 the n² term is tiny, and insertion sort's no-recursion, no-allocation inner loop wins — so hybrid sorts use it as the base case.",
+      explanation: {
+        typescript: "Big-O describes growth, not constants. At n ≈ 16 the n² term is tiny, and insertion sort's no-recursion, no-allocation inner loop wins — so hybrid sorts use it as the base case.",
+        python: "Big-O describes growth, not constants. On a short run the n² term is tiny, and insertion sort’s no-recursion, no-allocation inner loop wins — so Timsort uses it to build the initial runs it then merges. It is also stable, which Timsort requires.",
+      },
     },
     ],
   },

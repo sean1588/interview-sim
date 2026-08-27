@@ -1,13 +1,16 @@
 // Serializes a lesson (its card + all exercises + where the learner currently
-// is) into the `questionPrompt` the client sends the tutor each turn. The tutor
+// is) into the `questionPrompt` the client sends the tutor each turn. The lesson
+// arrives already resolved for the learner's chosen language, so a multi-language
+// course (DSA) hands the tutor that language's material and nothing else. The tutor
 // always sees the whole lesson arc; the learner's position updates as they click
 // Prev/Next. The chat route appends live editor state separately, so this is
 // purely the static lesson material plus a position marker.
 
-import type { Lesson } from "./types";
+import type { ResolvedLesson } from "./types";
 
 export function buildLessonScript(
-  lesson: Lesson,
+  /** Already resolved for the learner's language — see resolveLesson in ./types. */
+  lesson: ResolvedLesson,
   exerciseIndex: number,
   /** Ids of quiz questions the learner has answered wrong, in the order missed. */
   missedQuizIds: readonly string[] = []
@@ -41,7 +44,7 @@ ${position}${missed}`;
  * The learner has already seen the explanation on screen — the tutor's job is to
  * find out *why* they picked what they picked, not to re-read it aloud.
  */
-function quizMisses(lesson: Lesson, missedIds: readonly string[]): string {
+function quizMisses(lesson: ResolvedLesson, missedIds: readonly string[]): string {
   const missed = missedIds
     .map((id) => lesson.quiz.find((q) => q.id === id))
     .filter((q) => q !== undefined);

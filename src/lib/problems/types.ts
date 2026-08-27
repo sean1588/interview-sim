@@ -3,6 +3,14 @@
 
 export type LanguageId = "python" | "javascript" | "typescript" | "go";
 
+/** Display names for the language pickers (editor toolbar, course overview). */
+export const LANGUAGE_LABELS: Record<LanguageId, string> = {
+  python: "Python",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  go: "Go",
+};
+
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
 /** One invocation of the solution: positional args in, expected return value out. */

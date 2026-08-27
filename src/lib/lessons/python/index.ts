@@ -35,7 +35,7 @@ const LESSONS: Lesson[] = [
 
 export const pythonCourse: Course = {
   id: "python",
-  language: "python",
+  languages: ["python"],
   title: "Python",
   tagline: "A guided course for experienced programmers picking up Python.",
   icon: "🐍",
