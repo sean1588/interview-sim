@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as ts from "typescript";
-import { PROBLEMS, PROBLEM_GROUPS, getProblem } from "./index";
+import { PROBLEMS, PROBLEM_GROUPS, TOPICS, filterProblemGroups, getProblem } from "./index";
 import { transpileTypeScript } from "@/lib/runner";
 
 const DIFFICULTIES = new Set(["Easy", "Medium", "Hard"]);
@@ -108,5 +108,56 @@ describe("problem bank invariants", () => {
   it("getProblem resolves known ids and rejects unknown ones", () => {
     expect(getProblem(PROBLEMS[0].id)?.id).toBe(PROBLEMS[0].id);
     expect(getProblem("does-not-exist")).toBeUndefined();
+  });
+});
+
+describe("filterProblemGroups", () => {
+  it("exposes every group's topic, in bank order", () => {
+    expect(TOPICS).toEqual(PROBLEM_GROUPS.map((g) => g.topic));
+  });
+
+  it("All/All is the whole bank, unchanged", () => {
+    const groups = filterProblemGroups("All", "All");
+    expect(groups).toEqual(PROBLEM_GROUPS);
+    expect(groups.flatMap((g) => g.problems).length).toBe(PROBLEMS.length);
+  });
+
+  it("narrows to one topic", () => {
+    for (const topic of TOPICS) {
+      const groups = filterProblemGroups(topic, "All");
+      expect(groups.map((g) => g.topic)).toEqual([topic]);
+      expect(groups[0].problems).toEqual(
+        PROBLEM_GROUPS.find((g) => g.topic === topic)!.problems
+      );
+    }
+  });
+
+  it("narrows to one difficulty and drops emptied groups", () => {
+    const groups = filterProblemGroups("All", "Hard");
+    expect(groups.length).toBeGreaterThan(0);
+    for (const g of groups) {
+      expect(g.problems.length).toBeGreaterThan(0);
+      for (const p of g.problems) expect(p.difficulty).toBe("Hard");
+    }
+    expect(groups.flatMap((g) => g.problems).length).toBe(
+      PROBLEMS.filter((p) => p.difficulty === "Hard").length
+    );
+  });
+
+  it("composes the two axes", () => {
+    // Pick a (topic, difficulty) pair the bank actually has, so the assertion
+    // isn't vacuous.
+    const group = PROBLEM_GROUPS.find((g) =>
+      g.problems.some((p) => p.difficulty === "Easy")
+    )!;
+    const groups = filterProblemGroups(group.topic, "Easy");
+    expect(groups.map((g) => g.topic)).toEqual([group.topic]);
+    expect(groups[0].problems).toEqual(
+      group.problems.filter((p) => p.difficulty === "Easy")
+    );
+  });
+
+  it("returns nothing rather than empty groups when a pair has no problems", () => {
+    expect(filterProblemGroups("Not A Topic", "All")).toEqual([]);
   });
 });

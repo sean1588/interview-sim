@@ -1,7 +1,7 @@
 // The coding problem bank, assembled from per-topic files. Public API is
 // unchanged from the old single-file module: import from "@/lib/problems".
 
-import type { Problem } from "./types";
+import type { Difficulty, Problem } from "./types";
 import { arraysProblems } from "./arrays";
 import { stringsProblems } from "./strings";
 import { searchingProblems } from "./searching";
@@ -21,7 +21,12 @@ export { LANGUAGE_LABELS } from "./types";
 // Topic taxonomy lives here, in the file that already owns the per-topic
 // arrays — no `topic` field is added to the ~70 individual problems. The flat
 // PROBLEMS list is derived from this so the two can't drift.
-export const PROBLEM_GROUPS: { topic: string; problems: Problem[] }[] = [
+export interface ProblemGroup {
+  topic: string;
+  problems: Problem[];
+}
+
+export const PROBLEM_GROUPS: ProblemGroup[] = [
   { topic: "Arrays", problems: arraysProblems },
   { topic: "Strings", problems: stringsProblems },
   { topic: "Searching", problems: searchingProblems },
@@ -37,6 +42,29 @@ export const PROBLEM_GROUPS: { topic: string; problems: Problem[] }[] = [
 ];
 
 export const PROBLEMS: Problem[] = PROBLEM_GROUPS.flatMap((g) => g.problems);
+
+/** Topic names in picker order. Derived from the groups so the two can't drift. */
+export const TOPICS: string[] = PROBLEM_GROUPS.map((g) => g.topic);
+
+/**
+ * The groups a picker should show for the active filters. "All" on either axis
+ * is a no-op, the two narrow independently, and groups left empty are dropped
+ * so the picker never shows a bare topic header.
+ */
+export function filterProblemGroups(
+  topic: string | "All",
+  difficulty: Difficulty | "All"
+): ProblemGroup[] {
+  return PROBLEM_GROUPS.filter((g) => topic === "All" || g.topic === topic)
+    .map((g) => ({
+      topic: g.topic,
+      problems:
+        difficulty === "All"
+          ? g.problems
+          : g.problems.filter((p) => p.difficulty === difficulty),
+    }))
+    .filter((g) => g.problems.length > 0);
+}
 
 export function getProblem(id: string): Problem | undefined {
   return PROBLEMS.find((p) => p.id === id);
