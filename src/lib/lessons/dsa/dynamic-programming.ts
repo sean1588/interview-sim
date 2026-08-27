@@ -32,7 +32,7 @@ function fib(n: number): number {
 }
 \`\`\`
 
-Draw the call tree for \`fib(5)\`: \`fib(3)\` is computed twice, \`fib(2)\` three times, \`fib(1)\` five times. Each level roughly doubles, so the tree holds **O(2ⁿ)** nodes — \`fib(50)\` is decades of CPU time. But look at the *distinct* arguments: \`0\` through \`n\`. There are only **n + 1 different questions** being asked, and the recursion is asking them billions of times.
+Draw the call tree for \`fib(5)\`: \`fib(3)\` is computed twice, \`fib(2)\` three times, \`fib(1)\` five times. Each level roughly doubles, so the tree holds **O(2ⁿ)** nodes — \`fib(50)\` makes 2·F(51) − 1 = **40,730,022,147 calls**, minutes of CPU time. But look at the *distinct* arguments: \`0\` through \`n\`. There are only **n + 1 different questions** being asked, and the recursion is asking them billions of times.
 
 That gap — exponential calls, linear distinct subproblems — is what DP closes.
 
@@ -105,7 +105,7 @@ def fib(n):
     return fib(n - 1) + fib(n - 2)
 \`\`\`
 
-Draw the call tree for \`fib(5)\`: \`fib(3)\` is computed twice, \`fib(2)\` three times, \`fib(1)\` five times. Each level roughly doubles, so the tree holds **O(2ⁿ)** nodes — \`fib(50)\` is decades of CPU time. But look at the *distinct* arguments: \`0\` through \`n\`. There are only **n + 1 different questions** being asked, and the recursion is asking them billions of times.
+Draw the call tree for \`fib(5)\`: \`fib(3)\` is computed twice, \`fib(2)\` three times, \`fib(1)\` five times. Each level roughly doubles, so the tree holds **O(2ⁿ)** nodes — \`fib(50)\` makes 2·F(51) − 1 = **40,730,022,147 calls**, on the order of an hour in CPython. But look at the *distinct* arguments: \`0\` through \`n\`. There are only **n + 1 different questions** being asked, and the recursion is asking them billions of times.
 
 That gap — exponential calls, linear distinct subproblems — is what DP closes.
 
@@ -387,6 +387,7 @@ Here the natural state is the one people get wrong first. \`dp[i]\` = "the LIS o
 > \`dp[i]\` = the length of the longest increasing subsequence **ending exactly at index i**.
 
 \`\`\`ts
+if (nums.length === 0) return 0;                // Math.max(...[]) is -Infinity
 for (let i = 0; i < nums.length; i++) {
   dp[i] = 1;                                    // the element alone
   for (let j = 0; j < i; j++) {
@@ -450,6 +451,8 @@ Here the natural state is the one people get wrong first. \`dp[i]\` = "the LIS o
 > \`dp[i]\` = the length of the longest increasing subsequence **ending exactly at index i**.
 
 \`\`\`python
+if not nums:
+    return 0                             # max([]) raises ValueError
 dp = [1] * len(nums)                     # each element alone
 for i in range(len(nums)):
     for j in range(i):
@@ -521,12 +524,16 @@ State: \`dp[i]\` = length of the longest increasing subsequence **ending at inde
 
 The trap: return the **maximum over the whole table**, not the last cell — the best subsequence rarely ends at the last element. \`[10, 9, 2, 5, 3, 7, 101, 18]\` proves it.
 
+Handle the empty array: \`Math.max(...[])\` is \`-Infinity\`, so return 0 before you touch the table.
+
 Expected output: \`4\` (2, 3, 7, 18 — or 2, 5, 7, 101), then \`1\`, then \`0\`.`,
           python: `Implement \`length_of_lis(nums)\` in O(n²): the length of the longest strictly increasing subsequence (elements in order, not necessarily adjacent).
 
 State: \`dp[i]\` = length of the longest increasing subsequence **ending at index i**. Every element starts at 1. For each \`i\`, scan every \`j < i\`; when \`nums[j] < nums[i]\`, index \`i\` can extend that subsequence.
 
 The trap: return the **maximum over the whole table**, not \`dp[-1]\` — the best subsequence rarely ends at the last element, and negative indexing means the wrong version runs happily. \`[10, 9, 2, 5, 3, 7, 101, 18]\` proves it.
+
+Handle the empty list: \`max([])\` raises \`ValueError\`, so return 0 before you touch the table.
 
 Expected output: \`4\` (2, 3, 7, 18 — or 2, 5, 7, 101), then \`1\`, then \`0\`.`,
         },
@@ -657,7 +664,7 @@ if (weights[i - 1] <= c) {
 
 Row 0 (no items) is all zeros — the base case that makes the whole table work.
 
-**O(n × W)** time and space. That looks polynomial, and it is not: W is a *value*, not a size. Doubling the capacity from 10⁶ to 10¹² doubles the input by a few characters and multiplies the work by a million. The term for this is **pseudo-polynomial**, and it's the honest answer when an interviewer asks whether you just solved an NP-hard problem in polynomial time. You didn't.
+**O(n × W)** time and space. That looks polynomial, and it is not: W is a *value*, not a size. Doubling the *length* of the input — 10⁶ to 10¹², six digits to twelve — multiplies the work by a million. The term for this is **pseudo-polynomial**, and it's the honest answer when an interviewer asks whether you just solved an NP-hard problem in polynomial time. You didn't.
 
 ## Rolling it to one row — and the loop direction that matters
 
@@ -723,7 +730,7 @@ if weights[i - 1] <= c:                              # take it, if it fits
 
 Row 0 (no items) is all zeros — the base case that makes the whole table work.
 
-**O(n × W)** time and space. That looks polynomial, and it is not: W is a *value*, not a size. Doubling the capacity from 10⁶ to 10¹² doubles the input by a few characters and multiplies the work by a million. The term for this is **pseudo-polynomial**, and it's the honest answer when an interviewer asks whether you just solved an NP-hard problem in polynomial time. You didn't.
+**O(n × W)** time and space. That looks polynomial, and it is not: W is a *value*, not a size. Doubling the *length* of the input — 10⁶ to 10¹², six digits to twelve — multiplies the work by a million. The term for this is **pseudo-polynomial**, and it's the honest answer when an interviewer asks whether you just solved an NP-hard problem in polynomial time. You didn't.
 
 ## Rolling it to one row — and the loop direction that matters
 
@@ -854,11 +861,11 @@ print(knapsack([], [], 10))  # expected 0
           "Any order — every cell's value is independent of when its neighbors are computed",
           "Bottom-right to top-left, so the destination is settled before the cells feeding it",
           "Row by row, left to right — it guarantees the cell above and the cell to the left are final before you read them",
-          "Diagonally outward from the top-left corner, since both neighbors lie on the previous diagonal",
+          "Anti-diagonal by anti-diagonal starting at the bottom-right corner, so a whole diagonal can be filled at once",
         ],
         answer: 2,
         explanation:
-          "The recurrence reads (r-1, c) and (r, c-1), so any order that finalizes those two first works — row-major is the simple one. (The anti-diagonal order also happens to satisfy the dependency, but it's needless machinery here.) An order that reads unfilled cells doesn't crash on a zero-initialized table; it just returns a confidently wrong number.",
+          "The recurrence reads (r-1, c) and (r, c-1), so any order that finalizes those two first works — row-major is the simple one. Sweeping anti-diagonals from the bottom-right runs the dependencies backwards: when you reach a cell, the neighbor above it and the neighbor to its left sit on diagonals you haven't filled yet. An order that reads unfilled cells doesn't crash on a zero-initialized table; it just returns a confidently wrong number.",
       },
       {
         id: "dsa-grid-dp-q2",
