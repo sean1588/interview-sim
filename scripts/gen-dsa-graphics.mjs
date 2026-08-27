@@ -292,6 +292,42 @@ export const LESSONS = [
       "Plain height bars, no clutter.",
     ].join(" "),
   },
+  {
+    id: "dsa-memoization",
+    title: "Compute once, reuse forever",
+    prompt: [
+      "2x2 quadrant poster contrasting naive recursion, memoization and tabulation for fib(5).",
+      "Step 1 'Naive recursion': a call tree for fib(5) where fib(3) appears twice and fib(2) three times, duplicates tinted red, badge O(2^n).",
+      "Step 2 'Memoize': the same tree with duplicate branches collapsed into a cache lookup arrow pointing at a small key-value table (3 to 2, 2 to 1), badge O(n).",
+      "Step 3 'Tabulate': a single row of cells indexed 0..5 holding 0,1,1,2,3,5, filled left to right with arrows from the two previous cells.",
+      "Step 4 'Roll it up': the row reduced to just two labeled variables prev2 and prev1, badge O(1) space.",
+      "Plain numbers in all cells, no code text beyond the short labels.",
+    ].join(" "),
+  },
+  {
+    id: "dsa-one-dimensional-dp",
+    title: "Filling a 1-D table",
+    prompt: [
+      "2x2 quadrant poster about one-dimensional dynamic programming.",
+      "Step 1 'State': a single row of cells labeled dp[0..n] with a caption cell reading 'best answer up to i'.",
+      "Step 2 'Choose': at cell i, two arrows in — one from i-1 labeled skip, one from i-2 labeled take — merging into a max box.",
+      "Step 3 'House robber': array 2,7,9,3,1 with 2, 9 and 1 highlighted and total 12 shown, adjacent picks visibly forbidden.",
+      "Step 4 'Look back further': array 10,9,2,5,3,7 with many arrows from every earlier cell into the current one, badge O(n^2), caption 'longest increasing subsequence'.",
+      "Plain numbers only in the cells, short sharp labels.",
+    ].join(" "),
+  },
+  {
+    id: "dsa-grid-dp",
+    title: "Two-dimensional tables",
+    prompt: [
+      "2x2 quadrant poster about two-dimensional dynamic programming.",
+      "Step 1 'Grid state': a 3x3 grid of costs 1,3,1 / 1,5,1 / 4,2,1 with a cell highlighted and two arrows into it, one from above and one from the left.",
+      "Step 2 'Fill order': the cheapest-cost table for that grid, filled row by row left to right, cells reading exactly 1 4 5 / 2 7 6 / 6 8 7, with the first row and first column marked as running totals.",
+      "Step 3 'Knapsack table': a table with items down the left side (weight,value pairs 2,3 then 3,4 then 4,5) and capacity 0..7 across the top; four rows labeled 'none', '2,3', '3,4', '4,5' reading exactly 0 0 0 0 0 0 0 0 / 0 0 3 3 3 3 3 3 / 0 0 3 4 4 7 7 7 / 0 0 3 4 5 7 8 9; the final cell 9 highlighted with skip and take arrows from the row above.",
+      "Step 4 'One row, descending': a single row of capacity cells with a large right-to-left arrow labeled 'descending keeps it 0/1'.",
+      "Plain numbers in cells, no photorealism, short correct labels.",
+    ].join(" "),
+  },
 ];
 
 function parseArgs(argv) {

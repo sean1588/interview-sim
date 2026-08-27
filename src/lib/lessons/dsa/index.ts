@@ -18,6 +18,7 @@ import { stacksQueuesLessons } from "./stacks-queues";
 import { treesLessons } from "./trees";
 import { graphsLessons } from "./graphs";
 import { sortingSearchingLessons } from "./sorting-searching";
+import { dynamicProgrammingLessons } from "./dynamic-programming";
 
 const MODULES: Module[] = [
   { id: "complexity", title: "Complexity", blurb: "Big-O growth, trading space for time, and reading real code for its cost." },
@@ -35,6 +36,7 @@ const MODULES: Module[] = [
   { id: "trees", title: "Trees", blurb: "Binary trees and BSTs, recursive DFS traversals, and queue-driven BFS." },
   { id: "graphs", title: "Graphs", blurb: "Adjacency lists, traversal with a visited set, components, and topological sort." },
   { id: "sorting-searching", title: "Sorting & Searching", blurb: "Binary search and its boundary variants, and how the classic sorts work." },
+  { id: "dynamic-programming", title: "Dynamic Programming", blurb: "Overlapping subproblems, memo versus table, and the 1-D and 2-D recurrences worth knowing." },
 ];
 
 const LESSONS: Lesson[] = [
@@ -46,6 +48,7 @@ const LESSONS: Lesson[] = [
   ...treesLessons,
   ...graphsLessons,
   ...sortingSearchingLessons,
+  ...dynamicProgrammingLessons,
 ];
 
 export const dsaCourse: Course = {
