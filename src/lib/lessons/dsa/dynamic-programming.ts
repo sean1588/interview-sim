@@ -357,7 +357,7 @@ dp[i] = Math.max(dp[i - 1], dp[i - 2] + nums[i]);
 
 That's the shape of nearly every 1-D DP: **at each position, enumerate the choices, take the best of the smaller answers they leave behind.** Note that "take it" adds \`dp[i - 2]\`, not \`nums[i - 2]\` — the subproblem already contains the best arrangement of everything before it, and re-deriving it is how people accidentally write greedy code and get \`[2, 7, 9, 3, 1]\` wrong.
 
-Which is worth checking: greedy-by-largest picks 9, then 7 and 3 are blocked, then 1 → 10. The DP picks 2 + 9 + 1 = 12. Locally-best choices don't compose here, which is precisely why it's a DP and not a one-pass scan.
+A truer greedy — repeatedly take the largest still-legal house — fails on this problem too, though \`[2, 7, 9, 3, 1]\` is too forgiving to show it: taking 9 blocks only 7 and 3, so greedy goes on to pick up 2 and 1 for the same 12. Use \`[1, 7, 9, 4]\` instead. Greedy takes 9, which blocks both 7 and 4, then finishes with 1 for a total of 10; the DP takes 7 + 4 = 11. Locally-best choices don't compose, which is precisely why it's a DP and not a one-pass scan.
 
 ## Rolling the array away
 
@@ -388,8 +388,8 @@ Here the natural state is the one people get wrong first. \`dp[i]\` = "the LIS o
 
 \`\`\`ts
 if (nums.length === 0) return 0;                // Math.max(...[]) is -Infinity
+const dp = new Array<number>(nums.length).fill(1); // each element alone
 for (let i = 0; i < nums.length; i++) {
-  dp[i] = 1;                                    // the element alone
   for (let j = 0; j < i; j++) {
     if (nums[j] < nums[i]) dp[i] = Math.max(dp[i], dp[j] + 1);
   }
@@ -420,7 +420,7 @@ dp[i] = max(dp[i - 1], dp[i - 2] + nums[i])
 
 That's the shape of nearly every 1-D DP: **at each position, enumerate the choices, take the best of the smaller answers they leave behind.** Note that "take it" adds \`dp[i - 2]\`, not \`nums[i - 2]\` — the subproblem already contains the best arrangement of everything before it, and re-deriving it is how people accidentally write greedy code and get \`[2, 7, 9, 3, 1]\` wrong.
 
-Which is worth checking: greedy-by-largest picks 9, then 7 and 3 are blocked, then 1 → 10. The DP picks 2 + 9 + 1 = 12. Locally-best choices don't compose here, which is precisely why it's a DP and not a one-pass scan.
+A truer greedy — repeatedly take the largest still-legal house — fails on this problem too, though \`[2, 7, 9, 3, 1]\` is too forgiving to show it: taking 9 blocks only 7 and 3, so greedy goes on to pick up 2 and 1 for the same 12. Use \`[1, 7, 9, 4]\` instead. Greedy takes 9, which blocks both 7 and 4, then finishes with 1 for a total of 10; the DP takes 7 + 4 = 11. Locally-best choices don't compose, which is precisely why it's a DP and not a one-pass scan.
 
 One Python-specific trap in the indexed form: \`dp[i - 2]\` at \`i = 1\` is \`dp[-1]\`, which silently reads the *last* cell of the list instead of raising. Negative indexing turns an off-by-one into a wrong answer with no traceback — either handle \`i = 0\` and \`i = 1\` explicitly, or pad the table with two leading zeros and offset by 2.
 
@@ -479,14 +479,14 @@ At each house: \`max(skip = best through i-1, take = nums[i] + best through i-2)
 
 Use the **two rolling variables** version — O(n) time, O(1) space — rather than allocating a table. Handle the empty array.
 
-Expected output: \`12\` (2 + 9 + 1, beating the greedy 9 + 1), then \`10\` (5 + 5), then \`0\`.`,
+Expected output: \`12\` (2 + 9 + 1), then \`10\` (5 + 5), then \`0\`.`,
           python: `Implement \`rob(nums)\`: the maximum total you can take from a line of houses without taking two adjacent ones.
 
 At each house: \`max(skip = best through i-1, take = nums[i] + best through i-2)\`.
 
 Use the **two rolling variables** version — O(n) time, O(1) space — rather than allocating a list. Handle the empty list.
 
-Expected output: \`12\` (2 + 9 + 1, beating the greedy 9 + 1), then \`10\` (5 + 5), then \`0\`.`,
+Expected output: \`12\` (2 + 9 + 1), then \`10\` (5 + 5), then \`0\`.`,
         },
         starterCode: {
           typescript: `function rob(nums: number[]): number {
@@ -576,7 +576,7 @@ print(length_of_lis([]))  # expected 0
         ],
         answer: 0,
         explanation:
-          "The whole leverage of DP is that a subproblem's answer is final: `dp[i - 2]` already accounts for every legal arrangement of the first i-1 houses. Adding `nums[i - 2]` instead reduces you to picking pairs of houses — greedy — which gets `[2, 7, 9, 3, 1]` wrong (10 instead of 12).",
+          "The whole leverage of DP is that a subproblem's answer is final: `dp[i - 2]` already accounts for every legal arrangement of the first i-1 houses. Adding `nums[i - 2]` instead reduces you to picking pairs of houses — greedy — which gets `[2, 7, 9, 3, 1]` wrong (11 instead of 12).",
       },
       {
         id: "dsa-one-dimensional-dp-q2",
