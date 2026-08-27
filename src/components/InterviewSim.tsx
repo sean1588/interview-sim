@@ -11,7 +11,8 @@ import ToggleChip from "@/components/session/ToggleChip";
 import { useSession } from "@/components/useSession";
 import {
   PROBLEMS,
-  PROBLEM_GROUPS,
+  TOPICS,
+  filterProblemGroups,
   getProblem,
   type Difficulty,
   type LanguageId,
@@ -31,6 +32,10 @@ function languagesFor(problem: Problem): LanguageId[] {
 // Options for the picker's difficulty filter, in display order.
 const DIFFICULTY_FILTERS: (Difficulty | "All")[] = ["All", "Easy", "Medium", "Hard"];
 
+// Options for the picker's category filter — the problem bank's topics, in bank
+// order, behind an "All" default. "Category" is the label; `topic` is the field.
+const CATEGORY_FILTERS: string[] = ["All", ...TOPICS];
+
 // Difficulty tags carry their own warm tone: olive (Easy) → gold (Medium) → cognac (Hard).
 const DIFFICULTY_TONE: Record<Difficulty, string> = {
   Easy: "border-olive/30 bg-olive/[0.12] text-olive",
@@ -41,8 +46,10 @@ const DIFFICULTY_TONE: Record<Difficulty, string> = {
 export default function InterviewSim() {
   const [problemId, setProblemId] = useState(PROBLEMS[0].id);
   const [language, setLanguage] = useState<LanguageId>("python");
-  // Narrows the problem picker; "All" shows every difficulty.
+  // Narrow the problem picker; "All" on either axis shows everything, and the
+  // two compose (Trees + Hard shows only the hard tree problems).
   const [difficulty, setDifficulty] = useState<Difficulty | "All">("All");
+  const [topic, setTopic] = useState<string>("All");
   // Same problem, editor, and scorecard — only the live interviewer persona
   // changes (evaluator -> teacher).
   const [tutor, setTutor] = useState(false);
@@ -53,18 +60,10 @@ export default function InterviewSim() {
   const problem = useMemo(() => getProblem(problemId)!, [problemId]);
   const availableLanguages = useMemo(() => languagesFor(problem), [problem]);
 
-  // Groups (with their problems) matching the active difficulty. Empty groups
-  // are dropped so the picker shows no bare topic headers.
+  // Groups (with their problems) matching the active filters.
   const visibleGroups = useMemo(
-    () =>
-      PROBLEM_GROUPS.map((g) => ({
-        topic: g.topic,
-        problems:
-          difficulty === "All"
-            ? g.problems
-            : g.problems.filter((p) => p.difficulty === difficulty),
-      })).filter((g) => g.problems.length > 0),
-    [difficulty]
+    () => filterProblemGroups(topic, difficulty),
+    [topic, difficulty]
   );
 
   // Code is tracked per (problem, language) so switching either restores the
@@ -117,21 +116,35 @@ export default function InterviewSim() {
     [language, ensureBuffer]
   );
 
-  const handleDifficultyChange = useCallback(
-    (next: Difficulty | "All") => {
-      setDifficulty(next);
-      // If the current problem is filtered out, drop to the first still-visible
-      // one (routing through handleProblemChange resets buffer + language). If
-      // nothing matches, keep the selection.
-      const visible =
-        next === "All"
-          ? PROBLEMS
-          : PROBLEMS.filter((p) => p.difficulty === next);
+  // If a filter change hides the selected problem, drop to the first one still
+  // visible (routing through handleProblemChange resets buffer + language). If
+  // nothing matches, keep the selection.
+  const reselectIfHidden = useCallback(
+    (nextTopic: string, nextDifficulty: Difficulty | "All") => {
+      const visible = filterProblemGroups(nextTopic, nextDifficulty).flatMap(
+        (g) => g.problems
+      );
       if (visible.length > 0 && !visible.some((p) => p.id === problemId)) {
         handleProblemChange(visible[0].id);
       }
     },
     [problemId, handleProblemChange]
+  );
+
+  const handleDifficultyChange = useCallback(
+    (next: Difficulty | "All") => {
+      setDifficulty(next);
+      reselectIfHidden(topic, next);
+    },
+    [topic, reselectIfHidden]
+  );
+
+  const handleTopicChange = useCallback(
+    (next: string) => {
+      setTopic(next);
+      reselectIfHidden(next, difficulty);
+    },
+    [difficulty, reselectIfHidden]
   );
 
   // The interviewer reads the run through `lastRun`, so the grade has to ride in
@@ -179,27 +192,55 @@ export default function InterviewSim() {
     });
   }, [getContext, endSession]);
 
+  // Three pickers plus the tutor toggle fill the header row, so the widest
+  // control — the problem picker — is the one capped; a long title clips in the
+  // closed chip, never in the dropdown itself.
   const controls = (
     <>
-      <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+      <span className="whitespace-nowrap font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
         Problem
       </span>
       <SelectChip
         value={problemId}
         onChange={(e) => handleProblemChange(e.target.value)}
         ariaLabel="Problem"
+        className="max-w-[230px]"
       >
-        {visibleGroups.map((g) => (
-          <optgroup key={g.topic} label={g.topic}>
-            {g.problems.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title} · {p.difficulty}
-              </option>
-            ))}
-          </optgroup>
+        {visibleGroups.length === 0 ? (
+          // No problem matches the filters (Backtracking + Hard, say). The
+          // session keeps the problem it's on, so the picker says why it's
+          // empty instead of collapsing to a blank chip. Carrying the current
+          // id as the value is what makes the select show this line.
+          <option value={problemId} disabled>
+            No problems match
+          </option>
+        ) : (
+          visibleGroups.map((g) => (
+            <optgroup key={g.topic} label={g.topic}>
+              {g.problems.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title} · {p.difficulty}
+                </option>
+              ))}
+            </optgroup>
+          ))
+        )}
+      </SelectChip>
+      <span className="whitespace-nowrap font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+        Category
+      </span>
+      <SelectChip
+        value={topic}
+        onChange={(e) => handleTopicChange(e.target.value)}
+        ariaLabel="Category"
+      >
+        {CATEGORY_FILTERS.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
         ))}
       </SelectChip>
-      <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
+      <span className="whitespace-nowrap font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-faint">
         Difficulty
       </span>
       <SelectChip
