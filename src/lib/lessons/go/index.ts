@@ -42,7 +42,7 @@ const LESSONS: Lesson[] = [
 
 export const goCourse: Course = {
   id: "go",
-  language: "go",
+  languages: ["go"],
   title: "Go",
   tagline: "A guided course for experienced programmers picking up Go — from the zero-value model to goroutines and generics.",
   icon: "🐹",

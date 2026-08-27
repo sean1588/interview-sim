@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COURSES } from "@/lib/lessons";
+import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 import { ARTICLES, LIBRARY_SECTIONS } from "@/lib/library";
 
 type ModeCardProps = {
@@ -114,7 +114,7 @@ export default function Home() {
               key={course.id}
               href={`/learn/${course.id}`}
               title={`Learn ${course.title}`}
-              description={course.tagline}
+              description={forLanguage(course.tagline, defaultLanguage(course))}
               icon={course.icon}
               cta="Open course"
             />

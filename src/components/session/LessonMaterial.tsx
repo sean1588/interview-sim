@@ -3,13 +3,13 @@
 import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import LessonQuiz from "@/components/session/LessonQuiz";
-import type { Exercise, LessonGraphic, QuizQuestion } from "@/lib/lessons";
+import type { LessonGraphic, ResolvedExercise, ResolvedQuizQuestion } from "@/lib/lessons";
 
 /** The current exercise plus its navigation — present only on lessons that have
  * exercises. Bundling these keeps the conversational-lesson caller from passing
  * no-op filler for fields it doesn't use. */
 export interface ExerciseView {
-  data: Exercise;
+  data: ResolvedExercise;
   index: number;
   total: number;
   onPrev: () => void;
@@ -33,7 +33,7 @@ export default function LessonMaterial({
   graphics,
 }: {
   content: string;
-  quiz: QuizQuestion[];
+  quiz: ResolvedQuizQuestion[];
   onMissedChange: (missedIds: string[]) => void;
   exercise?: ExerciseView;
   graphics?: LessonGraphic[];

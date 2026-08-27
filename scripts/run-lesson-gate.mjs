@@ -7,7 +7,14 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 
-const { LESSONS } = await import("/tmp/lessons-bundle.mjs");
+const { COURSES, resolveLesson } = await import("/tmp/lessons-bundle.mjs");
+
+// Every lesson taught in Python, across every course that offers it — the DSA
+// course offers Python alongside TypeScript, so its starters are resolved for
+// Python rather than read off the lesson raw.
+const LESSONS = COURSES.filter((c) => c.languages?.includes("python")).flatMap((c) =>
+  c.lessons.map((l) => resolveLesson(l, "python"))
+);
 
 const GATE = "/tmp/gate";
 mkdirSync(GATE, { recursive: true });

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
-import type { LanguageId, TestSpec } from "@/lib/problems";
+import { LANGUAGE_LABELS, type LanguageId, type TestSpec } from "@/lib/problems";
 import { runCode, isRunnable, type RunResult } from "@/lib/runner";
 import { runTests, failureLines, type TestSummary } from "@/lib/test-harness";
 import { Play, ChevronDown } from "@/components/session/icons";
@@ -26,13 +26,6 @@ interface CodeEditorProps {
   /** Non-interactive content laid over the editor canvas (freestyle empty state). */
   overlay?: ReactNode;
 }
-
-const LANGUAGE_LABELS: Record<LanguageId, string> = {
-  python: "Python",
-  javascript: "JavaScript",
-  typescript: "TypeScript",
-  go: "Go",
-};
 
 // Languages whose first run pays a one-time CDN load; shown while running so the
 // delay reads as expected, not hung. JavaScript runs instantly, so it's absent.

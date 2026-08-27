@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import * as ts from "typescript";
 import {
@@ -8,14 +9,36 @@ import {
   QUIZ_LENGTH,
   QUIZ_OPTIONS,
   buildLessonScript,
+  forLanguage,
   getCourse,
   getLesson,
   lessonsForModule,
+  resolveLesson,
 } from "./index";
+import type { LanguageId } from "@/lib/problems";
 import { transpileTypeScript } from "@/lib/runner";
 import { ARTICLES } from "@/lib/library";
 
+// Ids and answer indices only — both are shared across a lesson's languages, so
+// this stays one entry per authored question. Anything that reads question TEXT
+// goes through COURSE_VARIANTS below instead, which resolves per language.
 const ALL_QUESTIONS = ALL_LESSONS.flatMap((l) => l.quiz);
+
+/**
+ * Every (course, language) pair a learner can actually land on. A course taught
+ * in two languages is two distinct sets of material sharing one set of ids, and
+ * BOTH have to satisfy every content invariant below — otherwise the second
+ * language ships with the first language's coverage. A course that declares no
+ * languages resolves once, with undefined.
+ */
+const COURSE_VARIANTS = COURSES.flatMap((course) =>
+  (course.languages ?? [undefined]).map((language) => ({
+    course,
+    language,
+    label: language ? `${course.id} (${language})` : course.id,
+    lessons: course.lessons.map((l) => resolveLesson(l, language)),
+  }))
+);
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /** Every /library/<id> href appearing in a lesson card. */
@@ -44,6 +67,19 @@ describe("learning courses — cross-course invariants", () => {
     const exIds = ALL_LESSONS.flatMap((l) => l.exercises.map((e) => e.id));
     expect(new Set(exIds).size, "duplicate exercise id").toBe(exIds.length);
     for (const id of exIds) expect(id, id).toMatch(KEBAB);
+  });
+
+  // A course offering a CHOICE of language is a different product from one that
+  // ships a single language: every lesson owes a second set of code and the prose
+  // around it, which the per-language suites below only enforce for languages the
+  // course actually declares. Pinning the map means adding a language to a course —
+  // or a new multi-language course — is a deliberate edit here, not a silent one
+  // that ships half-translated material.
+  it("pins which courses are taught in more than one language", () => {
+    const multi = Object.fromEntries(
+      COURSES.filter((c) => (c.languages?.length ?? 0) > 1).map((c) => [c.id, c.languages])
+    );
+    expect(multi).toEqual({ dsa: ["typescript", "python"] });
   });
 
   it("resolves known courses and rejects unknown ones", () => {
@@ -85,9 +121,14 @@ describe("learning courses — cross-course invariants", () => {
     // Lesson cards cross-link the concept library instead of restating it; a
     // renamed article must not leave a dead link in a lesson.
     const ids = new Set(ARTICLES.map((a) => a.id));
-    for (const l of ALL_LESSONS) {
-      for (const [, articleId] of l.content.matchAll(LIBRARY_HREF)) {
-        expect(ids.has(articleId), `${l.id} links to unknown article ${articleId}`).toBe(true);
+    for (const variant of COURSE_VARIANTS) {
+      for (const l of variant.lessons) {
+        for (const [, articleId] of l.content.matchAll(LIBRARY_HREF)) {
+          expect(
+            ids.has(articleId),
+            `${variant.label}/${l.id} links to unknown article ${articleId}`
+          ).toBe(true);
+        }
       }
     }
   });
@@ -105,24 +146,34 @@ describe("learning courses — cross-course invariants", () => {
   });
 });
 
-describe.each(COURSES)("course: $id", (course) => {
+describe.each(COURSE_VARIANTS)("course: $label", ({ course, language, lessons }) => {
   it("has a healthy number of lessons", () => {
-    expect(course.lessons.length).toBeGreaterThanOrEqual(12);
+    expect(lessons.length).toBeGreaterThanOrEqual(12);
   });
 
-  it("declares modules, each with at least one lesson", () => {
+  it("declares modules, each with at least one lesson and a blurb", () => {
     expect(course.modules.length).toBeGreaterThan(0);
     for (const m of course.modules) {
       expect(
         lessonsForModule(course, m.id).length,
         `${course.id}/${m.id} has no lessons`
       ).toBeGreaterThan(0);
+      expect(
+        forLanguage(m.blurb, language).trim(),
+        `${course.id}/${m.id} blurb`
+      ).not.toBe("");
     }
+  });
+
+  it("names a language it actually declares", () => {
+    // Guards the resolver's fallback: if a lesson keys a field by a language the
+    // course doesn't offer, that text is unreachable and the typo is invisible.
+    if (language) expect(course.languages).toContain(language);
   });
 
   it("every lesson references a real module and is well-formed", () => {
     const moduleIds = new Set(course.modules.map((m) => m.id));
-    for (const l of course.lessons) {
+    for (const l of lessons) {
       expect(moduleIds.has(l.module), `${l.id} bad module ${l.module}`).toBe(true);
       expect(l.title.trim(), `${l.id} title`).not.toBe("");
       expect(l.blurb.trim(), `${l.id} blurb`).not.toBe("");
@@ -139,7 +190,7 @@ describe.each(COURSES)("course: $id", (course) => {
   // course has no exercises to check understanding with, and a language course's
   // exercises check that you can write it, not that you know when to reach for it.
   it("gives every lesson a well-formed quiz", () => {
-    for (const l of course.lessons) {
+    for (const l of lessons) {
       expect(l.quiz.length, `${l.id} quiz length`).toBe(QUIZ_LENGTH);
       for (const q of l.quiz) {
         expect(q.prompt.trim(), `${q.id} prompt`).not.toBe("");
@@ -157,8 +208,8 @@ describe.each(COURSES)("course: $id", (course) => {
   // and hands-on exercises; without one it is a concept course, taught purely
   // by voice against the notes (LessonWorkspace renders no editor at all).
   it("matches its exercises to whether it declares a language", () => {
-    const exercises = course.lessons.flatMap((l) => l.exercises);
-    if (course.language) {
+    const exercises = lessons.flatMap((l) => l.exercises);
+    if (course.languages) {
       expect(exercises.length, `${course.id} is a language course with no exercises`).toBeGreaterThan(0);
     } else {
       expect(exercises, `${course.id} is a concept course but ships exercises`).toEqual([]);
@@ -166,7 +217,7 @@ describe.each(COURSES)("course: $id", (course) => {
   });
 
   it("getLesson resolves this course's lessons and rejects unknown ones", () => {
-    const first = course.lessons[0];
+    const first = lessons[0];
     expect(getLesson(course.id, first.id)?.id).toBe(first.id);
     expect(getLesson(course.id, "does-not-exist")).toBeUndefined();
   });
@@ -184,7 +235,7 @@ const CONCEPT_COURSES = [
 ] as const;
 
 it("pins every concept course — a new one must be added to the table above", () => {
-  expect(COURSES.filter((c) => !c.language).map((c) => c.id)).toEqual(
+  expect(COURSES.filter((c) => !c.languages).map((c) => c.id)).toEqual(
     CONCEPT_COURSES.map((c) => c.id)
   );
 });
@@ -193,7 +244,7 @@ describe.each(CONCEPT_COURSES)("concept course: $id", ({ id, modules, minLessons
   const course = getCourse(id)!;
 
   it("declares no language, so it renders no editor", () => {
-    expect(course.language).toBeUndefined();
+    expect(course.languages).toBeUndefined();
   });
 
   it("covers its modules with real depth", () => {
@@ -207,16 +258,84 @@ describe.each(CONCEPT_COURSES)("concept course: $id", ({ id, modules, minLessons
   it("cross-links the concept library from every module", () => {
     for (const m of course.modules) {
       const links = lessonsForModule(course, m.id)
-        .flatMap((l) => [...l.content.matchAll(LIBRARY_HREF)])
+        // Concept courses declare no languages, so this resolves the shared prose.
+        .flatMap((l) => [...forLanguage(l.content).matchAll(LIBRARY_HREF)])
         .map(([, articleId]) => articleId);
       expect(links.length, `${m.id} links to no library article`).toBeGreaterThan(0);
     }
   });
 });
 
+// A multi-language course is the one place the resolver's fallback can hide a
+// real gap: an unported lesson still renders — in the OTHER language's prose —
+// and every content invariant above passes, because the text it checks is
+// non-empty and well-formed. It's just the wrong language. These two tests are
+// what make "ported" mean ported.
+describe.each(COURSES.filter((c) => (c.languages?.length ?? 0) > 1))(
+  "multi-language course: $id",
+  (course) => {
+    const languages = [...course.languages!].sort();
+
+    /** The declared variants of a field, or null when it's one shared value. */
+    const keysOf = (value: unknown): string[] | null =>
+      typeof value === "object" && value !== null && !Array.isArray(value)
+        ? Object.keys(value).sort()
+        : null;
+
+    it("varies the fields that cannot survive a language switch", () => {
+      // Code, and the prose that walks through it, are per-language by
+      // definition — a shared value here is an unported lesson, not a choice.
+      for (const l of course.lessons) {
+        expect(keysOf(l.content), `${l.id} content is shared across languages`).toEqual(
+          languages
+        );
+        for (const e of l.exercises) {
+          expect(
+            keysOf(e.starterCode),
+            `${e.id} starter is shared across languages`
+          ).toEqual(languages);
+        }
+      }
+    });
+
+    it("gives every field it does vary exactly the declared languages", () => {
+      // Fields that are genuinely language-neutral (most blurbs and quiz text)
+      // may stay shared — but one that opts in must cover every language, or the
+      // odd one out silently falls back and a typo'd key is unreachable text.
+      const fields: [string, unknown][] = [
+        [`${course.id} tagline`, course.tagline],
+        ...course.modules.map((m): [string, unknown] => [`${m.id} blurb`, m.blurb]),
+      ];
+      for (const l of course.lessons) {
+        fields.push([`${l.id} blurb`, l.blurb], [`${l.id} content`, l.content]);
+        for (const e of l.exercises) {
+          fields.push(
+            [`${e.id} title`, e.title],
+            [`${e.id} instructions`, e.instructions],
+            [`${e.id} starter`, e.starterCode]
+          );
+        }
+        for (const q of l.quiz) {
+          fields.push(
+            [`${q.id} prompt`, q.prompt],
+            [`${q.id} options`, q.options],
+            [`${q.id} explanation`, q.explanation]
+          );
+        }
+      }
+
+      for (const [label, value] of fields) {
+        const keys = keysOf(value);
+        if (keys) expect(keys, `${label} varies by language but not by all of them`).toEqual(languages);
+      }
+    });
+  }
+);
+
 describe("buildLessonScript — quiz misses reach the tutor", () => {
-  const withExercises = ALL_LESSONS.find((l) => l.exercises.length > 0)!;
-  const conversational = ALL_LESSONS.find((l) => l.exercises.length === 0)!;
+  const resolved = COURSE_VARIANTS.flatMap((v) => v.lessons);
+  const withExercises = resolved.find((l) => l.exercises.length > 0)!;
+  const conversational = resolved.find((l) => l.exercises.length === 0)!;
 
   it("says nothing about the quiz until the learner gets one wrong", () => {
     for (const lesson of [withExercises, conversational]) {
@@ -250,12 +369,18 @@ describe("buildLessonScript — quiz misses reach the tutor", () => {
   });
 });
 
+/** Every starter authored in `language`, across every course that offers it. */
+function startersFor(language: LanguageId): (readonly [string, string])[] {
+  return COURSE_VARIANTS.filter((v) => v.language === language).flatMap((v) =>
+    v.lessons.flatMap((l) => l.exercises.map((e) => [e.id, e.starterCode] as const))
+  );
+}
+
 // Every course whose starters run through the TypeScript pipeline — the gate
 // belongs to the language, not to one course, so a new TS-language course (DSA)
 // is covered automatically.
-const TS_STARTERS = COURSES.filter((c) => c.language === "typescript").flatMap((c) =>
-  c.lessons.flatMap((l) => l.exercises.map((e) => [e.id, e.starterCode] as const))
-);
+const TS_STARTERS = startersFor("typescript");
+const PY_STARTERS = startersFor("python");
 
 // Run-every-scaffold gate (CI-safe slice): transpile every TypeScript starter
 // the same way Run does, then CONSTRUCT the emitted JS — proving each starter is
@@ -266,6 +391,56 @@ describe("typescript-language courses — every starter transpiles to valid JS",
   it.each(TS_STARTERS)("%s transpiles + constructs", (_id, code) => {
     const js = transpileTypeScript(ts, code);
     expect(() => new Function(js)).not.toThrow();
+  });
+});
+
+// The mirror of the gate above for Python starters. Two layers, because each
+// catches what the other can't:
+//
+//  1. A syntax parse, which is the real check. python3 ships on the CI image and
+//     on macOS; if it were ever missing the parse would be skipped, so layer 2
+//     runs unconditionally and the skip is announced rather than silent.
+//  2. A leaked-TypeScript scan. Porting a lesson language-by-language makes
+//     half-translated starters the likely failure, and `const x = [1, 2];` is
+//     valid-ish looking but is not Python — yet a stray `let`/`=>`/`;` can still
+//     parse or fail confusingly. Naming the token gives a usable failure.
+const PY_SYNTAX_CHECK = (() => {
+  try {
+    execFileSync("python3", ["-c", "import ast"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+describe("python-language courses — every starter is valid Python", () => {
+  it("has a python3 available to parse with", () => {
+    // Not skipped silently: if this fails, the parse gate below did not run.
+    expect(PY_SYNTAX_CHECK, "python3 missing — starter syntax gate did not run").toBe(true);
+  });
+
+  it.skipIf(!PY_SYNTAX_CHECK).each(PY_STARTERS)("%s parses", (_id, code) => {
+    // ast.parse compiles without executing, so an example call in the starter
+    // can't hang the test process — same reasoning as the TS gate above.
+    const src = `import ast, sys; ast.parse(sys.stdin.read())`;
+    expect(() =>
+      execFileSync("python3", ["-c", src], { input: code, stdio: ["pipe", "ignore", "pipe"] })
+    ).not.toThrow();
+  });
+
+  const TS_TOKENS: [RegExp, string][] = [
+    [/\bconst\s+\w+\s*=/, "const"],
+    [/\blet\s+\w+\s*=/, "let"],
+    [/=>/, "=>"],
+    [/\bfunction\s+\w+\s*\(/, "function"],
+    [/\binterface\s+\w+/, "interface"],
+    [/console\.log\(/, "console.log"],
+  ];
+
+  it.each(PY_STARTERS)("%s carries no leftover TypeScript", (_id, code) => {
+    for (const [pattern, token] of TS_TOKENS) {
+      expect(pattern.test(code), `leftover TypeScript \`${token}\``).toBe(false);
+    }
   });
 });
 

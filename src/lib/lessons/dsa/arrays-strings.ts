@@ -15,7 +15,8 @@ export const arraysStringsLessons: Lesson[] = [
         src: "/lesson-graphics/dsa/dsa-two-pointers.png",
       },
     ],
-    content: `## The problem with pairs
+    content: {
+      typescript: `## The problem with pairs
 
 Any question of the form "find two elements that..." has an obvious answer: nested loops, check every pair. That's O(n²) — 10,000 elements means ~50 million comparisons. Fine in a unit test, painful in a hot path.
 
@@ -52,16 +53,62 @@ Every iteration permanently retires one element. With n elements you get at most
 ## When to reach for it
 
 Sorted or symmetric data plus a pair/containment question — think two pointers before nested loops. If the array is **unsorted** and you can't sort it (order matters, or you can't afford O(n log n)), the tool is a hash map of seen values instead — same O(n) time, but O(n) space. That trade is the next module's opening act.`,
+      python: `## The problem with pairs
+
+Any question of the form "find two elements that..." has an obvious answer: nested loops, check every pair. That's O(n²) — 10,000 elements means ~50 million comparisons. Fine in a unit test, painful in a hot path.
+
+Two pointers replaces that with a single O(n) pass — **when the data has order you can exploit.**
+
+## The mechanism
+
+Two indexes walk the list, usually converging from opposite ends:
+
+\`\`\`python
+left = 0
+right = len(nums) - 1
+while left < right:
+    # examine nums[left] and nums[right], move exactly one pointer inward
+    ...
+\`\`\`
+
+The core insight — and the reason this is linear — is that **each comparison lets you discard one pointer's element forever.**
+
+Take pair-with-target-sum in a *sorted* list. Look at \`nums[left] + nums[right]\`:
+
+- **Sum too small?** Then \`nums[left]\` is useless with *every* remaining partner — \`nums[right]\` is already the largest one available, and even that wasn't enough. Discard it: \`left += 1\`.
+- **Sum too big?** Symmetric: \`nums[right]\` overshoots even with the smallest partner. Discard it: \`right -= 1\`.
+
+Every iteration permanently retires one element. With n elements you get at most n-1 iterations. No pair is ever "missed" because a discarded element was *proven* unable to participate — that proof is what sortedness buys you. On unsorted data the discard argument collapses, and so does the technique.
+
+## Where it shows up
+
+- **Palindrome check** — the "order" here is symmetry: position i must mirror position n-1-i. Compare ends, walk inward, O(n) time and O(1) space (versus building \`s[::-1]\`, which costs O(n) extra space).
+- **Pair with target sum in a sorted list** — the discard logic above.
+- **Reversing in place** — swap at the pointers, converge. Python's \`a, b = b, a\` makes the swap a single line with no temp variable.
+- **Read/write pointers** (both moving forward): filtering a list in place — the read pointer scans everything, the write pointer marks where the next keeper lands. You've written this ad hoc whenever you compacted a list without allocating a new one.
+
+## When to reach for it
+
+Sorted or symmetric data plus a pair/containment question — think two pointers before nested loops. If the list is **unsorted** and you can't sort it (order matters, or you can't afford O(n log n)), the tool is a \`dict\` or \`set\` of seen values instead — same O(n) time, but O(n) space. That trade is the next module's opening act.`,
+    },
     exercises: [
     {
       id: "dsa-palindrome-check",
       title: "Palindrome with two pointers",
-      instructions: `Implement \`isPalindrome(s)\` with two pointers: \`left\` starting at 0, \`right\` at the end, walking toward each other and comparing characters.
+      instructions: {
+        typescript: `Implement \`isPalindrome(s)\` with two pointers: \`left\` starting at 0, \`right\` at the end, walking toward each other and comparing characters.
 
 **Do not build a reversed copy** (\`s.split("").reverse().join("")\`) and compare — that's O(n) extra space and skips the whole point. The pointer walk uses O(1) space and can bail out on the first mismatch.
 
 Expected output: \`true\`, \`true\`, \`false\`.`,
-      starterCode: `function isPalindrome(s: string): boolean {
+        python: `Implement \`is_palindrome(s)\` with two pointers: \`left\` starting at 0, \`right\` at the end, walking toward each other and comparing characters.
+
+**Do not build a reversed copy** (\`s[::-1]\`) and compare — that's O(n) extra space and skips the whole point. The pointer walk uses O(1) space and can bail out on the first mismatch.
+
+Expected output: \`True\`, \`True\`, \`False\`.`,
+      },
+      starterCode: {
+        typescript: `function isPalindrome(s: string): boolean {
   let left = 0;
   let right = s.length - 1;
   // TODO: walk the pointers toward each other.
@@ -75,16 +122,41 @@ console.log(isPalindrome("racecar")); // expected: true
 console.log(isPalindrome("noon"));    // expected: true
 console.log(isPalindrome("rocket")); // expected: false
 `,
+        python: `def is_palindrome(s):
+    left = 0
+    right = len(s) - 1
+    # TODO: walk the pointers toward each other.
+    # Compare s[left] and s[right]; on mismatch return False,
+    # otherwise move both pointers inward until they meet.
+    # Do NOT build a reversed copy of the string.
+    return False
+
+
+print(is_palindrome("racecar"))  # expected: True
+print(is_palindrome("noon"))     # expected: True
+print(is_palindrome("rocket"))   # expected: False
+`,
+      },
     },
     {
       id: "dsa-pair-sum-sorted",
       title: "Pair sum in a sorted array",
-      instructions: `Implement \`pairWithSum(sorted, target)\`: return the two **values** that add up to \`target\` as \`[smaller, larger]\`, or \`null\` if no pair exists. The input is sorted ascending — use converging pointers, not nested loops.
+      instructions: {
+        typescript: `Implement \`pairWithSum(sorted, target)\`: return the two **values** that add up to \`target\` as \`[smaller, larger]\`, or \`null\` if no pair exists. The input is sorted ascending — use converging pointers, not nested loops.
 
 Why moving the right pointer is safe when the sum is too big: \`sorted[right]\` was just tested against \`sorted[left]\`, the **smallest** remaining partner, and still overshot — so it can't pair with anything. It's discarded forever. Same logic mirrored when the sum is too small. Each step retires one element, so the loop runs at most n-1 times: O(n).
 
 Expected output: \`[ 1, 9 ]\`, then \`null\`.`,
-      starterCode: `function pairWithSum(sorted: number[], target: number): [number, number] | null {
+        python: `Implement \`pair_with_sum(nums, target)\`: return the two **values** that add up to \`target\` as a \`(smaller, larger)\` tuple, or \`None\` if no pair exists. The input is sorted ascending — use converging pointers, not nested loops.
+
+(Note the parameter is named \`nums\`, not \`sorted\` — \`sorted\` is a builtin, and shadowing it inside a function that may want to call it is a habit worth not forming.)
+
+Why moving the right pointer is safe when the sum is too big: \`nums[right]\` was just tested against \`nums[left]\`, the **smallest** remaining partner, and still overshot — so it can't pair with anything. It's discarded forever. Same logic mirrored when the sum is too small. Each step retires one element, so the loop runs at most n-1 times: O(n).
+
+Expected output: \`(1, 9)\`, then \`None\`.`,
+      },
+      starterCode: {
+        typescript: `function pairWithSum(sorted: number[], target: number): [number, number] | null {
   let left = 0;
   let right = sorted.length - 1;
   // TODO: while left < right, look at sum = sorted[left] + sorted[right].
@@ -97,6 +169,20 @@ Expected output: \`[ 1, 9 ]\`, then \`null\`.`,
 console.log(pairWithSum([1, 2, 4, 6, 9, 11], 10)); // expected: [1, 9]
 console.log(pairWithSum([2, 3, 5, 8], 4));         // expected: null
 `,
+        python: `def pair_with_sum(nums, target):
+    left = 0
+    right = len(nums) - 1
+    # TODO: while left < right, look at total = nums[left] + nums[right].
+    #   total == target -> return (nums[left], nums[right])
+    #   total < target  -> left += 1   (nums[left] can never work: discard it)
+    #   total > target  -> right -= 1  (nums[right] can never work: discard it)
+    return None
+
+
+print(pair_with_sum([1, 2, 4, 6, 9, 11], 10))  # expected: (1, 9)
+print(pair_with_sum([2, 3, 5, 8], 4))          # expected: None
+`,
+      },
     },
     ],
     quiz: [
@@ -115,12 +201,20 @@ console.log(pairWithSum([2, 3, 5, 8], 4));         // expected: null
     {
       id: "dsa-two-pointers-q2",
       prompt: "You need pair-with-target-sum in an UNSORTED array, and you must preserve the original order (no sorting). What's the right tool?",
-      options: [
+      options: {
+        typescript: [
         "Converging two pointers on the array as-is — the technique doesn't require sorted input",
         "A hash map/Set of values seen so far — one O(n) pass, checking `target - x` at each element, at the cost of O(n) space",
         "Nested loops — without sorted order, O(n²) is unavoidable",
         "Binary search for `target - x` for each element x",
+        ],
+        python: [
+        "Converging two pointers on the list as-is — the technique doesn't require sorted input",
+        "A `dict` or `set` of values seen so far — one O(n) pass, checking `target - x` at each element, at the cost of O(n) space",
+        "Nested loops — without sorted order, O(n²) is unavoidable",
+        "Binary search for `target - x` for each element x",
       ],
+      },
       answer: 1,
       explanation: "Without order, the pointer discard argument collapses — but a hash of seen values answers \"have I seen the complement?\" in O(1), keeping the whole scan O(n) with O(n) space. Two pointers and binary search both silently require sorted data, and nested loops are not the only option.",
     },
@@ -152,7 +246,8 @@ console.log(pairWithSum([2, 3, 5, 8], 4));         // expected: null
         src: "/lesson-graphics/dsa/dsa-sliding-window.png",
       },
     ],
-    content: `## Two pointers, but they bound a range
+    content: {
+      typescript: `## Two pointers, but they bound a range
 
 A sliding window is the two-pointer variant where the pointers mark the edges of a contiguous range, and you maintain a **running summary** of what's inside instead of recomputing it from scratch each time the range moves. That reuse is the whole trick.
 
@@ -193,16 +288,66 @@ It looks like a nested loop, but it's O(n): the left edge only ever moves forwar
 - **When "growing helps" breaks.** Some window arguments assume adding elements moves you monotonically toward/past the goal (true for sums of positive numbers). Negative numbers can break that: growing the window might *shrink* the sum, so "shrink when too big" no longer makes decisions you can trust.
 
 Reach for a window whenever you see **contiguous** + **best/count of ranges satisfying X** — and check the monotonicity assumption before trusting it.`,
+      python: `## Two pointers, but they bound a range
+
+A sliding window is the two-pointer variant where the pointers mark the edges of a contiguous range, and you maintain a **running summary** of what's inside instead of recomputing it from scratch each time the range moves. That reuse is the whole trick.
+
+## Fixed-size windows
+
+"Max sum of any k consecutive elements." The naive version sums each window independently:
+
+\`\`\`python
+# O(n · k): for n = 100,000 and k = 1,000 that's ~100 million adds
+for i in range(len(nums) - k + 1):
+    total = sum(nums[i : i + k])
+\`\`\`
+
+Note that \`sum(nums[i : i + k])\` hides the inner loop rather than removing it — the slice copies k elements and then adds them. A one-line comprehension can be quadratic just as easily as an explicit nested loop; the cost is in what it does, not how it reads.
+
+But adjacent windows share k-1 elements — resumming them is pure waste. Slide instead: subtract the element leaving on the left, add the element entering on the right.
+
+\`\`\`python
+window_sum += nums[i] - nums[i - k]  # O(1) per slide -> O(n) total
+\`\`\`
+
+Same n and k: ~100,000 operations instead of ~100 million.
+
+## Variable-size windows
+
+When the constraint is a *property* rather than a size — "longest substring without repeated characters" — the window grows and shrinks:
+
+- **Grow** the right edge one step per iteration.
+- **Shrink** the left edge only while the constraint is broken (e.g., the entering char is already in a \`set\` of window contents).
+
+The framing that keeps this correct is the **invariant: between iterations, the window is always valid.** Every loop iteration admits one new element, restores validity, then records the window size. You never have to reason about invalid states — they exist only transiently inside the shrink loop.
+
+It looks like a nested loop, but it's O(n): the left edge only ever moves forward, so across the *entire run* each pointer advances at most n times — at most 2n pointer movements total, not n per iteration.
+
+## When it does NOT apply
+
+- **Non-contiguous subsequences.** A window is a contiguous range by definition; "longest increasing subsequence" is a different tool entirely.
+- **When "growing helps" breaks.** Some window arguments assume adding elements moves you monotonically toward/past the goal (true for sums of positive numbers). Negative numbers can break that: growing the window might *shrink* the sum, so "shrink when too big" no longer makes decisions you can trust.
+
+Reach for a window whenever you see **contiguous** + **best/count of ranges satisfying X** — and check the monotonicity assumption before trusting it.`,
+    },
     exercises: [
     {
       id: "dsa-max-window-sum",
       title: "Max sum of k neighbors",
-      instructions: `Implement \`maxWindowSum(nums, k)\`: the maximum sum over all windows of exactly \`k\` consecutive elements.
+      instructions: {
+        typescript: `Implement \`maxWindowSum(nums, k)\`: the maximum sum over all windows of exactly \`k\` consecutive elements.
 
 Sum the first window once, then slide: \`windowSum += nums[i] - nums[i - k]\` (add the entering element, subtract the leaving one). **Do not re-sum each window with an inner loop** — that's O(n·k); adjacent windows share k-1 elements, and the rolling update makes each slide O(1) for O(n) total.
 
 Expected output: \`9\`, \`9\`, \`0\`.`,
-      starterCode: `function maxWindowSum(nums: number[], k: number): number {
+        python: `Implement \`max_window_sum(nums, k)\`: the maximum sum over all windows of exactly \`k\` consecutive elements.
+
+Sum the first window once, then slide: \`window_sum += nums[i] - nums[i - k]\` (add the entering element, subtract the leaving one). **Do not re-sum each window** — neither with an inner loop nor with \`sum(nums[i : i + k])\`, which is the same O(n·k) work wearing a shorter disguise. Adjacent windows share k-1 elements, and the rolling update makes each slide O(1) for O(n) total.
+
+Expected output: \`9\`, \`9\`, \`0\`.`,
+      },
+      starterCode: {
+        typescript: `function maxWindowSum(nums: number[], k: number): number {
   if (nums.length < k || k <= 0) return 0;
   // TODO: sum the first k elements once.
   // Then slide the window one step at a time:
@@ -215,18 +360,43 @@ console.log(maxWindowSum([2, 1, 5, 1, 3, 2], 3));  // expected: 9  (5+1+3)
 console.log(maxWindowSum([4, -1, 2, 7, -3], 2));   // expected: 9  (2+7)
 console.log(maxWindowSum([5], 3));                 // expected: 0  (no window fits)
 `,
+        python: `def max_window_sum(nums, k):
+    if len(nums) < k or k <= 0:
+        return 0
+    # TODO: sum the first k elements once.
+    # Then slide the window one step at a time:
+    #   window_sum += nums[i] - nums[i - k]  (add entering, subtract leaving)
+    # and track the max. Do NOT re-sum each window from scratch.
+    return 0
+
+
+print(max_window_sum([2, 1, 5, 1, 3, 2], 3))  # expected: 9  (5+1+3)
+print(max_window_sum([4, -1, 2, 7, -3], 2))   # expected: 9  (2+7)
+print(max_window_sum([5], 3))                 # expected: 0  (no window fits)
+`,
+      },
     },
     {
       id: "dsa-longest-unique",
       title: "Longest run of unique characters",
-      instructions: `Implement \`longestUniqueRun(s)\`: the length of the longest contiguous substring with no repeated character.
+      instructions: {
+        typescript: `Implement \`longestUniqueRun(s)\`: the length of the longest contiguous substring with no repeated character.
 
 Use a grow-right/shrink-left window with a \`Set\` of the characters currently inside. For each new right-edge character: while it's already in the Set, delete \`s[leftEdge]\` and advance \`leftEdge\`; then add it and update the best length.
 
 **Invariant: between iterations the window never contains a duplicate.** Each iteration admits one character, restores the invariant by shrinking, then measures. Both edges only move forward, so the whole thing is O(n).
 
 Expected output: \`3\`, \`1\`, \`3\`.`,
-      starterCode: `function longestUniqueRun(s: string): number {
+        python: `Implement \`longest_unique_run(s)\`: the length of the longest contiguous substring with no repeated character.
+
+Use a grow-right/shrink-left window with a \`set\` of the characters currently inside. For each new right-edge character: while it's already in the set, discard \`s[left_edge]\` and advance \`left_edge\`; then add it and update the best length.
+
+**Invariant: between iterations the window never contains a duplicate.** Each iteration admits one character, restores the invariant by shrinking, then measures. Both edges only move forward, so the whole thing is O(n).
+
+Expected output: \`3\`, \`1\`, \`3\`.`,
+      },
+      starterCode: {
+        typescript: `function longestUniqueRun(s: string): number {
   const inWindow = new Set<string>();
   let leftEdge = 0;
   let best = 0;
@@ -241,6 +411,22 @@ console.log(longestUniqueRun("abcabcbb")); // expected: 3  ("abc")
 console.log(longestUniqueRun("bbbbb"));    // expected: 1  ("b")
 console.log(longestUniqueRun("pwwkew"));   // expected: 3  ("wke")
 `,
+        python: `def longest_unique_run(s):
+    in_window = set()
+    left_edge = 0
+    best = 0
+    # TODO: for each right edge, while s[right] is already in in_window,
+    # shrink from the left (in_window.discard(s[left_edge]); left_edge += 1).
+    # Then add s[right] and update best with the window size.
+    # Invariant: between iterations the window [left_edge, right] has no duplicate.
+    return best
+
+
+print(longest_unique_run("abcabcbb"))  # expected: 3  ("abc")
+print(longest_unique_run("bbbbb"))     # expected: 1  ("b")
+print(longest_unique_run("pwwkew"))    # expected: 3  ("wke")
+`,
+      },
     },
     ],
     quiz: [
@@ -271,12 +457,20 @@ console.log(longestUniqueRun("pwwkew"));   // expected: 3  ("wke")
     {
       id: "dsa-sliding-window-q3",
       prompt: "The variable-size window loop has a `while` (shrink left) nested inside a `for` (grow right), yet runs in O(n). Why?",
-      options: [
+      options: {
+        typescript: [
         "The inner while can execute at most once per outer iteration",
         "Set.add and Set.delete are O(log n), which cancels the nesting",
         "The left edge only moves forward, so across the entire run each pointer advances at most n times — ~2n steps total regardless of how they interleave",
         "It's actually O(n²) in the worst case; O(n) only describes the average",
+        ],
+        python: [
+        "The inner while can execute at most once per outer iteration",
+        "`set.add` and `set.discard` are O(log n), which cancels the nesting",
+        "The left edge only moves forward, so across the entire run each pointer advances at most n times — ~2n steps total regardless of how they interleave",
+        "It's actually O(n²) in the worst case; O(n) only describes the average",
       ],
+      },
       answer: 2,
       explanation: "Amortize over the whole run: total work equals total pointer movement, and each edge moves monotonically forward through n positions — at most 2n steps combined. A single outer iteration CAN shrink many times (so the once-per-iteration claim is false), but those shrinks are paid for by earlier growth. Set operations are O(1).",
     },
@@ -296,7 +490,8 @@ console.log(longestUniqueRun("pwwkew"));   // expected: 3  ("wke")
         src: "/lesson-graphics/dsa/dsa-prefix-sums.png",
       },
     ],
-    content: `## Pay once, query forever
+    content: {
+      typescript: `## Pay once, query forever
 
 "What's the sum of elements i through j?" asked once is a loop. Asked thousands of times against the same array — analytics buckets, time-series ranges, game boards — it's a performance bug: O(n) per query, O(n·m) for m queries.
 
@@ -337,17 +532,69 @@ The fine print: a point update to \`nums[i]\` invalidates every prefix entry fro
 - **Range-sum queries** — the bread and butter above.
 - **Equilibrium / balance point** — an index where everything before equals everything after; one total plus a running left sum answers it in a single pass.
 - **Counting subarrays with a property** — e.g., "how many subarrays sum to k" falls to prefix sums plus a hash map of counts. File the pattern; it comes back later.`,
+      python: `## Pay once, query forever
+
+"What's the sum of elements i through j?" asked once is a loop. Asked thousands of times against the same list — analytics buckets, time-series ranges, game boards — it's a performance bug: O(n) per query, O(n·m) for m queries.
+
+Prefix sums move all that work into one preprocessing pass. Build \`prefix\` where \`prefix[i]\` = sum of the **first i elements**:
+
+\`\`\`python
+# nums:   [3, 1, 4, 1, 5]
+# prefix: [0, 3, 4, 8, 9, 14]   <- length n + 1, prefix[0] = 0
+prefix = [0] * (len(nums) + 1)
+for i, x in enumerate(nums):
+    prefix[i + 1] = prefix[i] + x
+\`\`\`
+
+(\`itertools.accumulate(nums, initial=0)\` builds the same list in one call — worth knowing, but write the loop once first so the index arithmetic below is yours rather than borrowed.)
+
+After that, **any** half-open range sum \`[i, j)\` is a subtraction:
+
+\`\`\`python
+total = prefix[j] - prefix[i]  # O(1)
+# sum of nums[1:4] = prefix[4] - prefix[1] = 9 - 3 = 6
+\`\`\`
+
+Why it works: \`prefix[j]\` is everything before index j, \`prefix[i]\` is everything before index i — subtract and the shared head cancels, leaving exactly \`[i, j)\`. Note how neatly this lines up with Python's own half-open slice convention: the range \`[i, j)\` is spelled \`nums[i:j]\`, and the prefix formula uses the same two numbers.
+
+## The convention that kills off-by-ones
+
+Use **length n+1 with \`prefix[0] = 0\`**, not a same-length running total. With the shorter version, a range starting at index 0 needs a special case (\`prefix[j] if i == 0 else prefix[j] - prefix[i-1]\`). The leading zero makes the formula uniform — \`prefix[j] - prefix[i]\` for every range, no branches. One extra list slot buys away an entire class of off-by-one bugs. When a convention removes an edge case, take the convention.
+
+## The economics
+
+Build: O(n), once. Query: O(1), forever. Against O(n)-per-query naive summing, **break-even is the second query** — one build plus one query costs about the same as one naive scan, and everything after is free. At n = 10⁵ elements and 10⁵ queries: ~2×10⁵ operations versus ~10¹⁰.
+
+This is the same space-for-time trade you saw with dicts in module 1 — spend O(n) memory holding precomputed answers so each lookup is O(1). Prefix sums are that idea specialized to "cumulative totals over a list."
+
+The fine print: a point update to \`nums[i]\` invalidates every prefix entry from i+1 on — an O(n) rebuild. Prefix sums fit **read-heavy, rarely-updated** data. (Frequent updates push you toward a Fenwick tree — later in the course.)
+
+## What it unlocks
+
+- **Range-sum queries** — the bread and butter above.
+- **Equilibrium / balance point** — an index where everything before equals everything after; one total plus a running left sum answers it in a single pass.
+- **Counting subarrays with a property** — e.g., "how many subarrays sum to k" falls to prefix sums plus a \`dict\` of counts (\`collections.Counter\` or \`defaultdict(int)\`). File the pattern; it comes back later.`,
+    },
     exercises: [
     {
       id: "dsa-build-prefix",
       title: "Build the prefix array",
-      instructions: `Implement both functions:
+      instructions: {
+        typescript: `Implement both functions:
 
 - \`buildPrefix(nums)\` — return the length-\`n+1\` prefix array with \`prefix[0] = 0\` and \`prefix[i] = nums[0] + ... + nums[i-1]\`. One O(n) pass.
 - \`rangeSum(prefix, i, j)\` — the sum of the half-open range \`[i, j)\` in O(1). It's a single subtraction; no loops.
 
 Expected output: \`[0, 3, 4, 8, 9, 14]\`, then \`6\`, then \`14\`.`,
-      starterCode: `function buildPrefix(nums: number[]): number[] {
+        python: `Implement both functions:
+
+- \`build_prefix(nums)\` — return the length-\`n+1\` prefix list with \`prefix[0] = 0\` and \`prefix[i] = nums[0] + ... + nums[i-1]\`. One O(n) pass. Write the loop rather than reaching for \`itertools.accumulate\` — the point is to own the index arithmetic.
+- \`range_sum(prefix, i, j)\` — the sum of the half-open range \`[i, j)\` in O(1). It's a single subtraction; no loops.
+
+Expected output: \`[0, 3, 4, 8, 9, 14]\`, then \`6\`, then \`14\`.`,
+      },
+      starterCode: {
+        typescript: `function buildPrefix(nums: number[]): number[] {
   // TODO: return an array of length nums.length + 1 where
   // prefix[0] = 0 and prefix[i] = nums[0] + ... + nums[i - 1].
   return [];
@@ -363,16 +610,41 @@ console.log(prefix);                // expected: [0, 3, 4, 8, 9, 14]
 console.log(rangeSum(prefix, 1, 4)); // expected: 6   (1 + 4 + 1)
 console.log(rangeSum(prefix, 0, 5)); // expected: 14  (whole array)
 `,
+        python: `def build_prefix(nums):
+    # TODO: return a list of length len(nums) + 1 where
+    # prefix[0] = 0 and prefix[i] = nums[0] + ... + nums[i - 1].
+    return []
+
+
+def range_sum(prefix, i, j):
+    # TODO: sum of the half-open range [i, j) in O(1).
+    return 0
+
+
+prefix = build_prefix([3, 1, 4, 1, 5])
+print(prefix)                   # expected: [0, 3, 4, 8, 9, 14]
+print(range_sum(prefix, 1, 4))  # expected: 6   (1 + 4 + 1)
+print(range_sum(prefix, 0, 5))  # expected: 14  (whole list)
+`,
+      },
     },
     {
       id: "dsa-balance-point",
       title: "Find the balance point",
-      instructions: `Implement \`balanceIndex(nums)\`: the index where the sum of elements **strictly before** it equals the sum of elements **strictly after** it, or \`-1\` if none exists. (An empty side counts as 0.)
+      instructions: {
+        typescript: `Implement \`balanceIndex(nums)\`: the index where the sum of elements **strictly before** it equals the sum of elements **strictly after** it, or \`-1\` if none exists. (An empty side counts as 0.)
 
 Do it in **one pass after one total**: compute \`total\` once, then walk the array keeping a running \`leftSum\`; at each index the right side is \`total - leftSum - nums[i]\` — no second loop needed. **Do not re-sum both sides at every index** — that's O(n²) (~10¹⁰ operations at n = 10⁵) versus O(n) for this approach.
 
 Expected output: \`3\`, \`0\`, \`-1\`.`,
-      starterCode: `function balanceIndex(nums: number[]): number {
+        python: `Implement \`balance_index(nums)\`: the index where the sum of elements **strictly before** it equals the sum of elements **strictly after** it, or \`-1\` if none exists. (An empty side counts as 0.)
+
+Do it in **one pass after one total**: compute \`total\` once with \`sum(nums)\`, then walk the list keeping a running \`left_sum\`; at each index the right side is \`total - left_sum - nums[i]\` — no second loop needed. **Do not re-sum both sides at every index** — that's O(n²) (~10¹⁰ operations at n = 10⁵) versus O(n) for this approach. \`sum(nums[:i])\` inside the loop is exactly that mistake.
+
+Expected output: \`3\`, \`0\`, \`-1\`.`,
+      },
+      starterCode: {
+        typescript: `function balanceIndex(nums: number[]): number {
   // TODO: compute the total sum once (O(n)).
   // Then walk left to right keeping leftSum = sum of elements before i.
   // At each i: rightSum = total - leftSum - nums[i].
@@ -385,18 +657,40 @@ console.log(balanceIndex([1, 7, 3, 6, 5, 6])); // expected: 3  (1+7+3 === 5+6)
 console.log(balanceIndex([2, 1, -1]));         // expected: 0  (empty left, 1+(-1) === 0)
 console.log(balanceIndex([1, 2, 3]));          // expected: -1 (no balance point)
 `,
+        python: `def balance_index(nums):
+    # TODO: compute the total sum once (O(n)).
+    # Then walk left to right keeping left_sum = sum of elements before i.
+    # At each i: right_sum = total - left_sum - nums[i].
+    # If left_sum == right_sum, return i. Otherwise left_sum += nums[i].
+    # Do NOT re-sum both sides at every index — that's O(n^2).
+    return -1
+
+
+print(balance_index([1, 7, 3, 6, 5, 6]))  # expected: 3  (1+7+3 == 5+6)
+print(balance_index([2, 1, -1]))          # expected: 0  (empty left, 1+(-1) == 0)
+print(balance_index([1, 2, 3]))           # expected: -1 (no balance point)
+`,
+      },
     },
     ],
     quiz: [
     {
       id: "dsa-prefix-sums-q1",
       prompt: "Why build the prefix array with length n+1 and `prefix[0] = 0` instead of a same-length running total?",
-      options: [
+      options: {
+        typescript: [
         "It makes `prefix[j] - prefix[i]` work uniformly for every range — including ranges starting at index 0 — with no special case",
         "JavaScript arrays are 1-indexed internally, so the extra slot aligns the math",
         "The extra zero prevents numeric overflow when the sums get large",
         "It's required for the build pass itself to be O(n)",
+        ],
+        python: [
+        "It makes `prefix[j] - prefix[i]` work uniformly for every range — including ranges starting at index 0 — with no special case",
+        "Python lists are 1-indexed internally, so the extra slot aligns the math",
+        "The extra zero prevents numeric overflow when the sums get large",
+        "It's required for the build pass itself to be O(n)",
       ],
+      },
       answer: 0,
       explanation: "With a same-length array, a range starting at 0 has no `prefix[i-1]` to subtract and needs an `i === 0` branch. The leading zero makes one formula cover every range — a convention that deletes an edge case. It has nothing to do with indexing internals, overflow, or build cost.",
     },

@@ -144,7 +144,14 @@ const SUBJECT_PROFILE: Record<
   SubjectCourseId,
   {
     subject: string;
-    student: string;
+    /**
+     * Keyed by the language the learner picked, because a subject course is
+     * taught THROUGH a language: the mechanism is identical either way, but the
+     * default the student reaches for isn't, and naming the wrong one tells the
+     * tutor to correct a habit this student doesn't have. Falls back to the
+     * course's first language for a stale or absent client payload.
+     */
+    student: Partial<Record<LanguageId, string>>;
     scope: string;
     analogy: string;
     recap: { focus: string; review: string; next: string };
@@ -152,8 +159,12 @@ const SUBJECT_PROFILE: Record<
 > = {
   dsa: {
     subject: "data structures & algorithms",
-    student:
-      "writes TypeScript comfortably but reaches for a plain array and a nested loop by default",
+    student: {
+      typescript:
+        "writes TypeScript comfortably but reaches for a plain array and a nested loop by default",
+      python:
+        "writes Python comfortably but reaches for a plain list and a nested loop by default",
+    },
     scope:
       "skip the syntax entirely, and focus on the mechanism — what's actually in memory, the Big-O of every operation, and which structure fits which problem",
     analogy: "a hash map is just an array whose index you compute from the key",
@@ -177,14 +188,22 @@ const SUBJECT_PROFILE: Record<
  */
 type LearningProfile =
   | { kind: "language"; lang: string; known: string; analogy: string }
-  | ({ kind: "subject" } & (typeof SUBJECT_PROFILE)[SubjectCourseId])
+  | ({ kind: "subject" } & Omit<(typeof SUBJECT_PROFILE)[SubjectCourseId], "student"> & {
+      student: string;
+    })
   | ({ kind: "concept" } & (typeof CONCEPT_PROFILE)[ConceptCourseId]);
 
 function learningProfile(language?: string, course?: string): LearningProfile {
   // A subject course carries BOTH a language (for the editor) and a course-keyed
   // persona; the course wins, or the DSA tutor would teach TypeScript syntax.
   const subject = SUBJECT_PROFILE[course as SubjectCourseId];
-  if (subject) return { kind: "subject", ...subject };
+  if (subject) {
+    // Resolve the per-language line here so every call site downstream keeps
+    // reading `profile.student` as a plain string.
+    const student =
+      subject.student[language as LanguageId] ?? Object.values(subject.student)[0]!;
+    return { kind: "subject", ...subject, student };
+  }
   if (!language) {
     // Same guard as below: an unknown course id only arrives from a stale/bogus
     // client payload, so fall back rather than shipping an unnamed tutor.

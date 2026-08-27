@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import type { QuizQuestion } from "@/lib/lessons";
+import type { ResolvedQuizQuestion } from "@/lib/lessons";
 
 /**
  * The lesson's end-of-lesson retention check, shown in the Quiz tab. All the
@@ -17,7 +17,7 @@ export default function LessonQuiz({
   quiz,
   onMissedChange,
 }: {
-  quiz: QuizQuestion[];
+  quiz: ResolvedQuizQuestion[];
   /** The full missed-id list after every answer — the parent just stores it. */
   onMissedChange: (missedIds: string[]) => void;
 }) {
@@ -91,7 +91,7 @@ function Question({
   chosen,
   onAnswer,
 }: {
-  question: QuizQuestion;
+  question: ResolvedQuizQuestion;
   number: number;
   chosen: number | undefined;
   onAnswer: (option: number) => void;
