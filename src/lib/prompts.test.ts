@@ -261,6 +261,52 @@ describe("learning personas", () => {
     expect(getKickoffPrompt("learning", "cobol")).toBe(getKickoffPrompt("learning", "python"));
   });
 
+  // The tutor writes the editor with the same <editor> protocol freestyle uses
+  // (see parseSseStream), so these pin the protocol into every editor-bearing
+  // lesson persona — language courses and subject courses alike. Without the
+  // block in the prompt the write path is live but the model never triggers it.
+  describe("<editor> write protocol", () => {
+    const EDITOR_COURSES = [
+      ["a language course", { language: "go" }],
+      ["a subject course", { language: "typescript", course: "dsa" }],
+    ] as const;
+
+    it.each(EDITOR_COURSES)("is documented for %s", (_label, opts) => {
+      const prompt = getSystemPrompt("learning", opts);
+      expect(prompt).toContain("<editor lang=");
+      expect(prompt).toContain("</editor>");
+      // Full replacement, not a diff — the client overwrites the whole buffer.
+      expect(prompt).toMatch(/whole editor|full new contents|replace/i);
+      // The spoken-word rule has to carve out the block, or the model obeys
+      // "never use code blocks" and never writes at all.
+      expect(prompt).toMatch(/apart from the single <editor> block/i);
+    });
+
+    it.each(EDITOR_COURSES)("names %s's own language as the lang value", (_label, opts) => {
+      // A block tagged with the wrong language is what a lesson editor must
+      // never be told to emit: the buffer is per-language.
+      expect(getSystemPrompt("learning", opts)).toContain(
+        `<editor lang="${opts.language}">`
+      );
+    });
+
+    it("covers what the learner can ask for: hints, the solution, a changed problem, pairing", () => {
+      const prompt = getSystemPrompt("learning", { language: "python" });
+      expect(prompt).toMatch(/hints or explanatory comments/i);
+      expect(prompt).toMatch(/full solution/i);
+      expect(prompt).toMatch(/adjust the problem/i);
+      expect(prompt).toMatch(/pair-code/i);
+      // …but only on request. Unprompted rewriting is what makes a tutor useless.
+      expect(prompt).toMatch(/never just hand them the answer unprompted/i);
+    });
+
+    it("never reaches a concept course — those lessons have no editor to write", () => {
+      for (const course of ["distributed-systems", "aws", "applied-ai"]) {
+        expect(getSystemPrompt("learning", { course })).not.toContain("<editor");
+      }
+    });
+  });
+
   it("uses the concept persona with no language, and never mentions an editor", () => {
     const concept = getSystemPrompt("learning", { course: "distributed-systems" });
     expect(concept).toMatch(/distributed systems tutor/i);

@@ -187,9 +187,10 @@ const SUBJECT_PROFILE: Record<
  * than at each call site.
  */
 type LearningProfile =
-  | { kind: "language"; lang: string; known: string; analogy: string }
+  | { kind: "language"; lang: string; known: string; analogy: string; editorLang: LanguageId }
   | ({ kind: "subject" } & Omit<(typeof SUBJECT_PROFILE)[SubjectCourseId], "student"> & {
       student: string;
+      editorLang: LanguageId;
     })
   | ({ kind: "concept" } & (typeof CONCEPT_PROFILE)[ConceptCourseId]);
 
@@ -199,10 +200,18 @@ function learningProfile(language?: string, course?: string): LearningProfile {
   const subject = SUBJECT_PROFILE[course as SubjectCourseId];
   if (subject) {
     // Resolve the per-language line here so every call site downstream keeps
-    // reading `profile.student` as a plain string.
-    const student =
-      subject.student[language as LanguageId] ?? Object.values(subject.student)[0]!;
-    return { kind: "subject", ...subject, student };
+    // reading `profile.student` as a plain string. The same key names the
+    // editor's language in the write protocol, so the persona and the `lang`
+    // the tutor is told to emit can never disagree.
+    const key = subject.student[language as LanguageId]
+      ? (language as LanguageId)
+      : (Object.keys(subject.student)[0] as LanguageId);
+    return {
+      kind: "subject",
+      ...subject,
+      student: subject.student[key]!,
+      editorLang: key,
+    };
   }
   if (!language) {
     // Same guard as below: an unknown course id only arrives from a stale/bogus
@@ -213,8 +222,11 @@ function learningProfile(language?: string, course?: string): LearningProfile {
   }
   // A non-LanguageId string can only arrive from a stale/bogus client payload;
   // fall back to Python rather than silently dropping into the concept persona.
-  const profile = TUTOR_PROFILE[language as LanguageId] ?? TUTOR_PROFILE.python;
-  return { kind: "language", ...profile };
+  // The normalized id (not the raw payload) is what the write protocol names, so
+  // a bogus language yields the Python prompt verbatim rather than a prompt that
+  // tells the tutor to emit `lang="cobol"`.
+  const id: LanguageId = TUTOR_PROFILE[language as LanguageId] ? (language as LanguageId) : "python";
+  return { kind: "language", ...TUTOR_PROFILE[id], editorLang: id };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -278,10 +290,23 @@ How to behave:
 ${p.level}
 You can SEE the lesson notes (provided below) and the student's editor — their current code and latest run output are appended to each of their messages in brackets. Do not read the notes or that bracketed context aloud; use them to guide the lesson.
 
+You can also WRITE into their editor, with a different, separate mechanism: output a block in EXACTLY this form, on its own:
+<editor lang="${profile.editorLang}">
+...the complete new contents of the editor...
+</editor>
+- The body becomes the WHOLE editor and silently replaces whatever was there — it is the full new contents, never a diff or a lone snippet. To add a hint, a comment, or a next step to what they've written, include their existing code plus your addition, unchanged everywhere else.
+- lang must be "${profile.editorLang}" — this lesson's language. Never load another language into the lesson editor.
+- Do not put the literal text "</editor>" anywhere inside the body.
+- NEVER speak the code or the tags out loud. When you write, just say a short sentence like "I've put that in your editor — take a look." Only emit a block when you actually want to change their editor; most turns won't.
+- If this lesson has no exercises (the lesson script below says so), there is no editor on screen — never write one, and never claim you did.
+
 How to behave:
-- Speak naturally, 1-3 sentences at a time, like a real tutor sitting beside them. You're speaking out loud, so NEVER use markdown, code blocks, bullet points, or formatting. Say code in plain words.
+- Speak naturally, 1-3 sentences at a time, like a real tutor sitting beside them. You're speaking out loud, so apart from the single <editor> block above, NEVER use markdown, code blocks, bullet points, or formatting. Say code in plain words.
 - ${p.teach} Point them at the relevant example in the notes on the right rather than dictating code.
-- Then have them try the current exercise in the editor. Watch their code and run output; when they're stuck, give a nudge or a leading question — never just hand them the answer.
+- Then have them try the current exercise in the editor. Watch their code and run output; when they're stuck, give a nudge or a leading question — never just hand them the answer unprompted, and don't rewrite work they didn't ask you to touch. The keyboard is theirs by default.
+- When they DO ask, take it and write: add hints or explanatory comments into their code, fix or finish what they've started, sketch the next step, or write the full solution if that's what they asked for. Then say in one sentence what you changed and why, and hand the keyboard back.
+- If they ask you to adjust the problem — make it harder, simpler, or a variation — put the new version at the top of the editor as a comment or docstring above the starter, and say out loud how it differs. The exercise card on the right is fixed; the editor is where a changed problem lives.
+- Pair-code when they want to: they type a piece, you type a piece. Keep each of your turns small, say what you're about to write before you write it, and let them run it.
 - When their exercise looks right, briefly celebrate and tell them to hit Next when they're ready. The student controls which exercise is shown with on-screen Prev/Next buttons — you never claim to switch exercises yourself.
 - Be encouraging and curious, one concept or question at a time.${lessonBlock}`;
   }

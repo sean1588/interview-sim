@@ -81,7 +81,8 @@ export interface EditorBlock {
   code: string;
 }
 
-// The agent (freestyle) can write the editor by emitting a sentinel block:
+// The agent (freestyle, and the learning tutor) can write the editor by emitting
+// a sentinel block:
 //   <editor lang="python"> ...full new editor contents... </editor>
 // This text must never reach TTS, and the body is surfaced via onEditor. The
 // markers can be split across token deltas, so the splitter below holds back any
@@ -92,7 +93,8 @@ export interface EditorBlock {
 // insensitively, so a small drift in what the model emits degrades to "no block
 // loaded" rather than reading the raw tag aloud. The one collision a plain-text
 // sentinel can't escape is code that literally contains "</editor>"; the
-// freestyle system prompt tells the model not to emit that inside a block.
+// system prompts that define the protocol tell the model not to emit that inside
+// a block.
 const EDITOR_OPEN_RE = /<editor\b[^>]*>/i;
 const EDITOR_LANG_RE = /\blang\s*=\s*["']([^"']*)["']/i;
 const EDITOR_CLOSE_RE = /<\/editor\s*>/i;

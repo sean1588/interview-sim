@@ -93,7 +93,9 @@ interface VoiceChatProps {
   tutor?: boolean;
   /** Pulled fresh on each turn so the interviewer / tutor sees the latest code / notes. */
   getContext?: () => SessionContext;
-  /** Freestyle: invoked when the agent pushes new contents into the editor. */
+  /** Invoked when the agent pushes new contents into the editor (freestyle, and
+   * learning lessons that have one). Omitted where there is no editor on screen,
+   * which drops any block the model emits anyway. */
   onEditorWrite?: (block: { language: string; code: string }) => void;
   /** Orb diameter — 64 in the interview/coach columns, 56 in the tighter lesson column. */
   orbSize?: number;
@@ -175,8 +177,8 @@ export default function VoiceChat({
     getContextRef.current = getContext;
   });
 
-  // Same for the editor-write callback (freestyle), so the stream handler below
-  // doesn't need it in its dependency list.
+  // Same for the editor-write callback, so the stream handler below doesn't need
+  // it in its dependency list.
   const onEditorWriteRef = useRef(onEditorWrite);
   useEffect(() => {
     onEditorWriteRef.current = onEditorWrite;
@@ -354,7 +356,8 @@ export default function VoiceChat({
               if (msg.type === "transcript") {
                 setMessages((prev) => [...prev, { role: "user", text: msg.text }]);
               } else if (msg.type === "editor") {
-                // Freestyle: the agent loaded new contents into the editor.
+                // The agent loaded new contents into the editor; the workspace
+                // decides where that lands (see onEditorWrite).
                 onEditorWriteRef.current?.({
                   language: msg.language,
                   code: msg.code,

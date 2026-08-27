@@ -167,9 +167,10 @@ export async function POST(req: NextRequest) {
 
             ttsTasks.push(task);
           },
-          // Freestyle: the agent can push starter code into the editor. These
-          // blocks are pulled out of the spoken stream and forwarded as their
-          // own NDJSON line so the client can apply them mid-turn.
+          // The agent can push code into the editor (freestyle starters, a lesson
+          // tutor's hints or solution). These blocks are pulled out of the spoken
+          // stream and forwarded as their own NDJSON line so the client can apply
+          // them mid-turn.
           (block) => {
             controller.enqueue(
               encoder.encode(
