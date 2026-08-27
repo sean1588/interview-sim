@@ -59,6 +59,23 @@ export default function LessonWorkspace({
     [bufferKey]
   );
 
+  // The tutor pushed new contents into the editor (same <editor> protocol
+  // freestyle uses). The write lands straight in the active buffer — no diff and
+  // no accept step — and it goes through `setCode`, so it respects the
+  // per-exercise-per-language bufferKey rather than leaking into another buffer.
+  // Unlike freestyle, the block's `language` is ignored: a lesson's language is
+  // the course's, chosen by the learner, so honouring a drifting `lang` would
+  // silently swap the buffer the editor is showing.
+  const handleEditorWrite = useCallback(
+    (block: { language: string; code: string }) => {
+      setCode(block.code);
+      // The last run described code that's no longer there; leaving it would
+      // have the tutor read a stale error against the code it just wrote.
+      lastRunRef.current = undefined;
+    },
+    [setCode]
+  );
+
   const goToExercise = useCallback(
     (idx: number) => {
       if (idx < 0 || idx >= resolved.exercises.length) return;
@@ -125,7 +142,16 @@ export default function LessonWorkspace({
       >
         {/* Conversation (tighter — three columns share the width) */}
         <div className="w-[400px] flex-none border-r border-section min-h-0">
-          <VoiceChat sessionId={sessionId} mode="learning" getContext={getContext} orbSize={56} />
+          <VoiceChat
+            sessionId={sessionId}
+            mode="learning"
+            getContext={getContext}
+            // Only a lesson with exercises has an editor to write into; a
+            // conversational lesson passes nothing, so a stray block is dropped
+            // rather than written to a buffer nobody can see.
+            onEditorWrite={hasExercises ? handleEditorWrite : undefined}
+            orbSize={56}
+          />
         </div>
 
         {editorLanguage && exercise ? (
