@@ -700,7 +700,7 @@ function fib(n: number): number {
 }
 \`\`\`
 
-\`fib(40)\` makes over 300 million calls to compute 41 distinct values. \`fib(35)\` appears once, \`fib(34)\` twice, \`fib(33)\` three times, \`fib(30)\` thirteen times — the tree of repeats is the entire cost.
+\`fib(40)\` makes over 300 million calls to compute 41 distinct values. \`fib(39)\` appears once, \`fib(38)\` twice, \`fib(37)\` three times, \`fib(34)\` thirteen times — the tree of repeats is the entire cost.
 
 ## The cache is a second base case
 
@@ -756,7 +756,7 @@ def fib(n):
     return fib(n - 1) + fib(n - 2)
 \`\`\`
 
-\`fib(40)\` makes over 300 million calls to compute 41 distinct values. \`fib(35)\` appears once, \`fib(34)\` twice, \`fib(33)\` three times, \`fib(30)\` thirteen times — the tree of repeats is the entire cost.
+\`fib(40)\` makes over 300 million calls to compute 41 distinct values. \`fib(39)\` appears once, \`fib(38)\` twice, \`fib(37)\` three times, \`fib(34)\` thirteen times — the tree of repeats is the entire cost.
 
 ## The cache is a second base case
 

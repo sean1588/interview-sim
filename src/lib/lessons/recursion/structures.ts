@@ -1464,7 +1464,7 @@ function deepClone(value: Json): Json {
 
 Note the structure: **two container cases, then a catch-all leaf case.** The recursion returns a *new* value at each level rather than mutating, which is what makes the whole clone deep. Miss the recursion on one branch — say, copy an array with \`slice()\` — and you get the classic half-deep copy whose nested objects are still shared.
 
-Two things a hand-rolled clone gets wrong that are worth knowing: **cycles** (\`a.self = a\` recurses forever unless you keep a \`Map\` of already-cloned objects) and **non-JSON values** (\`Date\`, \`Map\`, \`RegExp\`, class instances). The platform's \`structuredClone\` handles both and is the right default; write the recursion when you need custom behaviour per node.
+Two things a hand-rolled clone gets wrong that are worth knowing: **cycles** (\`a.self = a\` recurses forever unless you keep a \`Map\` of already-cloned objects) and **non-JSON values** (\`Date\`, \`Map\`, \`RegExp\`, class instances). The platform's \`structuredClone\` handles both and is the right default — with the caveat that it does not preserve prototypes, so a class instance comes back as a plain object; write the recursion when you need custom behaviour per node.
 
 ## Mutual recursion for a JSON walk
 
