@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
+import RecapCard, { RecapData } from "@/components/RecapCard";
 import SessionFrame from "@/components/session/SessionFrame";
 import SelectChip from "@/components/session/SelectChip";
 import ToggleChip from "@/components/session/ToggleChip";
@@ -30,7 +31,8 @@ export interface NotesInterviewConfig {
   notesFooter?: string;
   /** Offer the "Tutor mode" toggle. Opt-in per mode: system-design hands over
    * the approach; behavioral coaches STAR storytelling (shaping the
-   * candidate's own story rather than handing over an answer). */
+   * candidate's own story rather than handing over an answer). Ending a tutor
+   * session produces an ungraded recap rather than a scorecard. */
   allowTutor?: boolean;
 }
 
@@ -42,8 +44,15 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
   // Notes survive question switches — the candidate may want to carry ideas over.
   const [notes, setNotes] = useState("");
 
-  const { sessionId, assessing, result: scorecard, error: assessError, endSession, closeResult } =
-    useSession<ScorecardData>(mode);
+  const {
+    sessionId,
+    assessing,
+    result,
+    tutorResult,
+    error: assessError,
+    endSession,
+    closeResult,
+  } = useSession<ScorecardData | RecapData>(mode);
 
   const question = useMemo(
     () => questions.find((q) => q.id === questionId)!,
@@ -70,7 +79,10 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
       questionTitle: ctx.questionTitle,
       questionPrompt: ctx.questionPrompt,
       notes: ctx.notes,
+      // Still sent in tutor mode, and still ignored there: the picker always
+      // ships a level, but an ungraded recap must not anchor to one.
       level: ctx.level,
+      tutor,
     });
   };
 
@@ -171,7 +183,18 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
         </div>
       </SessionFrame>
 
-      {scorecard && <Scorecard data={scorecard} mode={mode} onClose={closeResult} />}
+      {/* Which card to show is decided by the flag the assessment ran under, not
+          by sniffing fields off the response. */}
+      {result &&
+        (tutorResult ? (
+          <RecapCard
+            data={result as RecapData}
+            heading="Session Recap"
+            onClose={closeResult}
+          />
+        ) : (
+          <Scorecard data={result as ScorecardData} mode={mode} onClose={closeResult} />
+        ))}
     </>
   );
 }
