@@ -21,7 +21,7 @@ export type ConceptCourseId = "distributed-systems" | "aws" | "applied-ai";
  * SUBJECT_PROFILE in "@/lib/prompts", so adding a subject course here without a
  * persona there fails the build.
  */
-export type SubjectCourseId = "dsa";
+export type SubjectCourseId = "dsa" | "recursion";
 
 /**
  * A value that differs by language, used for the parts of a lesson that can't
