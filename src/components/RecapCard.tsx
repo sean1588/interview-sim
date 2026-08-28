@@ -1,8 +1,8 @@
 "use client";
 
-/** Non-graded end-of-lesson recap (the learning-mode counterpart to Scorecard).
- * No scores, no recommendation — just an encouraging summary of what was
- * practiced and what to reinforce. */
+/** Non-graded end-of-session recap (the counterpart to Scorecard, used by
+ * learning mode and by tutor-mode interviews). No scores, no recommendation —
+ * just an encouraging summary of what was practiced and what to reinforce. */
 export interface RecapData {
   summary: string;
   conceptsCovered: string[];
@@ -14,9 +14,13 @@ export interface RecapData {
 export default function RecapCard({
   data,
   onClose,
+  /** Heading above the recap — "Lesson Recap" for a lesson, something
+   * problem-shaped for a tutor-mode interview. */
+  heading = "Lesson Recap",
 }: {
   data: RecapData;
   onClose: () => void;
+  heading?: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#2c2722]/55 p-6">
@@ -25,7 +29,7 @@ export default function RecapCard({
         style={{ boxShadow: "0 30px 70px rgba(60,40,20,.28)" }}
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-section bg-raised px-6 py-4">
-          <h2 className="font-serif text-[21px] font-semibold text-ink">Lesson Recap</h2>
+          <h2 className="font-serif text-[21px] font-semibold text-ink">{heading}</h2>
           <button
             onClick={onClose}
             className="rounded-md px-2 py-1 font-sans text-[13px] text-ink-muted transition-colors hover:text-ink"

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import VoiceChat, { SessionContext } from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import Scorecard, { ScorecardData } from "@/components/Scorecard";
+import RecapCard, { RecapData } from "@/components/RecapCard";
 import SessionFrame from "@/components/session/SessionFrame";
 import SelectChip from "@/components/session/SelectChip";
 import ToggleChip from "@/components/session/ToggleChip";
@@ -50,12 +51,20 @@ export default function InterviewSim() {
   // two compose (Trees + Hard shows only the hard tree problems).
   const [difficulty, setDifficulty] = useState<Difficulty | "All">("All");
   const [topic, setTopic] = useState<string>("All");
-  // Same problem, editor, and scorecard — only the live interviewer persona
-  // changes (evaluator -> teacher).
+  // Same problem and editor — the live interviewer persona changes (evaluator ->
+  // teacher), and so does what ending the session produces: an ungraded tutor
+  // recap instead of a scorecard.
   const [tutor, setTutor] = useState(false);
 
-  const { sessionId, assessing, result: scorecard, error: assessError, endSession, closeResult } =
-    useSession<ScorecardData>("coding");
+  const {
+    sessionId,
+    assessing,
+    result,
+    tutorResult,
+    error: assessError,
+    endSession,
+    closeResult,
+  } = useSession<ScorecardData | RecapData>("coding");
 
   const problem = useMemo(() => getProblem(problemId)!, [problemId]);
   const availableLanguages = useMemo(() => languagesFor(problem), [problem]);
@@ -189,8 +198,9 @@ export default function InterviewSim() {
       code: ctx.code,
       language: ctx.language,
       lastRun: ctx.lastRun,
+      tutor,
     });
-  }, [getContext, endSession]);
+  }, [getContext, endSession, tutor]);
 
   // Three pickers plus the tutor toggle fill the header row, so the widest
   // control — the problem picker — is the one capped; a long title clips in the
@@ -304,7 +314,18 @@ export default function InterviewSim() {
         </div>
       </SessionFrame>
 
-      {scorecard && <Scorecard data={scorecard} mode="coding" onClose={closeResult} />}
+      {/* Which card to show is decided by the flag the assessment ran under, not
+          by sniffing fields off the response. */}
+      {result &&
+        (tutorResult ? (
+          <RecapCard
+            data={result as RecapData}
+            heading="Session Recap"
+            onClose={closeResult}
+          />
+        ) : (
+          <Scorecard data={result as ScorecardData} mode="coding" onClose={closeResult} />
+        ))}
     </>
   );
 }

@@ -12,7 +12,8 @@ import {
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
 
-// Produces a structured scorecard for the interview so far. Non-streaming, not
+// Produces a structured scorecard for the interview so far — or, in tutor mode,
+// an ungraded recap of what went well and what to focus on. Non-streaming, not
 // spoken — rendered as a card in the UI.
 // The concrete prompt is now selected by mode (see getAssessSystemPrompt).
 
@@ -33,6 +34,8 @@ export async function POST(req: NextRequest) {
       // non-coding
       notes,
       level,
+      // interviews: an ungraded tutor recap instead of a scorecard
+      tutor,
     } = body;
 
     if (!sessionId) {
@@ -60,7 +63,16 @@ export async function POST(req: NextRequest) {
       .join("\n");
 
     const targetLevel = isValidLevel(level) ? level : undefined;
-    const assessSystem = getAssessSystemPrompt(mode, targetLevel, language, course);
+    // Tutor sessions still carry a target level from the picker; the tutor arm
+    // of the prompt ignores it, because an ungraded recap must not anchor to a
+    // level.
+    const assessSystem = getAssessSystemPrompt(
+      mode,
+      targetLevel,
+      language,
+      course,
+      tutor === true
+    );
     const userContent = buildAssessUserContent(mode, {
       transcript,
       questionTitle,

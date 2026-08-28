@@ -525,12 +525,76 @@ export function getKickoffPrompt(
 /* ASSESSMENT PROMPTS (used by /api/assess)                                   */
 /* -------------------------------------------------------------------------- */
 
+/** Per-mode framing for the ungraded tutor recap (the `tutor` arm of
+ * getAssessSystemPrompt). Typed Record so a new InterviewMode is a compile
+ * error rather than an interview that silently falls back to a grade. The JSON
+ * keys around this copy are the RecapCard contract and never vary. */
+const TUTOR_RECAP: Record<
+  InterviewMode,
+  { who: string; session: string; evidence: string; concept: string; review: string; next: string }
+> = {
+  coding: {
+    who: "coding tutor",
+    session: "a practice problem you just worked through with a learner by voice",
+    evidence:
+      "quoting the code they actually wrote and the complexity reasoning they talked through",
+    concept: "pattern, data structure, or complexity idea this problem exercised",
+    review:
+      "idea worth another pass — an edge case they missed, a structure they reached for late, a complexity argument they could not finish",
+    next: "what to practice next — a related problem, or the idea to shore up first",
+  },
+  behavioral: {
+    who: "storytelling coach",
+    session: "a behavioral answer you just built with a learner by voice",
+    evidence:
+      "quoting the story they actually told and how they structured it (situation, task, their own action, result, reflection)",
+    concept: "storytelling idea or STAR beat the answer exercised",
+    review:
+      "part of the story worth another pass — a vague beat, a 'we' where their own action belonged, a result with no concrete outcome",
+    next: "what to work on next — the beat to sharpen, or another experience worth shaping into a story",
+  },
+  "system-design": {
+    who: "system design tutor",
+    session: "a design problem you just worked through with a learner by voice",
+    evidence:
+      "quoting the design decisions they actually made and the tradeoffs they reasoned about, including anything they wrote in their notes",
+    concept: "design idea this problem exercised (requirements, storage, caching, partitioning, failure modes, capacity)",
+    review:
+      "idea worth another pass — a component they left vague, a tradeoff they asserted without weighing, a failure mode or capacity number they skipped",
+    next: "what to explore next — the concept to read up on, or a design worth trying with it",
+  },
+};
+
 export function getAssessSystemPrompt(
   mode: SessionMode,
   targetLevel?: TargetLevel,
   language?: string,
-  course?: string
+  course?: string,
+  tutor?: boolean
 ): string {
+  // Tutor mode swaps the graded scorecard for an ungraded recap: what went
+  // well, what to focus on, what to try next. Deliberately emits the RecapCard
+  // shape (the same JSON the learning-mode recap below uses) so the existing
+  // card renders it unchanged. `targetLevel` is ignored on purpose — the level
+  // picker still ships one, but an ungraded recap must not anchor to it. Only
+  // the three interview modes have a tutor toggle; learning, freestyle, and
+  // career are already ungraded and have their own end-of-session output.
+  if (tutor && isValidMode(mode)) {
+    const copy = TUTOR_RECAP[mode];
+    return `You are a warm, encouraging ${copy.who} writing a short recap of ${copy.session}. This is a learning recap, not an evaluation: nothing here is graded or ranked, you pass no verdict on their seniority, and you never speculate about how they would fare in a real interview.
+
+Be genuinely useful, not merely kind. Every point must be grounded in this session — ${copy.evidence}. Name what to focus on next in concrete terms; vague encouragement helps nobody, and so does a wall of criticism.
+
+Respond with ONLY a JSON object in exactly this shape (no markdown, no prose outside the JSON):
+{
+  "summary": "<2-3 sentence encouraging recap of the session and how it went>",
+  "conceptsCovered": ["<${copy.concept}>", ...],
+  "wentWell": ["<specific thing they did well, ${copy.evidence}>", ...],
+  "toReview": ["<specific ${copy.review}>", ...],
+  "suggestedNext": "<one sentence: ${copy.next}>"
+}`;
+  }
+
   if (mode === "learning") {
     const profile = learningProfile(language, course);
     // Only the framing copy varies by course kind — the JSON keys below are the

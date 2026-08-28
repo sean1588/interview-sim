@@ -673,3 +673,93 @@ describe("career mode", () => {
     }
   });
 });
+
+// Tutor mode turns the end of an interview into a lesson, not a verdict: the
+// assessor writes the same ungraded recap RecapCard already renders for
+// learning mode. These tests pin the absence of the grade as tightly as the
+// presence of the recap — a scored key or a level creeping back in is the
+// regression that matters.
+describe("tutor-mode assess prompts", () => {
+  const tutorAssess = (mode: (typeof MODES)[number]) =>
+    getAssessSystemPrompt(mode, "senior", undefined, undefined, true);
+
+  it("asks for exactly the RecapCard JSON shape", () => {
+    for (const mode of MODES) {
+      const p = tutorAssess(mode);
+      expect(p).toContain("ONLY a JSON object");
+      for (const key of ["summary", "conceptsCovered", "wentWell", "toReview", "suggestedNext"]) {
+        expect(p, `${mode} tutor recap must request "${key}"`).toContain(`"${key}"`);
+      }
+    }
+  });
+
+  it("requests none of the scorecard keys", () => {
+    for (const mode of MODES) {
+      const p = tutorAssess(mode);
+      for (const key of ["recommendation", "overall", "scores", "performedAtLevel"]) {
+        expect(p, `${mode} tutor recap must not request "${key}"`).not.toContain(`"${key}"`);
+      }
+      // Nor the axes the graded rubric scores.
+      for (const key of Object.keys(SCORE_LABELS[mode])) {
+        expect(p, `${mode} tutor recap must not request "${key}"`).not.toContain(`"${key}"`);
+      }
+    }
+  });
+
+  it("carries no scoring or hiring language at all", () => {
+    for (const mode of MODES) {
+      const p = tutorAssess(mode);
+      for (const banned of [/\bscor(e|es|ing|ecard)\b/i, /\bhir(e|es|ing)\b/i, /\brecommendation\b/i, /\b1-5\b/, /\bpass\/fail\b/i]) {
+        expect(p, `${mode} tutor recap must not say ${banned}`).not.toMatch(banned);
+      }
+      expect(p).toMatch(/not an evaluation|nothing here is graded/i);
+    }
+  });
+
+  it("never anchors to a target level, whichever one the picker shipped", () => {
+    for (const mode of MODES) {
+      for (const level of ["e1", "staff", "principal"] as const) {
+        const p = getAssessSystemPrompt(mode, level, undefined, undefined, true);
+        expect(p).not.toContain(getLevel(level).label);
+        expect(p).not.toContain(getLevel(level).blurb);
+        expect(p).not.toContain(describeLevelLadder());
+        // The level is ignored, so it can't change the prompt either.
+        expect(p).toBe(getAssessSystemPrompt(mode, "e2", undefined, undefined, true));
+      }
+    }
+  });
+
+  it("stays mode-appropriate about what the feedback must cite", () => {
+    expect(tutorAssess("coding")).toMatch(/complexity/i);
+    expect(tutorAssess("coding")).toMatch(/code they actually wrote/i);
+    expect(tutorAssess("behavioral")).toMatch(/story/i);
+    expect(tutorAssess("behavioral")).toMatch(/STAR|situation, task/i);
+    expect(tutorAssess("system-design")).toMatch(/design decisions/i);
+    expect(tutorAssess("system-design")).toMatch(/tradeoff/i);
+    // …and each mode's recap is its own.
+    for (const a of MODES) {
+      for (const b of MODES) {
+        if (a !== b) expect(tutorAssess(a)).not.toBe(tutorAssess(b));
+      }
+    }
+  });
+
+  it("leaves the graded assess prompts untouched when tutor mode is off", () => {
+    for (const mode of MODES) {
+      const graded = getAssessSystemPrompt(mode, "senior");
+      expect(getAssessSystemPrompt(mode, "senior", undefined, undefined, false)).toBe(graded);
+      expect(getAssessSystemPrompt(mode, "senior", undefined, undefined, undefined)).toBe(graded);
+      expect(tutorAssess(mode)).not.toBe(graded);
+    }
+  });
+
+  it("is ignored by the modes that have no tutor toggle", () => {
+    // learning and career are already ungraded and own their end-of-session
+    // output; a stray tutor flag must not change a thing.
+    for (const mode of ["learning", "career"] as const) {
+      expect(getAssessSystemPrompt(mode, undefined, "go", undefined, true)).toBe(
+        getAssessSystemPrompt(mode, undefined, "go")
+      );
+    }
+  });
+});
