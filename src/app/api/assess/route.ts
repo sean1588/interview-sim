@@ -7,7 +7,7 @@ import {
   getAssessSystemPrompt,
   buildAssessUserContent,
   isValidSessionMode,
-  TRANSCRIPT_ROLES,
+  transcriptRoles,
   type SessionMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     // Render the transcript for the evaluator. Strip our bracketed annotations
     // (editor state, notes) from user turns so it reads as a clean conversation.
-    const [speaker, listener] = TRANSCRIPT_ROLES[mode];
+    const [speaker, listener] = transcriptRoles(mode, tutor === true);
     const transcript = session.history
       .map((m) => {
         const who = m.role === "assistant" ? speaker : listener;
@@ -73,15 +73,19 @@ export async function POST(req: NextRequest) {
       course,
       tutor === true
     );
-    const userContent = buildAssessUserContent(mode, {
-      transcript,
-      questionTitle,
-      questionPrompt,
-      finalCode: code,
-      language,
-      lastRun,
-      notes,
-    });
+    const userContent = buildAssessUserContent(
+      mode,
+      {
+        transcript,
+        questionTitle,
+        questionPrompt,
+        finalCode: code,
+        language,
+        lastRun,
+        notes,
+      },
+      tutor === true
+    );
 
     const content = await chatComplete(
       [

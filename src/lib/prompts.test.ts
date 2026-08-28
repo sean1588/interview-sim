@@ -9,6 +9,7 @@ import {
   getSystemPrompt,
   getKickoffPrompt,
   TRANSCRIPT_ROLES,
+  transcriptRoles,
 } from "./prompts";
 import { SCORE_LABELS } from "./score-labels";
 import { getLevel, describeLevelLadder } from "./levels";
@@ -149,10 +150,12 @@ describe("interviewer prompts and kickoffs", () => {
 });
 
 describe("tutor mode", () => {
-  // Tutor mode is a persona flag orthogonal to mode: same problem bank, editor,
-  // and scorecard — only the live interviewer changes. These tests pin the
-  // contract (which modes honour the flag, and that the persona actually flips),
-  // not the coaching copy itself.
+  // Tutor mode is a persona flag orthogonal to mode: same problem bank and
+  // editor — the live interviewer becomes a teacher, and the end of the session
+  // produces an ungraded recap instead of a scorecard (pinned separately in
+  // "tutor-mode assess prompts"). These tests pin the contract (which modes
+  // honour the flag, and that the persona actually flips), not the coaching copy
+  // itself.
   const TUTORABLE = ["coding", "system-design"] as const;
 
   it("flips coding and system-design to a coaching persona", () => {
@@ -750,6 +753,80 @@ describe("tutor-mode assess prompts", () => {
       expect(getAssessSystemPrompt(mode, "senior", undefined, undefined, false)).toBe(graded);
       expect(getAssessSystemPrompt(mode, "senior", undefined, undefined, undefined)).toBe(graded);
       expect(tutorAssess(mode)).not.toBe(graded);
+    }
+  });
+
+  // The user turn is the last thing the model reads, so it has to agree with
+  // the ungraded system prompt above — asking for an "evaluation" of a
+  // "candidate" there would undo the whole recap framing.
+  const tutorContent = (mode: (typeof MODES)[number]) =>
+    buildAssessUserContent(
+      mode,
+      {
+        transcript: "Tutor: Hello\nLearner: Hi there",
+        questionTitle: "Two Sum",
+        questionPrompt: "Find two numbers that add to a target.",
+        finalCode: "def two_sum(): pass",
+        language: "python",
+        lastRun: "ok",
+        notes: "my notes",
+      },
+      true
+    );
+
+  it("asks for the recap JSON, not an evaluation", () => {
+    for (const mode of MODES) {
+      const content = tutorContent(mode);
+      expect(content).toContain("Write the recap JSON now.");
+      expect(content).not.toContain("evaluation");
+    }
+  });
+
+  it("frames the user turn as a practice session, not an interview", () => {
+    for (const mode of MODES) {
+      const content = tutorContent(mode);
+      expect(content, `${mode} tutor user content must not say candidate`).not.toMatch(
+        /candidate/i
+      );
+      expect(content, `${mode} tutor user content must not say interview`).not.toMatch(
+        /interview/i
+      );
+      expect(content).toContain("practice session transcript");
+    }
+  });
+
+  it("still carries the session material the recap has to cite", () => {
+    for (const mode of MODES) {
+      const content = tutorContent(mode);
+      expect(content).toContain("Tutor: Hello\nLearner: Hi there");
+      expect(content).toContain("Two Sum");
+    }
+    expect(tutorContent("coding")).toContain("def two_sum(): pass");
+    expect(tutorContent("behavioral")).toContain("my notes");
+    expect(tutorContent("system-design")).toContain("my notes");
+  });
+
+  it("leaves the graded user content untouched when tutor mode is off", () => {
+    const args = { transcript: "Interviewer: Hi\nCandidate: Hi", questionTitle: "Two Sum" };
+    for (const mode of MODES) {
+      const graded = buildAssessUserContent(mode, args);
+      expect(buildAssessUserContent(mode, args, false)).toBe(graded);
+      expect(buildAssessUserContent(mode, args, undefined)).toBe(graded);
+      expect(graded).toContain("Write the evaluation JSON now.");
+      expect(graded).toContain("Here is the interview transcript:");
+      expect(buildAssessUserContent(mode, args, true)).not.toBe(graded);
+    }
+  });
+
+  it("relabels the transcript speakers for tutor sessions only", () => {
+    for (const mode of MODES) {
+      expect(transcriptRoles(mode, true)).toEqual(["Tutor", "Learner"]);
+      expect(transcriptRoles(mode, false)).toEqual(TRANSCRIPT_ROLES[mode]);
+      expect(transcriptRoles(mode)).toEqual(TRANSCRIPT_ROLES[mode]);
+    }
+    // Modes with no tutor toggle keep their own labels regardless.
+    for (const mode of ["learning", "career", "freestyle"] as const) {
+      expect(transcriptRoles(mode, true)).toEqual(TRANSCRIPT_ROLES[mode]);
     }
   });
 
