@@ -11,7 +11,7 @@ Requires an OpenRouter account.
 | `/coding` | Coding interviews with a real editor. Solutions are graded against test cases, not eyeballed. |
 | `/behavioral` | Behavioral interviews, plus a STAR-coaching tutor mode. |
 | `/system-design` | System design interviews against a scored rubric. |
-| `/learn` | Guided courses taught by a voice tutor — Python, TypeScript, Go, Data Structures & Algorithms, Distributed Systems, AWS, and Applied AI. |
+| `/learn` | Guided courses taught by a voice tutor — Python, TypeScript, Go, Data Structures & Algorithms, Recursion, Distributed Systems, AWS, and Applied AI. |
 | `/library` | A browsable system design concept library. |
 | `/freestyle` | An open session you steer; the coach picks the track and can load code into your editor. |
 | `/career` | A career conversation that ends with a draft resume and a job-search plan. |

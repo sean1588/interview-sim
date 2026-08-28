@@ -45,12 +45,13 @@ const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const LIBRARY_HREF = /\/library\/([a-z0-9-]+)/g;
 
 describe("learning courses — cross-course invariants", () => {
-  it("registers the language courses, the subject course, then the concept courses", () => {
+  it("registers the language courses, the subject courses, then the concept courses", () => {
     expect(COURSES.map((c) => c.id)).toEqual([
       "python",
       "typescript",
       "go",
       "dsa",
+      "recursion",
       "distributed-systems",
       "aws",
       "applied-ai",
@@ -79,7 +80,10 @@ describe("learning courses — cross-course invariants", () => {
     const multi = Object.fromEntries(
       COURSES.filter((c) => (c.languages?.length ?? 0) > 1).map((c) => [c.id, c.languages])
     );
-    expect(multi).toEqual({ dsa: ["typescript", "python"] });
+    expect(multi).toEqual({
+      dsa: ["typescript", "python"],
+      recursion: ["typescript", "python"],
+    });
   });
 
   it("resolves known courses and rejects unknown ones", () => {
@@ -87,6 +91,7 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("typescript")?.id).toBe("typescript");
     expect(getCourse("go")?.id).toBe("go");
     expect(getCourse("dsa")?.id).toBe("dsa");
+    expect(getCourse("recursion")?.id).toBe("recursion");
     expect(getCourse("distributed-systems")?.id).toBe("distributed-systems");
     expect(getCourse("aws")?.id).toBe("aws");
     expect(getCourse("applied-ai")?.id).toBe("applied-ai");

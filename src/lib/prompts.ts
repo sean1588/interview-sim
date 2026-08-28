@@ -175,6 +175,24 @@ const SUBJECT_PROFILE: Record<
       next: "which structure or technique to tackle next or which exercise to re-attempt",
     },
   },
+  recursion: {
+    subject: "recursion",
+    student: {
+      typescript:
+        "writes TypeScript comfortably but reaches for a loop and an explicit stack before ever writing a recursive call",
+      python:
+        "writes Python comfortably but reaches for a loop and an explicit stack before ever writing a recursive call",
+    },
+    scope:
+      "skip the syntax entirely, and focus on the mechanism — what each stack frame holds, which work happens on the way down versus on the way back up, what makes the base case terminate, and how deep the recursion can safely go",
+    analogy: "a recursive call is just an ordinary call whose frame happens to sit on top of its own",
+    recap: {
+      focus:
+        "the recursive shapes they worked through, and which are worth writing out again from scratch",
+      review: "recursive pattern, base case, or depth trade-off",
+      next: "which recursive pattern or data-structure walk to tackle next, or which exercise to re-attempt",
+    },
+  },
 };
 
 /**

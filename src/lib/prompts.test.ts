@@ -349,6 +349,33 @@ describe("learning personas", () => {
     }
   });
 
+  it("uses the subject persona for the recursion course — its own subject, same editor shape", () => {
+    // The second subject course: it must name recursion rather than inheriting
+    // DSA's copy or falling back to the language table, and it keeps the
+    // editor-aware lesson shape because it ships exercises.
+    const recursion = getSystemPrompt("learning", { language: "python", course: "recursion" });
+    expect(recursion).toMatch(/recursion tutor/i);
+    expect(recursion).not.toMatch(/data structures & algorithms/i);
+    expect(recursion).not.toMatch(/new to Python/);
+    expect(recursion).not.toBe(getSystemPrompt("learning", { language: "python" }));
+    expect(recursion).not.toBe(getSystemPrompt("learning", { language: "python", course: "dsa" }));
+    // Same editor-aware shape the other subject/language courses get.
+    expect(recursion).toMatch(/editor/i);
+    expect(recursion).toMatch(/never just hand them the answer/i);
+    expect(recursion).toMatch(/hit Next/);
+    expect(recursion).toContain('lang="python"');
+
+    const kickoff = getKickoffPrompt("learning", "python", undefined, false, "recursion");
+    expect(kickoff).toMatch(/recursion tutor/i);
+    expect(kickoff).not.toBe(getKickoffPrompt("learning", "python", undefined, false, "dsa"));
+
+    const recap = getAssessSystemPrompt("learning", undefined, "python", "recursion");
+    expect(recap).toMatch(/recursion tutor/i);
+    for (const key of ["summary", "conceptsCovered", "wentWell", "toReview", "suggestedNext"]) {
+      expect(recap, `recap must request "${key}"`).toContain(`"${key}"`);
+    }
+  });
+
   it("treats an empty language as absent — that's how a concept course arrives", () => {
     // VoiceChat omits falsy context fields and /api/chat coalesces a missing
     // language to "", so "" is the wire form of "this course has no language".
