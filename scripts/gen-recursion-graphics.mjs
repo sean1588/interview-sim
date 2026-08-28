@@ -200,7 +200,7 @@ export const LESSONS = [
       "Step 1 'Choose': a decision tree over the items 1, 2, 3 where each level branches into take and skip, with the current path highlighted.",
       "Step 2 'Explore': the highlighted path descending to a complete leaf, with the built list shown beside it.",
       "Step 3 'Un-choose': the same path retreating one level, the last element visibly removed from the list, arrow labeled 'undo'.",
-      "Step 4 'Prune': a 4 by 4 chessboard with two queens placed and a whole greyed-out subtree branch beside it marked 'rejected before exploring'.",
+      "Step 4 'Prune': a 4 by 4 chessboard, rows labeled 1 to 4 top to bottom and columns 1 to 4 left to right, " + "with exactly two queens already placed: one on row 1 column 2, one on row 2 column 4. " + "Faint attack lines run from each queen down its own column and along both of its diagonals. " + "The four squares of row 3 are the candidates: row 3 column 1 is the only one marked legal with a green check; " + "row 3 column 2, row 3 column 3 and row 3 column 4 are all marked attacked with grey crosses. " + "Beside the board, a small decision tree with three greyed-out branches marked 'rejected before exploring' and one highlighted surviving branch.",
       "Clean tree drawing, plain numbers, short labels.",
     ].join(" "),
   },

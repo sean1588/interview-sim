@@ -386,20 +386,20 @@ print(sum_to(-3))  # expected: 0
       },
       {
         id: "rec-fix-the-base-case",
-        title: "Fix a base case that never fires",
+        title: "Fix a base case that answers the wrong question",
         instructions: {
           typescript: `\`countDigits(n)\` should return how many digits a non-negative integer has (\`0\` has one digit, \`4821\` has four).
 
-The scaffold's base case is wrong in the classic way: it stops at \`n === 0\`, but the recursive step \`Math.floor(n / 10)\` reaches 0 *before* the last digit has been counted — and for the input 0 itself it would count zero digits.
+The scaffold's base case describes an *exhausted input* rather than an answer: \`n === 0\` returns 0, which is right for the recursion — the digits ran out — but wrong for the input 0 itself, which has one digit. Guard the single-digit case (\`n < 10\`) instead, so the base case answers a real question.
 
-Fix the base case (a single-digit number is one digit) and add the recursive case.
+Make that fix and add the recursive case.
 
 **Expected output:** \`4\`, \`1\`, \`1\`.`,
           python: `\`count_digits(n)\` should return how many digits a non-negative integer has (\`0\` has one digit, \`4821\` has four).
 
-The scaffold's base case is wrong in the classic way: it stops at \`n == 0\`, but the recursive step \`n // 10\` reaches 0 *before* the last digit has been counted — and for the input 0 itself it would count zero digits.
+The scaffold's base case describes an *exhausted input* rather than an answer: \`n == 0\` returns 0, which is right for the recursion — the digits ran out — but wrong for the input 0 itself, which has one digit. Guard the single-digit case (\`n < 10\`) instead, so the base case answers a real question.
 
-Fix the base case (a single-digit number is one digit) and add the recursive case.
+Make that fix and add the recursive case.
 
 **Expected output:** \`4\`, \`1\`, \`1\`.`,
         },
