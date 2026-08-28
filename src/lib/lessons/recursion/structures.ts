@@ -302,12 +302,20 @@ print_backward(first)  # expected: 3, 2, 1
           typescript: "Why is `head === null` a better base case than `head.next === null`?",
           python: "Why is `head is None` a better base case than `head.next is None`?",
         },
-        options: [
-          "It handles the empty list, and it never dereferences a node that might not exist",
-          "It is faster, because comparing against null is cheaper",
-          "It allows the function to return a value instead of printing",
-          "It removes the need for the recursive case",
-        ],
+        options: {
+          typescript: [
+            "It handles the empty list, and it never dereferences a node that might not exist",
+            "It is faster, because comparing against null is cheaper",
+            "It allows the function to return a value instead of printing",
+            "It removes the need for the recursive case",
+          ],
+          python: [
+            "It handles the empty list, and it never dereferences a node that might not exist",
+            "It is faster, because comparing against None is cheaper",
+            "It allows the function to return a value instead of printing",
+            "It removes the need for the recursive case",
+          ],
+        },
         answer: 0,
         explanation:
           "The empty case is unambiguous and total: it covers an empty list at the top level and the end of the walk with the same branch. Guarding the last node makes an empty input a separate special case — and a crash if you forget it.",

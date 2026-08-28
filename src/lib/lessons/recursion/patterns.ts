@@ -281,12 +281,20 @@ print(collect_long_words(["ok", "no"], 5))  # expected: []
             "Why is `sumList(values.slice(1))` a worse recursion than passing an index?",
           python: "Why is `sum_list(values[1:])` a worse recursion than passing an index?",
         },
-        options: [
-          "It has no base case",
-          "It never makes progress, so it cannot terminate",
-          "It copies the remaining elements on every call, making it O(n²)",
-          "It mutates the caller's array",
-        ],
+        options: {
+          typescript: [
+            "It has no base case",
+            "It never makes progress, so it cannot terminate",
+            "It copies the remaining elements on every call, making it O(n²)",
+            "It mutates the caller's array",
+          ],
+          python: [
+            "It has no base case",
+            "It never makes progress, so it cannot terminate",
+            "It copies the remaining elements on every call, making it O(n²)",
+            "It mutates the caller's list",
+          ],
+        },
         answer: 2,
         explanation:
           "The slice is a fresh copy of everything left, so n calls copy n, n-1, n-2 … elements. Passing an index shrinks the same problem without copying anything.",

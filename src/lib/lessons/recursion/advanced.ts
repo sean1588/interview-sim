@@ -400,18 +400,28 @@ Without pruning, backtracking is just brute force with a nice shape: subsets is 
 N-queens is the canonical demonstration: place one queen per row, and before recursing into row \`r + 1\`, check that the new queen isn't attacked by any already placed. A whole subtree of arrangements dies at that check. For n = 8 the naive count is 8⁸ ≈ 16.7 million placements; pruning cuts it to about 2,000 recursive calls.
 
 \`\`\`ts
-function solve(row: number, cols: Set<number>, n: number): number {
+function solve(
+  row: number,
+  cols: Set<number>,      // columns already taken
+  diag: Set<number>,      // ↖ diagonals, keyed row - c
+  antiDiag: Set<number>,  // ↗ diagonals, keyed row + c
+  n: number,
+): number {
   if (row === n) return 1;                 // all rows placed: one solution
   let found = 0;
   for (let c = 0; c < n; c++) {
-    if (!isSafe(row, c, cols)) continue;   // ← the prune
-    cols.add(c);
-    found += solve(row + 1, cols, n);
-    cols.delete(c);                        // un-choose
+    if (cols.has(c) || diag.has(row - c) || antiDiag.has(row + c)) {
+      continue;                            // ← the prune
+    }
+    cols.add(c); diag.add(row - c); antiDiag.add(row + c);
+    found += solve(row + 1, cols, diag, antiDiag, n);
+    cols.delete(c); diag.delete(row - c); antiDiag.delete(row + c);  // un-choose
   }
   return found;
 }
 \`\`\`
+
+Three sets, because a queen attacks along three lines: its column, and both diagonals. Every square on a ↖ diagonal shares the same \`row - c\`, and every square on a ↗ diagonal shares the same \`row + c\` — which is what makes each check an O(1) set lookup. Track only \`cols\` and you don't have N-queens: you have "one queen per row and column", which for n = 8 has 8! = 40,320 arrangements rather than 92.
 
 Prune as early as the constraint allows. Checking at the leaf and rejecting is correct and useless; checking as you place is what turns an exponential wall into something that finishes.
 
@@ -481,18 +491,21 @@ Without pruning, backtracking is just brute force with a nice shape: subsets is 
 N-queens is the canonical demonstration: place one queen per row, and before recursing into row \`r + 1\`, check that the new queen isn't attacked by any already placed. A whole subtree of arrangements dies at that check. For n = 8 the naive count is 8⁸ ≈ 16.7 million placements; pruning cuts it to about 2,000 recursive calls.
 
 \`\`\`python
-def solve(row, cols, n):
+def solve(row, cols, diag, anti_diag, n):
+    # cols: columns taken; diag: ↖ keyed row - c; anti_diag: ↗ keyed row + c
     if row == n:
         return 1                     # all rows placed: one solution
     found = 0
     for c in range(n):
-        if not is_safe(row, c, cols):
+        if c in cols or row - c in diag or row + c in anti_diag:
             continue                 # ← the prune
-        cols.add(c)
-        found += solve(row + 1, cols, n)
-        cols.discard(c)              # un-choose
+        cols.add(c); diag.add(row - c); anti_diag.add(row + c)
+        found += solve(row + 1, cols, diag, anti_diag, n)
+        cols.discard(c); diag.discard(row - c); anti_diag.discard(row + c)  # un-choose
     return found
 \`\`\`
+
+Three sets, because a queen attacks along three lines: its column, and both diagonals. Every square on a ↖ diagonal shares the same \`row - c\`, and every square on a ↗ diagonal shares the same \`row + c\` — which is what makes each check an O(1) set lookup. Track only \`cols\` and you don't have N-queens: you have "one queen per row and column", which for n = 8 has 8! = 40,320 arrangements rather than 92.
 
 Prune as early as the constraint allows. Checking at the leaf and rejecting is correct and useless; checking as you place is what turns an exponential wall into something that finishes.
 
