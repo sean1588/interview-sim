@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ModelPicker from "@/components/ModelPicker";
 import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 import { ARTICLES, LIBRARY_SECTIONS } from "@/lib/library";
 
@@ -56,6 +57,11 @@ export default function Home() {
           <p className="mt-4 font-serif text-[19px] italic text-muted">
             Real-time voice interviews. Choose your focus.
           </p>
+          {/* The model every session and scorecard runs on — one on-device
+              choice, applied wherever you start from. */}
+          <div className="mt-5 flex justify-center">
+            <ModelPicker />
+          </div>
         </header>
 
         <SectionLabel>Practice interviews</SectionLabel>

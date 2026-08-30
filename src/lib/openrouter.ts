@@ -1,3 +1,5 @@
+import { DEFAULT_MODEL } from "@/lib/model-prefs";
+
 export type ChatMessage = { role: string; content: string };
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
@@ -38,24 +40,30 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   return data.text || "";
 }
 
+/** `model` is the caller's chosen chat model (see model-prefs.ts); omitting it
+ * keeps the default. Speech — transcribe / textToSpeechPcm above and below —
+ * deliberately stays on its own fixed models: those are speech endpoints, and
+ * an arbitrary chat model from the picker would break them. */
 export async function chatStream(
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  model: string = DEFAULT_MODEL
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await openrouterPost("/chat/completions", {
-    model: "google/gemini-3.1-pro-preview",
+    model,
     messages,
     stream: true,
   });
   return res.body!;
 }
 
-/** Non-streaming chat completion — used for the structured assessment. */
+/** Non-streaming chat completion — used for the structured assessment.
+ * `opts.model` selects the chat model; omitting it keeps the default. */
 export async function chatComplete(
   messages: ChatMessage[],
-  opts?: { jsonMode?: boolean; temperature?: number }
+  opts?: { jsonMode?: boolean; temperature?: number; model?: string }
 ): Promise<string> {
   const res = await openrouterPost("/chat/completions", {
-    model: "google/gemini-3.1-pro-preview",
+    model: opts?.model ?? DEFAULT_MODEL,
     messages,
     stream: false,
     temperature: opts?.temperature ?? 0.3,

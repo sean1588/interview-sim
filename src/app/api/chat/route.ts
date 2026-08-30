@@ -15,6 +15,7 @@ import {
   type SessionMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
+import { resolveModel } from "@/lib/model-prefs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +41,9 @@ export async function POST(req: NextRequest) {
     // Tutor mode is orthogonal to mode: same problem and scorecard, teaching
     // persona instead of an evaluative one. Ignored outside coding / system-design.
     const tutor = formData.get("tutor") === "true";
+    // The chat model the client picked on the home page; absent or empty falls
+    // back to the default. Transcription and TTS below keep their own models.
+    const model = resolveModel(formData.get("model"));
 
     const code = (formData.get("code") as string | null) ?? "";
     const language = (formData.get("language") as string | null) ?? "";
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
     };
     const messages = [systemMsg, ...session.history];
 
-    const llmStream = await chatStream(messages);
+    const llmStream = await chatStream(messages, model);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

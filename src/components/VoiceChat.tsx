@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
 import { SimpleVAD } from "@/lib/vad";
 import { settleTurn, type TurnSettle } from "@/lib/mic-state";
+import { savedModel } from "@/lib/model-prefs";
 import type { SessionMode } from "@/lib/prompts";
 import Orb, { type OrbState } from "@/components/session/Orb";
 import Equalizer from "@/components/session/Equalizer";
@@ -313,6 +314,9 @@ export default function VoiceChat({
         if (mode) {
           form.append("mode", mode);
         }
+        // The model chosen on the home page. Read at send time rather than held
+        // in state, so a change made mid-session applies to the next turn.
+        form.append("model", savedModel());
         if (tutor) form.append("tutor", "true");
 
         // Attach live context so the interviewer "sees" the candidate's state.

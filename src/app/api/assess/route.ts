@@ -11,6 +11,7 @@ import {
   type SessionMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
+import { resolveModel } from "@/lib/model-prefs";
 
 // Produces a structured scorecard for the interview so far — or, in tutor mode,
 // an ungraded recap of what went well and what to focus on. Non-streaming, not
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
       level,
       // interviews: an ungraded tutor recap instead of a scorecard
       tutor,
+      // the chat model picked on the home page (absent/empty → the default)
+      model: rawModel,
     } = body;
 
     if (!sessionId) {
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
         { role: "system", content: assessSystem },
         { role: "user", content: userContent },
       ],
-      { jsonMode: true }
+      { jsonMode: true, model: resolveModel(rawModel) }
     );
 
     let result;
