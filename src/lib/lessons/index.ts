@@ -12,6 +12,7 @@ import { typescriptCourse } from "./typescript";
 import { goCourse } from "./go";
 import { dsaCourse } from "./dsa";
 import { recursionCourse } from "./recursion";
+import { reactCourse } from "./react";
 import { distributedSystemsCourse } from "./distributed-systems";
 import { awsCourse } from "./aws";
 import { appliedAiCourse } from "./applied-ai";
@@ -47,6 +48,7 @@ export const COURSES: Course[] = [
   goCourse,
   dsaCourse,
   recursionCourse,
+  reactCourse,
   distributedSystemsCourse,
   awsCourse,
   appliedAiCourse,

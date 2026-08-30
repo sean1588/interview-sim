@@ -52,6 +52,7 @@ describe("learning courses — cross-course invariants", () => {
       "go",
       "dsa",
       "recursion",
+      "react",
       "distributed-systems",
       "aws",
       "applied-ai",
@@ -83,6 +84,7 @@ describe("learning courses — cross-course invariants", () => {
     expect(multi).toEqual({
       dsa: ["typescript", "python"],
       recursion: ["typescript", "python"],
+      react: ["javascript", "typescript"],
     });
   });
 
@@ -92,6 +94,7 @@ describe("learning courses — cross-course invariants", () => {
     expect(getCourse("go")?.id).toBe("go");
     expect(getCourse("dsa")?.id).toBe("dsa");
     expect(getCourse("recursion")?.id).toBe("recursion");
+    expect(getCourse("react")?.id).toBe("react");
     expect(getCourse("distributed-systems")?.id).toBe("distributed-systems");
     expect(getCourse("aws")?.id).toBe("aws");
     expect(getCourse("applied-ai")?.id).toBe("applied-ai");
@@ -271,6 +274,32 @@ describe.each(CONCEPT_COURSES)("concept course: $id", ({ id, modules, minLessons
   });
 });
 
+describe("React course", () => {
+  const course = getCourse("react")!;
+
+  it("offers every lesson in JavaScript and TypeScript", () => {
+    expect(course.languages).toEqual(["javascript", "typescript"]);
+  });
+
+  it("covers every module with substantial depth", () => {
+    expect(course.modules).toHaveLength(8);
+    expect(course.lessons).toHaveLength(34);
+    for (const courseModule of course.modules) {
+      expect(
+        lessonsForModule(course, courseModule.id).length,
+        courseModule.id
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("gives every lesson real examples in both course languages", () => {
+    for (const lesson of course.lessons) {
+      expect(forLanguage(lesson.content, "javascript"), lesson.id).toContain("```jsx");
+      expect(forLanguage(lesson.content, "typescript"), lesson.id).toContain("```tsx");
+    }
+  });
+});
+
 // A multi-language course is the one place the resolver's fallback can hide a
 // real gap: an unported lesson still renders — in the OTHER language's prose —
 // and every content invariant above passes, because the text it checks is
@@ -386,6 +415,13 @@ function startersFor(language: LanguageId): (readonly [string, string])[] {
 // is covered automatically.
 const TS_STARTERS = startersFor("typescript");
 const PY_STARTERS = startersFor("python");
+const JS_STARTERS = startersFor("javascript");
+
+describe("javascript-language courses — every starter is valid JS", () => {
+  it.each(JS_STARTERS)("%s constructs", (_id, code) => {
+    expect(() => new Function(code)).not.toThrow();
+  });
+});
 
 // Run-every-scaffold gate (CI-safe slice): transpile every TypeScript starter
 // the same way Run does, then CONSTRUCT the emitted JS — proving each starter is

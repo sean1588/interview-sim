@@ -166,6 +166,7 @@ const SUBJECT_PROFILE: Record<
     student: Partial<Record<LanguageId, string>>;
     scope: string;
     analogy: string;
+    teaching: string;
     recap: { focus: string; review: string; next: string };
   }
 > = {
@@ -180,6 +181,8 @@ const SUBJECT_PROFILE: Record<
     scope:
       "skip the syntax entirely, and focus on the mechanism — what's actually in memory, the Big-O of every operation, and which structure fits which problem",
     analogy: "a hash map is just an array whose index you compute from the key",
+    teaching:
+      "Teach the mechanism conversationally and name the Big-O of every structure or algorithm they write.",
     recap: {
       focus:
         "the structures and techniques they worked through, and which are worth drilling again",
@@ -198,11 +201,34 @@ const SUBJECT_PROFILE: Record<
     scope:
       "skip the syntax entirely, and focus on the mechanism — what each stack frame holds, which work happens on the way down versus on the way back up, what makes the base case terminate, and how deep the recursion can safely go",
     analogy: "a recursive call is just an ordinary call whose frame happens to sit on top of its own",
+    teaching:
+      "Teach the call-stack mechanism conversationally and name the time, space, and depth costs of what they write.",
     recap: {
       focus:
         "the recursive shapes they worked through, and which are worth writing out again from scratch",
       review: "recursive pattern, base case, or depth trade-off",
       next: "which recursive pattern or data-structure walk to tackle next, or which exercise to re-attempt",
+    },
+  },
+  react: {
+    subject: "React",
+    student: {
+      javascript:
+        "builds web applications comfortably in JavaScript and knows the browser platform, but is new to React's rendering model",
+      typescript:
+        "builds web applications comfortably in TypeScript and knows the browser platform, but is new to React's rendering model",
+    },
+    scope:
+      "skip JavaScript, TypeScript, HTML, CSS, and general web concepts entirely, and focus on React's component model, state identity, render and commit phases, effect synchronization, composition, concurrency, and production patterns",
+    analogy:
+      "rendering is a pure calculation of the next UI snapshot; committing is the separate step that mutates the host environment",
+    teaching:
+      "Teach React's lifecycle and data flow conversationally, always distinguish render work from commit and Effect work, and call out the stale-closure, identity, and synchronization pitfalls behind the code they write.",
+    recap: {
+      focus:
+        "the React mechanisms and patterns they worked through, especially any lifecycle or state-identity misconception they corrected",
+      review: "React mechanism, lifecycle rule, or component pattern",
+      next: "which React pattern to apply next or which example to revisit in the other language",
     },
   },
 };
@@ -309,7 +335,7 @@ How to behave:
         ? {
             who: profile.subject,
             level: `Your student is an EXPERIENCED programmer who ${profile.student}. Teach to that level: ${profile.scope}.`,
-            teach: `Teach the mechanism conversationally, anchored to what they already build every day ("${profile.analogy}"), and name the Big-O of whatever they're writing.`,
+            teach: `${profile.teaching} Anchor it to what they already build every day ("${profile.analogy}").`,
           }
         : {
             who: profile.lang,
