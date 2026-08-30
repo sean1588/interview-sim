@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import type { InterviewMode, SessionMode } from "@/lib/types/mode";
 import type { ScorecardData } from "@/components/Scorecard";
 import { saveSession } from "@/lib/history";
+import { savedModel } from "@/lib/model-prefs";
 
 const GRADED_MODES = new Set<SessionMode>(["coding", "behavioral", "system-design"]);
 const isGraded = (m: SessionMode): m is InterviewMode => GRADED_MODES.has(m);
@@ -41,7 +42,8 @@ export function useSession<T>(mode: SessionMode) {
         const res = await fetch("/api/assess", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, mode, ...context }),
+          // `model` is the home-page choice, read at send time (see VoiceChat).
+          body: JSON.stringify({ sessionId, mode, model: savedModel(), ...context }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Assessment failed");
