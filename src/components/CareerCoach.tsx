@@ -42,7 +42,7 @@ export default function CareerCoach() {
   return (
     <>
       <SessionFrame
-        root={{ label: "Studio", href: "/" }}
+        root={{ label: "Home", href: "/" }}
         title="Career Coach"
         endLabel="Build my plan"
         endBusyLabel="Building…"

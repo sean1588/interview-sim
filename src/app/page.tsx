@@ -1,5 +1,4 @@
 import Link from "next/link";
-import ModelPicker from "@/components/ModelPicker";
 import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 import { ARTICLES, LIBRARY_SECTIONS } from "@/lib/library";
 
@@ -45,26 +44,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-app">
-      <div className="mx-auto max-w-5xl px-6 pt-16 pb-24">
-        <header className="mb-12 text-center">
-          <div className="inline-flex items-center rounded-full border border-edge bg-chip px-3 py-1 font-sans text-[10px] font-medium uppercase tracking-[0.22em] text-cognac-text">
-            AI-Powered Practice
-          </div>
-          <h1 className="mt-5 font-serif text-[56px] font-semibold leading-none tracking-tight text-ink">
-            Interview Simulator
-          </h1>
-          <p className="mt-4 font-serif text-[19px] italic text-muted">
-            Real-time voice interviews. Choose your focus.
-          </p>
-          {/* The model every session and scorecard runs on — one on-device
+    <div className="flex-1 bg-app">
+      <div className="mx-auto max-w-5xl px-6 pt-10 pb-24">
+        {/* The model every session and scorecard runs on — one on-device
               choice, applied wherever you start from. */}
-          <div className="mt-5 flex justify-center">
-            <ModelPicker />
-          </div>
-        </header>
-
-        <SectionLabel>Practice interviews</SectionLabel>
+        <div id="practice" className="scroll-mt-24">
+          <SectionLabel>Practice interviews</SectionLabel>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <ModeCard
             href="/coding"

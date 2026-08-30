@@ -168,7 +168,7 @@ export default function FreestyleWorkspace() {
   return (
     <>
       <SessionFrame
-        root={{ label: "Studio", href: "/" }}
+        root={{ label: "Home", href: "/" }}
         title="Freestyle"
         endLabel="End Session"
         onEnd={() => router.push("/")}

@@ -122,7 +122,7 @@ export default function NotesInterview(cfg: NotesInterviewConfig) {
   return (
     <>
       <SessionFrame
-        root={{ label: "Studio", href: "/" }}
+        root={{ label: "Home", href: "/" }}
         title={cfg.title}
         endLabel="End Interview"
         endBusyLabel="Assessing…"

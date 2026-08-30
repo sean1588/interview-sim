@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import Scorecard from "@/components/Scorecard";
 import {
   subscribeSessions,
@@ -55,16 +56,13 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-app">
-      <div className="mx-auto max-w-3xl px-6 pt-16 pb-24">
+    <div className="flex-1 bg-app">
+      <div className="mx-auto max-w-3xl px-6 pt-10 pb-24">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <Link
-              href="/"
-              className="font-sans text-[13px] text-cognac-text transition-colors hover:text-cognac"
-            >
-              ← Studio
-            </Link>
+            <Breadcrumbs
+              items={[{ label: "Home", href: "/" }, { label: "Past Sessions" }]}
+            />
             <h1 className="mt-3 font-serif text-[40px] font-semibold leading-none tracking-tight text-ink">
               Past Sessions
             </h1>

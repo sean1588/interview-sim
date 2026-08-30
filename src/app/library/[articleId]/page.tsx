@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { ARTICLES, LIBRARY_SECTIONS, getArticle } from "@/lib/library";
 import { SYSTEM_DESIGN_QUESTIONS } from "@/lib/questions/system-design";
 
@@ -25,15 +26,16 @@ export default async function ArticlePage({
   });
 
   return (
-    <div className="min-h-screen bg-app">
-      <div className="mx-auto max-w-3xl px-6 pt-16 pb-24">
+    <div className="flex-1 bg-app">
+      <div className="mx-auto max-w-3xl px-6 pt-10 pb-24">
         <header className="mb-8">
-          <Link
-            href="/library"
-            className="font-sans text-[13px] text-muted transition-colors hover:text-ink"
-          >
-            ← Library
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Library", href: "/library" },
+              { label: article.title },
+            ]}
+          />
           {section && (
             <div className="mt-5 font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-faint">
               {section.title}

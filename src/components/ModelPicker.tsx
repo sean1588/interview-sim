@@ -101,7 +101,7 @@ export default function ModelPicker() {
   const label = models?.find((m) => m.id === selected)?.name ?? selected;
 
   return (
-    <div ref={rootRef} className="relative inline-block text-left">
+    <div ref={rootRef} className="relative inline-block max-w-full text-left">
       <button
         type="button"
         onClick={() => (open ? close() : openPanel())}
@@ -110,14 +110,14 @@ export default function ModelPicker() {
         aria-label={`Model: ${label}`}
         className="inline-flex max-w-full items-center gap-2 rounded-full border border-edge bg-chip px-4 py-1.5 font-sans text-[12px] font-medium text-ink-muted transition hover:border-cognac/40 hover:text-cognac-text focus:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
       >
-        <span className="uppercase tracking-[0.18em] text-faint">Model</span>
-        <span className="truncate text-ink-soft">{label}</span>
+        <span className="hidden uppercase tracking-[0.18em] text-faint sm:inline">Model</span>
+        <span className="min-w-0 truncate text-ink-soft">{label}</span>
         <ChevronDown size={12} className="text-faint" />
       </button>
 
       {open && (
         <div
-          className="absolute left-1/2 z-50 mt-2 w-[min(22rem,80vw)] -translate-x-1/2 overflow-hidden rounded-[10px] border border-edge bg-frame text-left"
+          className="absolute right-0 z-50 mt-2 w-[min(22rem,80vw)] overflow-hidden rounded-[10px] border border-edge bg-frame text-left"
           style={{ boxShadow: "0 24px 60px rgba(60,40,20,.22)" }}
         >
           <div className="border-b border-section bg-raised p-2">
