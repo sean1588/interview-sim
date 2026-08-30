@@ -4,7 +4,7 @@ import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 
 export default function LearnHome() {
   return (
-    <div className="flex-1 bg-app">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-app">
       <div className="mx-auto max-w-4xl px-6 pt-10 pb-24">
         <header className="mb-10">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Learn" }]} />

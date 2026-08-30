@@ -56,7 +56,7 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="flex-1 bg-app">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-app">
       <div className="mx-auto max-w-3xl px-6 pt-10 pb-24">
         <div className="mb-8 flex items-center justify-between">
           <div>

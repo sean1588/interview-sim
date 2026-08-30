@@ -44,7 +44,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function Home() {
   return (
-    <div className="flex-1 bg-app">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-app">
       <div className="mx-auto max-w-5xl px-6 pt-10 pb-24">
         {/* The model every session and scorecard runs on — one on-device
               choice, applied wherever you start from. */}

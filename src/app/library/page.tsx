@@ -5,7 +5,7 @@ import { SYSTEM_DESIGN_QUESTIONS } from "@/lib/questions/system-design";
 
 export default function LibraryHome() {
   return (
-    <div className="flex-1 bg-app">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-app">
       <div className="mx-auto max-w-4xl px-6 pt-10 pb-24">
         <header className="mb-8">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Library" }]} />
