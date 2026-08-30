@@ -271,7 +271,7 @@ export default function InterviewSim() {
   return (
     <>
       <SessionFrame
-        root={{ label: "Studio", href: "/" }}
+        root={{ label: "Home", href: "/" }}
         title="Coding Interview"
         endLabel="End Interview"
         endBusyLabel="Assessing…"

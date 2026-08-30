@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Jost, IBM_Plex_Mono } from "next/font/google";
+import TopNav from "@/components/TopNav";
 import "./globals.css";
 
 // The "Dialogue" type system: an editorial serif for prose/headings, a geometric
@@ -38,8 +39,9 @@ export default function RootLayout({
       lang="en"
       className={`${serif.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-app font-sans text-ink">
-        {children}
+      <body className="flex min-h-dvh flex-col bg-app font-sans text-ink">
+        <TopNav />
+        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       </body>
     </html>
   );

@@ -1,17 +1,13 @@
 import Link from "next/link";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 
 export default function LearnHome() {
   return (
-    <div className="min-h-screen bg-app">
-      <div className="mx-auto max-w-4xl px-6 pt-16 pb-24">
+    <div className="flex-1 bg-app">
+      <div className="mx-auto max-w-4xl px-6 pt-10 pb-24">
         <header className="mb-10">
-          <Link
-            href="/"
-            className="font-sans text-[13px] text-muted transition-colors hover:text-ink"
-          >
-            ← Home
-          </Link>
+          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Learn" }]} />
           <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
             Learn
           </h1>

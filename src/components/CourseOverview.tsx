@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import { forLanguage, type ByLanguage } from "@/lib/lessons";
 import { useCourseLanguage } from "@/components/useCourseLanguage";
 import { LANGUAGE_LABELS, type LanguageId } from "@/lib/problems";
@@ -26,15 +27,16 @@ export default function CourseOverview({ course }: { course: CourseOverviewData 
   const choices = course.languages ?? [];
 
   return (
-    <div className="min-h-screen bg-app">
-      <div className="mx-auto max-w-4xl px-6 pt-16 pb-24">
+    <div className="flex-1 bg-app">
+      <div className="mx-auto max-w-4xl px-6 pt-10 pb-24">
         <header className="mb-10">
-          <Link
-            href="/learn"
-            className="font-sans text-[13px] text-muted transition-colors hover:text-ink"
-          >
-            ← Courses
-          </Link>
+          <Breadcrumbs
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Learn", href: "/learn" },
+              { label: course.title },
+            ]}
+          />
           <h1 className="mt-5 font-serif text-[44px] font-semibold tracking-tight text-ink">
             Learn {course.title}
           </h1>

@@ -131,7 +131,11 @@ export default function LessonWorkspace({
   return (
     <>
       <SessionFrame
-        root={{ label: "Lessons", href: `/learn/${course.id}` }}
+        root={{ label: "Home", href: "/" }}
+        ancestors={[
+          { label: "Learn", href: "/learn" },
+          { label: course.title, href: `/learn/${course.id}` },
+        ]}
         title={resolved.title}
         pill={resolved.module}
         endLabel="End Lesson"
