@@ -284,8 +284,11 @@ describe("React course", () => {
   it("covers every module with substantial depth", () => {
     expect(course.modules).toHaveLength(8);
     expect(course.lessons).toHaveLength(34);
-    for (const module of course.modules) {
-      expect(lessonsForModule(course, module.id).length, module.id).toBeGreaterThanOrEqual(3);
+    for (const courseModule of course.modules) {
+      expect(
+        lessonsForModule(course, courseModule.id).length,
+        courseModule.id
+      ).toBeGreaterThanOrEqual(3);
     }
   });
 
