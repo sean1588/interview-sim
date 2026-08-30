@@ -272,6 +272,7 @@ describe("learning personas", () => {
     const EDITOR_COURSES = [
       ["a language course", { language: "go" }],
       ["a subject course", { language: "typescript", course: "dsa" }],
+      ["the React course", { language: "javascript", course: "react" }],
     ] as const;
 
     it.each(EDITOR_COURSES)("is documented for %s", (_label, opts) => {
@@ -376,6 +377,24 @@ describe("learning personas", () => {
     expect(recap).toMatch(/recursion tutor/i);
     for (const key of ["summary", "conceptsCovered", "wentWell", "toReview", "suggestedNext"]) {
       expect(recap, `recap must request "${key}"`).toContain(`"${key}"`);
+    }
+  });
+
+  it("uses the React persona in both course languages without teaching either language", () => {
+    for (const language of ["javascript", "typescript"] as const) {
+      const prompt = getSystemPrompt("learning", { language, course: "react" });
+      expect(prompt).toMatch(/\bReact tutor\b/);
+      expect(prompt).toMatch(/render and commit|rendering.*commit/i);
+      expect(prompt).toMatch(/effect/i);
+      expect(prompt).not.toMatch(new RegExp(`new to ${language}`, "i"));
+      expect(prompt).toContain(`<editor lang="${language}">`);
+
+      const kickoff = getKickoffPrompt("learning", language, undefined, false, "react");
+      expect(kickoff).toMatch(/\bReact tutor\b/);
+
+      const recap = getAssessSystemPrompt("learning", undefined, language, "react");
+      expect(recap).toMatch(/\bReact tutor\b/);
+      expect(recap).toMatch(/lifecycle|state-identity/i);
     }
   });
 
