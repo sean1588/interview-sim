@@ -11,7 +11,7 @@ const NAV_ITEMS = [
 
 export default function TopNav() {
   return (
-    <header className="sticky top-0 z-50 flex h-[68px] flex-none items-center border-b border-section bg-frame/95 backdrop-blur">
+    <header className="fixed inset-x-0 top-0 z-50 flex h-[68px] items-center border-b border-section bg-frame/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-[1480px] items-center gap-5 px-4 sm:px-6">
         <Link
           href="/"

@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="en"
       className={`${serif.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-dvh flex-col bg-app font-sans text-ink">
+      <body className="flex min-h-dvh flex-col bg-app pt-[68px] font-sans text-ink">
         <TopNav />
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       </body>
