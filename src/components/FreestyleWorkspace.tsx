@@ -8,16 +8,12 @@ import CustomQuestionModal from "@/components/CustomQuestionModal";
 import SessionFrame from "@/components/session/SessionFrame";
 import { Pencil, Sun } from "@/components/session/icons";
 import type { LanguageId } from "@/lib/problems";
+import { placeholderFor, isPlaceholder } from "@/lib/freestyle-placeholder";
 import type { RunResult } from "@/lib/runner";
 
 // Freestyle runs whatever the user wants by voice; the editor is a shared
 // surface the agent can load code into. Only the runnable languages are offered.
 const FREESTYLE_LANGUAGES: LanguageId[] = ["python", "javascript", "typescript"];
-
-const PLACEHOLDER = `# Freestyle session — tell the coach what you'd like to work on:
-# a coding problem, system design, a behavioral interview, or learning
-# something new. They'll load anything you need right here.
-`;
 
 // Pre-start affordances: clicking a chip seeds the coach's opening intent (it
 // rides along as questionPrompt and shapes the kickoff). The user still taps the
@@ -55,12 +51,20 @@ export default function FreestyleWorkspace() {
   );
 
   // One shared buffer: there's no per-problem or per-language starter to track.
-  const [code, setCode] = useState(PLACEHOLDER);
+  const [code, setCode] = useState(() => placeholderFor("python"));
   const [language, setLanguage] = useState<LanguageId>("python");
   const lastRunRef = useRef<string | undefined>(undefined);
 
-  // The workspace is "waiting" until the coach (or the user) puts real code in it.
-  const workspaceLoaded = code !== PLACEHOLDER;
+  // The workspace is "waiting" until the coach (or the user) puts real code in
+  // it — any language's placeholder still counts as empty.
+  const workspaceLoaded = !isPlaceholder(code);
+
+  // Switching languages re-comments the placeholder so it stays valid in the
+  // new language. Real work in the buffer is never overwritten.
+  const handleLanguageChange = useCallback((next: LanguageId) => {
+    setLanguage(next);
+    setCode((current) => (isPlaceholder(current) ? placeholderFor(next) : current));
+  }, []);
 
   // Optional: the user can type the exact thing they want to work on instead of
   // speaking it. Empty by default — when blank, freestyle behaves exactly as
@@ -188,7 +192,7 @@ export default function FreestyleWorkspace() {
             language={language}
             languages={FREESTYLE_LANGUAGES}
             onCodeChange={setCode}
-            onLanguageChange={setLanguage}
+            onLanguageChange={handleLanguageChange}
             onRun={handleRun}
             canRun={workspaceLoaded}
             overlay={workspaceLoaded ? undefined : waitingOverlay}
