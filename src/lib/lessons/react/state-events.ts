@@ -1511,9 +1511,10 @@ function replay(initial: TasksState, actions: TasksAction[]): TasksState {
 }
 
 const initial: TasksState = { byId: {}, order: [] };
+const reviewTask: Task = { id: "t2", text: "Review", done: false };
 const actions: TasksAction[] = [
   { type: "task-added", task: { id: "t1", text: "Write", done: false } },
-  { type: "task-added", task: { id: "t2", text: "Review", done: false } },
+  { type: "task-added", task: reviewTask },
   { type: "task-toggled", id: "t1" },
   { type: "task-renamed", id: "t1", text: "Write tests" },
 ];
@@ -1525,7 +1526,7 @@ const noRename = tasksReducer(result, {
 });
 
 console.log(result.byId.t1?.text + ":" + result.byId.t1?.done);
-console.log(result.byId.t2 === actions[1].task);
+console.log(result.byId.t2 === reviewTask);
 console.log(noRename === result);
 // expected:
 // Write tests:true

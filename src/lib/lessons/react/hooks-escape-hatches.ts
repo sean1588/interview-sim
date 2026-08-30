@@ -421,15 +421,15 @@ Expected output: \`uploading\`, \`failed\`, \`failed\`, \`idle\`.`,
   return status;
 }
 
-let status = "idle";
-status = nextUploadStatus(status, "start");
-console.log(status);
-status = nextUploadStatus(status, "reject");
-console.log(status);
-status = nextUploadStatus(status, "resolve");
-console.log(status);
-status = nextUploadStatus(status, "reset");
-console.log(status);`,
+let uploadStatus = "idle";
+uploadStatus = nextUploadStatus(uploadStatus, "start");
+console.log(uploadStatus);
+uploadStatus = nextUploadStatus(uploadStatus, "reject");
+console.log(uploadStatus);
+uploadStatus = nextUploadStatus(uploadStatus, "resolve");
+console.log(uploadStatus);
+uploadStatus = nextUploadStatus(uploadStatus, "reset");
+console.log(uploadStatus);`,
           `type UploadStatus = "idle" | "uploading" | "succeeded" | "failed";
 type UploadEvent = "start" | "resolve" | "reject" | "reset";
 
@@ -441,15 +441,15 @@ function nextUploadStatus(
   return status;
 }
 
-let status: UploadStatus = "idle";
-status = nextUploadStatus(status, "start");
-console.log(status);
-status = nextUploadStatus(status, "reject");
-console.log(status);
-status = nextUploadStatus(status, "resolve");
-console.log(status);
-status = nextUploadStatus(status, "reset");
-console.log(status);`,
+let uploadStatus: UploadStatus = "idle";
+uploadStatus = nextUploadStatus(uploadStatus, "start");
+console.log(uploadStatus);
+uploadStatus = nextUploadStatus(uploadStatus, "reject");
+console.log(uploadStatus);
+uploadStatus = nextUploadStatus(uploadStatus, "resolve");
+console.log(uploadStatus);
+uploadStatus = nextUploadStatus(uploadStatus, "reset");
+console.log(uploadStatus);`,
         ),
       },
     ],
