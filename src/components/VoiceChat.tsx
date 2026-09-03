@@ -82,6 +82,9 @@ export interface SessionContext {
   notes?: string;
   /** Target level (e.g. "senior") — calibrates the interviewer in behavioral / system-design. */
   level?: string;
+  /** Freestyle: JSON array of the last few raw `listSessions()` cards. Sibling
+   * of questionPrompt — the cards themselves, not a ranked extract. */
+  scorecards?: string;
 }
 
 interface VoiceChatProps {

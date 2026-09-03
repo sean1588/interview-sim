@@ -10,6 +10,11 @@ import { Pencil, Sun } from "@/components/session/icons";
 import type { LanguageId } from "@/lib/problems";
 import { placeholderFor, isPlaceholder } from "@/lib/freestyle-placeholder";
 import type { RunResult } from "@/lib/runner";
+import { listSessions, FREESTYLE_HISTORY_LIMIT } from "@/lib/history";
+
+/** Home deep-link intent — user focus, not the scorecards themselves. */
+export const WEAK_LINES_INTENT =
+  "What should I work on? Assign one drill from my recent scorecards.";
 
 // Freestyle runs whatever the user wants by voice; the editor is a shared
 // surface the agent can load code into. Only the runnable languages are offered.
@@ -40,7 +45,11 @@ function normalizeLanguage(lang: string): LanguageId {
   return LANGUAGE_ALIASES[lang.trim().toLowerCase()] ?? "python";
 }
 
-export default function FreestyleWorkspace() {
+export default function FreestyleWorkspace({
+  workOnWeakLines = false,
+}: {
+  workOnWeakLines?: boolean;
+}) {
   const router = useRouter();
   // Freestyle has no assessment, so it doesn't use useSession — it just needs a
   // stable session id for the voice loop.
@@ -69,7 +78,9 @@ export default function FreestyleWorkspace() {
   // Optional: the user can type the exact thing they want to work on instead of
   // speaking it. Empty by default — when blank, freestyle behaves exactly as
   // before (the coach opens by asking what they'd like to do).
-  const [customQuestion, setCustomQuestion] = useState("");
+  const [customQuestion, setCustomQuestion] = useState(() =>
+    workOnWeakLines ? WEAK_LINES_INTENT : ""
+  );
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
 
   const handleRun = useCallback((result: RunResult) => {
@@ -92,15 +103,19 @@ export default function FreestyleWorkspace() {
   // A custom question (if set) rides along as questionPrompt — the freestyle
   // kickoff/system prompt center the session on it; when blank it's omitted and
   // the default "what would you like to work on?" flow is unchanged.
-  const getContext = useCallback(
-    (): SessionContext => ({
+  const getContext = useCallback((): SessionContext => {
+    // Last few raw cards, newest first. The prompt module formats them; this
+    // is just the on-device store riding to the server. Empty stays omitted
+    // so freestyle looks like today.
+    const cards = listSessions().slice(0, FREESTYLE_HISTORY_LIMIT);
+    return {
       code,
       language,
       lastRun: lastRunRef.current,
       questionPrompt: customQuestion || undefined,
-    }),
-    [code, language, customQuestion]
-  );
+      scorecards: cards.length ? JSON.stringify(cards) : undefined,
+    };
+  }, [code, language, customQuestion]);
 
   const controls = (
     <button

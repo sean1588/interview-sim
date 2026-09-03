@@ -14,6 +14,9 @@ export interface SessionRecord {
 
 const KEY = "interview-sim:history:v1";
 
+/** Newest-first window freestyle may feed the coach. A cap, not a rank. */
+export const FREESTYLE_HISTORY_LIMIT = 3;
+
 /** All persistence is on-device and client-only: on the server (SSR) there is
  * no localStorage, so every reader returns empty and every writer is a no-op. */
 function store(): Storage | null {
