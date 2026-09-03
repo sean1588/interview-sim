@@ -601,7 +601,7 @@ describe("freestyle mode", () => {
           }),
           strengths: [],
           improvements: [`IMPROVE_${id}`],
-          summary: "ok",
+          summary: `SUMMARY_${id}`,
           ...result,
         },
         ...rest,
@@ -616,20 +616,44 @@ describe("freestyle mode", () => {
       expect(getSystemPrompt("freestyle")).not.toMatch(/Recent graded scorecards/);
     });
 
-    it("embeds the last few raw cards when sessions exist", () => {
+    it("embeds the last few raw SessionRecords when sessions exist", () => {
       const sessions = [card("new"), card("mid"), card("old")];
       const prompt = getSystemPrompt("freestyle", { sessions });
       expect(prompt).toContain("Recent graded scorecards");
       expect(prompt).toMatch(/assign ONE drill/i);
+      // The payload is the records themselves — not a field-picked brief.
+      expect(prompt).toContain(JSON.stringify(freestyleHistoryCards(sessions)));
       for (const c of sessions) {
         expect(prompt).toContain(c.questionTitle);
-        expect(prompt).toContain(c.mode);
         expect(prompt).toContain(`WEAK_NOTE_${c.id}`);
         expect(prompt).toContain(`STRONG_NOTE_${c.id}`);
         expect(prompt).toContain(`IMPROVE_${c.id}`);
-        expect(prompt).toContain("correctness: 2/5");
-        expect(prompt).toContain("communication: 5/5");
+        expect(prompt).toContain(`SUMMARY_${c.id}`);
       }
+    });
+
+    it("keeps a 5 sitting next to a 2, and does not drop a high-scoring card", () => {
+      // A 5 next to a 2 is how the coach knows what not to assign. An all-5s
+      // card still ships — there is no "really well" filter.
+      const mixed = card("mix");
+      const ace = card("ace", {
+        result: {
+          scores: scores({
+            correctness: { score: 5, notes: "ACE_CORRECT" },
+            communication: { score: 5, notes: "ACE_COMM" },
+          }),
+          summary: "SUMMARY_ace",
+        },
+      });
+      const prompt = getSystemPrompt("freestyle", { sessions: [ace, mixed] });
+      expect(prompt).toContain("TITLE_ace");
+      expect(prompt).toContain("SUMMARY_ace");
+      expect(prompt).toContain("ACE_CORRECT");
+      expect(prompt).toContain("ACE_COMM");
+      expect(prompt).toContain("WEAK_NOTE_mix");
+      expect(prompt).toContain("STRONG_NOTE_mix");
+      expect(prompt).toContain('"score":2');
+      expect(prompt).toContain('"score":5');
     });
 
     it("caps at the last few cards — older ones stay out of the prompt", () => {

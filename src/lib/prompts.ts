@@ -312,43 +312,15 @@ export function parseFreestyleScorecards(
   }
 }
 
-/** Sibling of `focusBlock`: the last few full cards, or empty when there are
- * none. The model assigns one drill; JS does not pre-mine weak lines. */
+/** Sibling of `focusBlock`: the last few raw SessionRecords, or empty when
+ * there are none. The records are the writeup — scores, per-axis notes,
+ * summary, improvements — including the 5s next to the 2s. No score filter,
+ * no second-model brief. The coach reads the cards and assigns one drill. */
 function historyBlock(sessions?: SessionRecord[]): string {
   const cards = freestyleHistoryCards(sessions ?? []);
   if (cards.length === 0) return "";
 
-  const rendered = cards.map(formatRawCard).join("\n\n");
-  return `\n\nRecent graded scorecards (newest first). These are the user's own cards — read them as written. When they ask what to work on, assign ONE drill from the weak lines you see. Do not invent a curriculum or a sequence of sessions.\n\n${rendered}`;
-}
-
-function formatRawCard(card: SessionRecord): string {
-  const title = card.questionTitle || "(untitled)";
-  const mode = card.mode || "interview";
-  const result = card.result;
-  const scoreLines = Object.entries(result?.scores ?? {}).map(([axis, item]) => {
-    const score = item && typeof item.score === "number" ? `${item.score}/5` : "?";
-    const notes =
-      item && typeof item.notes === "string" && item.notes.trim()
-        ? ` — ${item.notes.trim()}`
-        : "";
-    return `  ${axis}: ${score}${notes}`;
-  });
-  const improvements = (result?.improvements ?? []).filter(
-    (line): line is string => typeof line === "string" && Boolean(line.trim())
-  );
-
-  const lines = [`${mode} — ${title}`];
-  if (typeof result?.overall === "number") {
-    lines.push(`overall: ${result.overall}/5`);
-  }
-  if (scoreLines.length) {
-    lines.push("scores:", ...scoreLines);
-  }
-  if (improvements.length) {
-    lines.push("improvements:", ...improvements.map((line) => `  ${line}`));
-  }
-  return lines.join("\n");
+  return `\n\nRecent graded scorecards (newest first). These are the user's own SessionRecords — read them as written. When they ask what to work on, assign ONE drill from the weak lines you see. Do not invent a curriculum or a sequence of sessions.\n\n${JSON.stringify(cards)}`;
 }
 
 export function getSystemPrompt(
