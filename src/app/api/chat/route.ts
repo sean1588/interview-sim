@@ -17,6 +17,7 @@ import {
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
 import { resolveModel } from "@/lib/model-prefs";
+import { parseTutorNotes } from "@/lib/tutor-notes";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
     const kickoff = (formData.get("kickoff") as string | null) === "true";
     // Text turns ask the pipeline to skip TTS: no spoken audio, just streamed text.
     const silent = formData.get("silent") === "true";
+    const suppressTranscript = formData.get("suppressTranscript") === "true";
 
     if (!sessionId) {
       return Response.json({ error: "No sessionId provided" }, { status: 400 });
@@ -61,6 +63,9 @@ export async function POST(req: NextRequest) {
     // Freestyle only: last few raw on-device cards. Other modes never send it.
     const sessions = parseFreestyleScorecards(
       formData.get("scorecards") as string | null
+    );
+    const tutorNotes = parseTutorNotes(
+      formData.get("tutorNotes") as string | null
     );
 
     // Kickoff starts a fresh interview. A typed turn is its own transcript;
@@ -106,6 +111,7 @@ export async function POST(req: NextRequest) {
         course,
         tutor,
         sessions,
+        tutorNotes,
       }),
     };
     const messages = [systemMsg, ...session.history];
@@ -116,7 +122,7 @@ export async function POST(req: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         // Send transcript immediately so client can show it (none on kickoff).
-        if (transcript) {
+        if (transcript && !suppressTranscript) {
           controller.enqueue(
             encoder.encode(
               JSON.stringify({ type: "transcript", text: transcript }) + "\n"
@@ -191,7 +197,19 @@ export async function POST(req: NextRequest) {
                 }) + "\n"
               )
             );
-          }
+          },
+          mode === "freestyle"
+            ? (block) => {
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      type: "notes",
+                      text: block.text,
+                    }) + "\n"
+                  )
+                );
+              }
+            : undefined
         );
 
         // Wait for all TTS to finish

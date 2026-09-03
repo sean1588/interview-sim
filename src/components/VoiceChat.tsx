@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, type ReactNode } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { SimpleVAD } from "@/lib/vad";
 import { settleTurn, type TurnSettle } from "@/lib/mic-state";
 import { savedModel } from "@/lib/model-prefs";
@@ -85,9 +93,15 @@ export interface SessionContext {
   /** Freestyle: JSON array of the last few raw `listSessions()` cards. Sibling
    * of questionPrompt — the cards themselves, not a ranked extract. */
   scorecards?: string;
+  tutorNotes?: string;
+}
+
+export interface VoiceChatHandle {
+  writeSessionNote: () => Promise<void>;
 }
 
 interface VoiceChatProps {
+  ref?: Ref<VoiceChatHandle>;
   /** Stable id tying all turns to one server-side session. */
   sessionId: string;
   /** Which experience this is — sent on every turn so the server uses the right system prompt. */
@@ -101,6 +115,7 @@ interface VoiceChatProps {
    * learning lessons that have one). Omitted where there is no editor on screen,
    * which drops any block the model emits anyway. */
   onEditorWrite?: (block: { language: string; code: string }) => void;
+  onTutorNoteWrite?: (text: string) => void;
   /** Orb diameter — 64 in the interview/coach columns, 56 in the tighter lesson column. */
   orbSize?: number;
   /** Pre-start content shown in the transcript area before the first message
@@ -109,11 +124,13 @@ interface VoiceChatProps {
 }
 
 export default function VoiceChat({
+  ref,
   sessionId,
   mode,
   tutor,
   getContext,
   onEditorWrite,
+  onTutorNoteWrite,
   orbSize = 64,
   prelude,
 }: VoiceChatProps) {
@@ -186,6 +203,10 @@ export default function VoiceChat({
   const onEditorWriteRef = useRef(onEditorWrite);
   useEffect(() => {
     onEditorWriteRef.current = onEditorWrite;
+  });
+  const onTutorNoteWriteRef = useRef(onTutorNoteWrite);
+  useEffect(() => {
+    onTutorNoteWriteRef.current = onTutorNoteWrite;
   });
 
   useEffect(() => {
@@ -290,7 +311,13 @@ export default function VoiceChat({
   );
 
   const runTurn = useCallback(
-    async (opts: { audio?: Blob; kickoff?: boolean; text?: string }) => {
+    async (opts: {
+      audio?: Blob;
+      kickoff?: boolean;
+      text?: string;
+      silent?: boolean;
+      suppressTranscript?: boolean;
+    }) => {
       stopPlayback();
       abortRef.current?.abort();
 
@@ -312,7 +339,8 @@ export default function VoiceChat({
         if (opts.kickoff) form.append("kickoff", "true");
         // Text mode is silent — including the kickoff greeting — so the server
         // streams words but synthesizes no speech.
-        if (inputModeRef.current === "text") form.append("silent", "true");
+        if (inputModeRef.current === "text" || opts.silent) form.append("silent", "true");
+        if (opts.suppressTranscript) form.append("suppressTranscript", "true");
 
         if (mode) {
           form.append("mode", mode);
@@ -369,6 +397,8 @@ export default function VoiceChat({
                   language: msg.language,
                   code: msg.code,
                 });
+              } else if (msg.type === "notes") {
+                onTutorNoteWriteRef.current?.(msg.text);
               } else if (msg.type === "text") {
                 responseText += (responseText ? " " : "") + msg.text;
               } else if (msg.type === "audio") {
@@ -549,6 +579,22 @@ export default function VoiceChat({
     // push-to-talk the mic stays off; finishTurnIfIdle settles to "off" after.
     runTurn({ kickoff: true });
   }, [arm, runTurn]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      writeSessionNote: async () => {
+        if (!startedRef.current) return;
+        disarm();
+        await runTurn({
+          text: "The user selected End Session. End the session now and write the one private tutor journal entry for this session using the notes block. Do not ask another question.",
+          silent: true,
+          suppressTranscript: true,
+        });
+      },
+    }),
+    [disarm, runTurn]
+  );
 
   // Tap on the round mic button: start the session when idle, otherwise flip the
   // armed state. Never a no-op — arm() handles the mid-reply case by deferring
