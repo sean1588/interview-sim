@@ -209,11 +209,12 @@ export async function parseSseStream(
         const tail = work.slice(lt);
         const partialOpen =
           "<editor".startsWith(tail.toLowerCase()) || // "<", "<e", … "<editor"
-          EDITOR_PARTIAL_OPEN_RE.test(tail) || // "<editor lang=…" with no '>' yet
-          (Boolean(onTutorNote) &&
-            ("<notes".startsWith(tail.toLowerCase()) ||
-              NOTES_PARTIAL_OPEN_RE.test(tail)));
-        if (partialOpen) {
+          EDITOR_PARTIAL_OPEN_RE.test(tail); // "<editor lang=…" with no '>' yet
+        const partialNotesOpen =
+          Boolean(onTutorNote) &&
+          ("<notes".startsWith(tail.toLowerCase()) ||
+            NOTES_PARTIAL_OPEN_RE.test(tail));
+        if (partialOpen || partialNotesOpen) {
           speak(work.slice(0, lt));
           work = work.slice(lt);
           return;
