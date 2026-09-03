@@ -1,4 +1,5 @@
 import Link from "next/link";
+import WeakLinesEntry from "@/components/WeakLinesEntry";
 import { COURSES, defaultLanguage, forLanguage } from "@/lib/lessons";
 import { ARTICLES, LIBRARY_SECTIONS } from "@/lib/library";
 
@@ -51,6 +52,7 @@ export default function Home() {
         <div id="practice" className="scroll-mt-24">
           <SectionLabel>Practice interviews</SectionLabel>
         </div>
+        <WeakLinesEntry />
         <div className="grid gap-4 md:grid-cols-3">
           <ModeCard
             href="/coding"

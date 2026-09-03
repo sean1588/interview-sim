@@ -12,6 +12,7 @@ import {
   getSystemPrompt,
   getKickoffPrompt,
   isValidSessionMode,
+  parseFreestyleScorecards,
   type SessionMode,
 } from "@/lib/prompts";
 import { isValidLevel } from "@/lib/levels";
@@ -57,6 +58,10 @@ export async function POST(req: NextRequest) {
     const notes = (formData.get("notes") as string | null) ?? "";
     const rawLevel = formData.get("level") as string | null;
     const targetLevel = isValidLevel(rawLevel) ? rawLevel : undefined;
+    // Freestyle only: last few raw on-device cards. Other modes never send it.
+    const sessions = parseFreestyleScorecards(
+      formData.get("scorecards") as string | null
+    );
 
     // Kickoff starts a fresh interview. A typed turn is its own transcript;
     // otherwise transcribe the candidate's audio.
@@ -100,6 +105,7 @@ export async function POST(req: NextRequest) {
         language,
         course,
         tutor,
+        sessions,
       }),
     };
     const messages = [systemMsg, ...session.history];

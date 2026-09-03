@@ -10,9 +10,14 @@ import {
   getKickoffPrompt,
   TRANSCRIPT_ROLES,
   transcriptRoles,
+  FREESTYLE_HISTORY_LIMIT,
+  freestyleHistoryCards,
+  parseFreestyleScorecards,
 } from "./prompts";
 import { SCORE_LABELS } from "./score-labels";
 import { getLevel, describeLevelLadder } from "./levels";
+import type { SessionRecord } from "./history";
+import type { ScorecardData, ScoreItem } from "@/components/Scorecard";
 
 // These tests pin contracts, not prose: the JSON keys the UI parses, the
 // presence/absence of level calibration, and that mode/question/level data
@@ -560,6 +565,123 @@ describe("freestyle mode", () => {
       const messy = 'Build a """rate limiter""".\nIt must handle "bursts" — O(1).';
       expect(getSystemPrompt("freestyle", { questionPrompt: messy })).toContain(messy);
       expect(getKickoffPrompt("freestyle", undefined, messy)).toContain(messy);
+    });
+  });
+
+  describe("history-aware coach (sibling of focusBlock)", () => {
+    // The last few raw listSessions() cards sit next to questionPrompt. JS
+    // does not min scores or extract axes — the model reads the cards.
+    const Q = "SENTINEL_TOPIC: implement an LRU cache with O(1) get and put.";
+
+    function scores(entries: Record<string, number | ScoreItem>): Record<string, ScoreItem> {
+      return Object.fromEntries(
+        Object.entries(entries).map(([k, v]) => [
+          k,
+          typeof v === "number" ? { score: v, notes: `${k} notes` } : v,
+        ])
+      );
+    }
+
+    function card(
+      id: string,
+      overrides: Partial<SessionRecord> & { result?: Partial<ScorecardData> } = {}
+    ): SessionRecord {
+      const { result, ...rest } = overrides;
+      return {
+        id,
+        mode: "coding",
+        questionTitle: `TITLE_${id}`,
+        createdAt: 1,
+        result: {
+          recommendation: "Hire",
+          overall: 3,
+          scores: scores({
+            correctness: { score: 2, notes: `WEAK_NOTE_${id}` },
+            communication: { score: 5, notes: `STRONG_NOTE_${id}` },
+          }),
+          strengths: [],
+          improvements: [`IMPROVE_${id}`],
+          summary: "ok",
+          ...result,
+        },
+        ...rest,
+      };
+    }
+
+    it("is absent when there are no sessions — freestyle looks like today", () => {
+      expect(getSystemPrompt("freestyle", { sessions: [] })).toBe(getSystemPrompt("freestyle"));
+      expect(getSystemPrompt("freestyle", { sessions: undefined })).toBe(
+        getSystemPrompt("freestyle")
+      );
+      expect(getSystemPrompt("freestyle")).not.toMatch(/Recent graded scorecards/);
+    });
+
+    it("embeds the last few raw cards when sessions exist", () => {
+      const sessions = [card("new"), card("mid"), card("old")];
+      const prompt = getSystemPrompt("freestyle", { sessions });
+      expect(prompt).toContain("Recent graded scorecards");
+      expect(prompt).toMatch(/assign ONE drill/i);
+      for (const c of sessions) {
+        expect(prompt).toContain(c.questionTitle);
+        expect(prompt).toContain(c.mode);
+        expect(prompt).toContain(`WEAK_NOTE_${c.id}`);
+        expect(prompt).toContain(`STRONG_NOTE_${c.id}`);
+        expect(prompt).toContain(`IMPROVE_${c.id}`);
+        expect(prompt).toContain("correctness: 2/5");
+        expect(prompt).toContain("communication: 5/5");
+      }
+    });
+
+    it("caps at the last few cards — older ones stay out of the prompt", () => {
+      const sessions = Array.from({ length: FREESTYLE_HISTORY_LIMIT + 2 }, (_, i) =>
+        card(`c${i}`)
+      );
+      const prompt = getSystemPrompt("freestyle", { sessions });
+      const kept = sessions.slice(0, FREESTYLE_HISTORY_LIMIT);
+      const dropped = sessions.slice(FREESTYLE_HISTORY_LIMIT);
+      for (const c of kept) expect(prompt).toContain(c.questionTitle);
+      for (const c of dropped) expect(prompt).not.toContain(c.questionTitle);
+      expect(freestyleHistoryCards(sessions)).toEqual(kept);
+    });
+
+    it("keeps questionPrompt independent of the history cards", () => {
+      const sessions = [card("hist")];
+      const withBoth = getSystemPrompt("freestyle", { questionPrompt: Q, sessions });
+      expect(withBoth).toContain(Q);
+      expect(withBoth).toContain("TITLE_hist");
+      expect(withBoth).toContain("Recent graded scorecards");
+
+      // Focus without cards does not grow a history block.
+      const focusOnly = getSystemPrompt("freestyle", { questionPrompt: Q });
+      expect(focusOnly).toContain(Q);
+      expect(focusOnly).not.toContain("TITLE_hist");
+      expect(focusOnly).not.toMatch(/Recent graded scorecards/);
+
+      // Cards without focus do not invent a typed question.
+      const cardsOnly = getSystemPrompt("freestyle", { sessions });
+      expect(cardsOnly).toContain("TITLE_hist");
+      expect(cardsOnly).not.toContain(Q);
+
+      // Kickoff still only carries the typed focus — never the cards.
+      expect(getKickoffPrompt("freestyle", undefined, Q)).toContain(Q);
+      expect(getKickoffPrompt("freestyle", undefined, Q)).not.toContain("TITLE_hist");
+    });
+
+    it("is ignored by every other mode", () => {
+      const sessions = [card("leak")];
+      for (const mode of SESSION_MODES.filter((m) => m !== "freestyle")) {
+        expect(getSystemPrompt(mode, { sessions })).toBe(getSystemPrompt(mode));
+        expect(getSystemPrompt(mode, { sessions })).not.toContain("TITLE_leak");
+      }
+    });
+
+    it("parseFreestyleScorecards accepts a JSON array and rejects junk", () => {
+      const sessions = [card("wire")];
+      expect(parseFreestyleScorecards(JSON.stringify(sessions))).toEqual(sessions);
+      expect(parseFreestyleScorecards("")).toBeUndefined();
+      expect(parseFreestyleScorecards(undefined)).toBeUndefined();
+      expect(parseFreestyleScorecards("{not json")).toBeUndefined();
+      expect(parseFreestyleScorecards(JSON.stringify({ foo: 1 }))).toBeUndefined();
     });
   });
 });

@@ -2,6 +2,9 @@ import type { InterviewMode, SessionMode } from "./types/mode";
 import type { LanguageId } from "./problems";
 import type { ConceptCourseId, SubjectCourseId } from "./lessons";
 import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
+import { FREESTYLE_HISTORY_LIMIT, type SessionRecord } from "./history";
+
+export { FREESTYLE_HISTORY_LIMIT };
 
 export type { InterviewMode, SessionMode };
 
@@ -289,6 +292,65 @@ function learningProfile(language?: string, course?: string): LearningProfile {
 /* INTERVIEWER SYSTEM PROMPTS (used by /api/chat)                             */
 /* -------------------------------------------------------------------------- */
 
+/** Last few raw scorecards, newest first. No min, no axis extract, no mapping
+ * table — the coach reads whatever is on these cards. */
+export function freestyleHistoryCards(sessions: SessionRecord[]): SessionRecord[] {
+  return sessions.slice(0, FREESTYLE_HISTORY_LIMIT);
+}
+
+/** Wire form of those cards (a JSON array on `SessionContext.scorecards`).
+ * Malformed or non-array payloads are absent — freestyle then looks like today. */
+export function parseFreestyleScorecards(
+  raw: string | null | undefined
+): SessionRecord[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as SessionRecord[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Sibling of `focusBlock`: the last few full cards, or empty when there are
+ * none. The model assigns one drill; JS does not pre-mine weak lines. */
+function historyBlock(sessions?: SessionRecord[]): string {
+  const cards = freestyleHistoryCards(sessions ?? []);
+  if (cards.length === 0) return "";
+
+  const rendered = cards.map(formatRawCard).join("\n\n");
+  return `\n\nRecent graded scorecards (newest first). These are the user's own cards — read them as written. When they ask what to work on, assign ONE drill from the weak lines you see. Do not invent a curriculum or a sequence of sessions.\n\n${rendered}`;
+}
+
+function formatRawCard(card: SessionRecord): string {
+  const title = card.questionTitle || "(untitled)";
+  const mode = card.mode || "interview";
+  const result = card.result;
+  const scoreLines = Object.entries(result?.scores ?? {}).map(([axis, item]) => {
+    const score = item && typeof item.score === "number" ? `${item.score}/5` : "?";
+    const notes =
+      item && typeof item.notes === "string" && item.notes.trim()
+        ? ` — ${item.notes.trim()}`
+        : "";
+    return `  ${axis}: ${score}${notes}`;
+  });
+  const improvements = (result?.improvements ?? []).filter(
+    (line): line is string => typeof line === "string" && Boolean(line.trim())
+  );
+
+  const lines = [`${mode} — ${title}`];
+  if (typeof result?.overall === "number") {
+    lines.push(`overall: ${result.overall}/5`);
+  }
+  if (scoreLines.length) {
+    lines.push("scores:", ...scoreLines);
+  }
+  if (improvements.length) {
+    lines.push("improvements:", ...improvements.map((line) => `  ${line}`));
+  }
+  return lines.join("\n");
+}
+
 export function getSystemPrompt(
   mode: SessionMode,
   opts: {
@@ -302,6 +364,9 @@ export function getSystemPrompt(
      * system-design, and behavioral honour it (behavioral coaches STAR
      * storytelling); learning and freestyle ignore it. */
     tutor?: boolean;
+    /** Freestyle only: last few raw `listSessions()` cards. Sibling of
+     * questionPrompt — never folded into it. Other modes ignore this. */
+    sessions?: SessionRecord[];
   } = {}
 ): string {
   // Learning mode is a tutorial, not an interview: the whole lesson script
@@ -380,6 +445,7 @@ How to behave:
     const focusBlock = opts.questionPrompt
       ? `\n\nThe user told you up front exactly what they want to work on, in their own words:\n\n${opts.questionPrompt}\n\nTreat this as the session's focus: open on it directly rather than asking what they'd like to do, infer the right track from it (coding, behavioral, system design, or learning), and if it's a coding problem load a starter into the editor. If they later steer elsewhere, follow them.`
       : "";
+    const cardsBlock = historyBlock(opts.sessions);
     return `You are a warm, versatile interview and practice coach running a live, free-form session by voice. The user drives: it can be a behavioral interview, a coding/technical interview, a system design discussion, open practice, or learning something new — whatever they ask for. Adapt to whatever they pick, and switch tracks if they change their mind.
 
 You can SEE the user's editor — their current code and latest run output are appended to each of their messages in brackets (like "[Editor state — …]"). That bracketed text is something you READ; never say it out loud, and never write that bracket form yourself.
@@ -402,7 +468,7 @@ How to behave:
 - System design: have them clarify requirements and scale first, then sketch a high-level design, then deep-dive a component and discuss tradeoffs and bottlenecks. The editor is optional scratch space.
 - Learning something new: teach conversationally, leaning on what they already know, and drop small runnable examples into the editor for them to try.
 - Be encouraging and curious, one question or comment at a time.
-- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.${focusBlock}`;
+- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.${focusBlock}${cardsBlock}`;
   }
 
   // Career coaching is the one mode that isn't practice for an interview: it's a
