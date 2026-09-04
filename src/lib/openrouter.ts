@@ -89,6 +89,10 @@ export interface EditorBlock {
   code: string;
 }
 
+export interface TutorNoteBlock {
+  text: string;
+}
+
 // The agent (freestyle, and the learning tutor) can write the editor by emitting
 // a sentinel block:
 //   <editor lang="python"> ...full new editor contents... </editor>
@@ -108,6 +112,9 @@ const EDITOR_LANG_RE = /\blang\s*=\s*["']([^"']*)["']/i;
 const EDITOR_CLOSE_RE = /<\/editor\s*>/i;
 // Tail that could be an <editor …> open tag still arriving (no '>' yet).
 const EDITOR_PARTIAL_OPEN_RE = /^<editor\b[^>]*$/i;
+const NOTES_OPEN_RE = /<notes\b[^>]*>/i;
+const NOTES_CLOSE_RE = /<\/notes\s*>/i;
+const NOTES_PARTIAL_OPEN_RE = /^<notes\b[^>]*$/i;
 
 /**
  * Read an OpenRouter SSE chat stream. Spoken text is segmented into sentences
@@ -119,7 +126,8 @@ const EDITOR_PARTIAL_OPEN_RE = /^<editor\b[^>]*$/i;
 export async function parseSseStream(
   stream: ReadableStream<Uint8Array>,
   onSentence: (sentence: string) => void,
-  onEditor?: (block: EditorBlock) => void
+  onEditor?: (block: EditorBlock) => void,
+  onTutorNote?: (block: TutorNoteBlock) => void
 ): Promise<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
@@ -132,6 +140,7 @@ export async function parseSseStream(
   let capturing = false;
   let captureBuf = "";
   let captureLang = "";
+  let captureKind: "editor" | "notes" = "editor";
   let work = "";
 
   const flushSentence = () => {
@@ -154,10 +163,18 @@ export async function parseSseStream(
     // Loop while each open/close tag we consume may expose more to process.
     for (;;) {
       if (capturing) {
-        const close = captureBuf.match(EDITOR_CLOSE_RE);
+        const close = captureBuf.match(
+          captureKind === "notes" ? NOTES_CLOSE_RE : EDITOR_CLOSE_RE
+        );
         if (!close) return; // closing tag not here yet; keep accumulating
         const at = close.index ?? 0;
-        onEditor?.({ language: captureLang, code: captureBuf.slice(0, at) });
+        const body = captureBuf.slice(0, at);
+        if (captureKind === "notes") {
+          const text = body.trim();
+          if (text) onTutorNote?.({ text });
+        } else {
+          onEditor?.({ language: captureLang, code: body });
+        }
         work = captureBuf.slice(at + close[0].length);
         capturing = false;
         captureBuf = "";
@@ -165,11 +182,20 @@ export async function parseSseStream(
         continue; // process anything after the block as spoken text
       }
 
-      const open = work.match(EDITOR_OPEN_RE);
+      const editorOpen = work.match(EDITOR_OPEN_RE);
+      const notesOpen = onTutorNote ? work.match(NOTES_OPEN_RE) : null;
+      const open =
+        editorOpen && notesOpen
+          ? (editorOpen.index ?? 0) < (notesOpen.index ?? 0)
+            ? editorOpen
+            : notesOpen
+          : editorOpen ?? notesOpen;
       if (open) {
         const at = open.index ?? 0;
         speak(work.slice(0, at)); // text before the tag is spoken
-        captureLang = open[0].match(EDITOR_LANG_RE)?.[1] ?? "";
+        captureKind = open[0].toLowerCase().startsWith("<notes") ? "notes" : "editor";
+        captureLang =
+          captureKind === "editor" ? (open[0].match(EDITOR_LANG_RE)?.[1] ?? "") : "";
         captureBuf = work.slice(at + open[0].length);
         work = "";
         capturing = true;
@@ -184,7 +210,11 @@ export async function parseSseStream(
         const partialOpen =
           "<editor".startsWith(tail.toLowerCase()) || // "<", "<e", … "<editor"
           EDITOR_PARTIAL_OPEN_RE.test(tail); // "<editor lang=…" with no '>' yet
-        if (partialOpen) {
+        const partialNotesOpen =
+          Boolean(onTutorNote) &&
+          ("<notes".startsWith(tail.toLowerCase()) ||
+            NOTES_PARTIAL_OPEN_RE.test(tail));
+        if (partialOpen || partialNotesOpen) {
           speak(work.slice(0, lt));
           work = work.slice(lt);
           return;

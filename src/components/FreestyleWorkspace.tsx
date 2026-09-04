@@ -2,15 +2,24 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import VoiceChat, { SessionContext } from "@/components/VoiceChat";
+import VoiceChat, {
+  type SessionContext,
+  type VoiceChatHandle,
+} from "@/components/VoiceChat";
 import CodeEditor from "@/components/CodeEditor";
 import CustomQuestionModal from "@/components/CustomQuestionModal";
+import TutorNotesModal from "@/components/TutorNotesModal";
 import SessionFrame from "@/components/session/SessionFrame";
 import { Pencil, Sun } from "@/components/session/icons";
 import type { LanguageId } from "@/lib/problems";
 import { placeholderFor, isPlaceholder } from "@/lib/freestyle-placeholder";
 import type { RunResult } from "@/lib/runner";
 import { listSessions, FREESTYLE_HISTORY_LIMIT } from "@/lib/history";
+import {
+  appendTutorNote,
+  listTutorNotes,
+  type TutorNote,
+} from "@/lib/tutor-notes";
 
 /** Home deep-link intent — user focus, not the scorecards themselves. */
 export const WEAK_LINES_INTENT =
@@ -82,6 +91,11 @@ export default function FreestyleWorkspace({
     workOnWeakLines ? WEAK_LINES_INTENT : ""
   );
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [journal, setJournal] = useState<TutorNote[]>([]);
+  const [ending, setEnding] = useState(false);
+  const chatRef = useRef<VoiceChatHandle>(null);
+  const noteWrittenRef = useRef(false);
 
   const handleRun = useCallback((result: RunResult) => {
     const text = result.output || result.stderr || "(no output)";
@@ -99,6 +113,22 @@ export default function FreestyleWorkspace({
     []
   );
 
+  const handleTutorNoteWrite = useCallback(
+    (text: string) => {
+      if (noteWrittenRef.current) return;
+      const entry: TutorNote = {
+        id: sessionId,
+        createdAt: Date.now(),
+        text: text.trim(),
+      };
+      if (appendTutorNote(entry)) {
+        noteWrittenRef.current = true;
+        setJournal(listTutorNotes());
+      }
+    },
+    [sessionId]
+  );
+
   // Pulled fresh by VoiceChat on each turn so the coach sees the latest code.
   // A custom question (if set) rides along as questionPrompt — the freestyle
   // kickoff/system prompt center the session on it; when blank it's omitted and
@@ -108,29 +138,51 @@ export default function FreestyleWorkspace({
     // is just the on-device store riding to the server. Empty stays omitted
     // so freestyle looks like today.
     const cards = listSessions().slice(0, FREESTYLE_HISTORY_LIMIT);
+    const tutorNotes = listTutorNotes();
     return {
       code,
       language,
       lastRun: lastRunRef.current,
       questionPrompt: customQuestion || undefined,
       scorecards: cards.length ? JSON.stringify(cards) : undefined,
+      tutorNotes: tutorNotes.length ? JSON.stringify(tutorNotes) : undefined,
     };
   }, [code, language, customQuestion]);
 
+  const handleEnd = useCallback(async () => {
+    if (ending) return;
+    setEnding(true);
+    if (!noteWrittenRef.current) {
+      await chatRef.current?.writeSessionNote();
+    }
+    router.push("/");
+  }, [ending, router]);
+
   const controls = (
-    <button
-      onClick={() => setQuestionModalOpen(true)}
-      title={customQuestion || "Optionally type your own question to start with"}
-      className={`inline-flex items-center gap-2 rounded-[7px] border px-3.5 py-2 font-sans text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
-        customQuestion
-          ? "border-cognac/50 bg-cognac/[0.08] text-cognac-text"
-          : "border-edge bg-chip text-ink-muted hover:border-cognac/40"
-      }`}
-    >
-      <Pencil size={14} />
-      Custom question
-      {customQuestion && <span className="text-cognac">●</span>}
-    </button>
+    <>
+      <button
+        onClick={() => {
+          setJournal(listTutorNotes());
+          setNotesModalOpen(true);
+        }}
+        className="inline-flex items-center rounded-[7px] border border-edge bg-chip px-3.5 py-2 font-sans text-[13px] text-ink-muted transition-colors hover:border-cognac/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40"
+      >
+        Tutor notes
+      </button>
+      <button
+        onClick={() => setQuestionModalOpen(true)}
+        title={customQuestion || "Optionally type your own question to start with"}
+        className={`inline-flex items-center gap-2 rounded-[7px] border px-3.5 py-2 font-sans text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cognac/40 ${
+          customQuestion
+            ? "border-cognac/50 bg-cognac/[0.08] text-cognac-text"
+            : "border-edge bg-chip text-ink-muted hover:border-cognac/40"
+        }`}
+      >
+        <Pencil size={14} />
+        Custom question
+        {customQuestion && <span className="text-cognac">●</span>}
+      </button>
+    </>
   );
 
   const prelude = (
@@ -186,16 +238,20 @@ export default function FreestyleWorkspace({
         root={{ label: "Home", href: "/" }}
         title="Freestyle"
         endLabel="End Session"
-        onEnd={() => router.push("/")}
+        endBusyLabel="Saving notes…"
+        ending={ending}
+        onEnd={handleEnd}
         controls={controls}
       >
         {/* Conversation (the hero — wider) */}
         <div className="w-[520px] flex-none border-r border-section min-h-0">
           <VoiceChat
+            ref={chatRef}
             sessionId={sessionId}
             mode="freestyle"
             getContext={getContext}
             onEditorWrite={handleEditorWrite}
+            onTutorNoteWrite={handleTutorNoteWrite}
             prelude={prelude}
           />
         </div>
@@ -220,6 +276,12 @@ export default function FreestyleWorkspace({
           initialValue={customQuestion}
           onSubmit={setCustomQuestion}
           onClose={() => setQuestionModalOpen(false)}
+        />
+      )}
+      {notesModalOpen && (
+        <TutorNotesModal
+          notes={journal}
+          onClose={() => setNotesModalOpen(false)}
         />
       )}
     </>

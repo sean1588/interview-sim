@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseSseStream, type EditorBlock } from "@/lib/openrouter";
+import {
+  parseSseStream,
+  type EditorBlock,
+  type TutorNoteBlock,
+} from "@/lib/openrouter";
 
 /** Build a ReadableStream that emits the given strings as separate chunks. */
 function streamFromChunks(chunks: string[]): ReadableStream<Uint8Array> {
@@ -196,5 +200,64 @@ describe("parseSseStream — <editor> blocks (freestyle)", () => {
     const { sentences, full } = await collectE(["compare a ", "<"]);
     expect(full).toContain("<");
     expect(sentences).toEqual(["compare a <"]);
+  });
+});
+
+describe("parseSseStream — <notes> blocks (freestyle)", () => {
+  it("pulls a split notes block out of speech and emits it separately", async () => {
+    const sentences: string[] = [];
+    const notes: TutorNoteBlock[] = [];
+    const full = await parseSseStream(
+      streamFromChunks([
+        delta("Good work. "),
+        delta("<no"),
+        delta("tes>Improved at tracing graph state."),
+        delta("</no"),
+        delta("tes>"),
+        "data: [DONE]\n",
+      ]),
+      (sentence) => sentences.push(sentence),
+      undefined,
+      (block) => notes.push(block)
+    );
+
+    expect(sentences).toEqual(["Good work."]);
+    expect(notes).toEqual([{ text: "Improved at tracing graph state." }]);
+    expect(full).not.toContain("<notes>");
+    expect(full).not.toContain("graph state");
+  });
+
+  it("handles editor and notes as independent sibling protocols", async () => {
+    const editors: EditorBlock[] = [];
+    const notes: TutorNoteBlock[] = [];
+    await parseSseStream(
+      streamFromChunks([
+        delta('<editor lang="python">print(1)</editor>'),
+        delta("<notes>Next time, explain invariants first.</notes>"),
+        "data: [DONE]\n",
+      ]),
+      () => undefined,
+      (block) => editors.push(block),
+      (block) => notes.push(block)
+    );
+
+    expect(editors).toEqual([{ language: "python", code: "print(1)" }]);
+    expect(notes).toEqual([{ text: "Next time, explain invariants first." }]);
+  });
+
+  it("drops blank and unterminated notes", async () => {
+    const notes: TutorNoteBlock[] = [];
+    await parseSseStream(
+      streamFromChunks([
+        delta("<notes>   </notes>"),
+        delta("<notes>partial"),
+        "data: [DONE]\n",
+      ]),
+      () => undefined,
+      undefined,
+      (block) => notes.push(block)
+    );
+
+    expect(notes).toEqual([]);
   });
 });

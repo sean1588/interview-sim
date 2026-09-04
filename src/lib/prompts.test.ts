@@ -12,12 +12,15 @@ import {
   transcriptRoles,
   FREESTYLE_HISTORY_LIMIT,
   freestyleHistoryCards,
+  freestyleTutorNotesBlock,
   parseFreestyleScorecards,
+  TUTOR_NOTES_PROMPT_CHAR_LIMIT,
 } from "./prompts";
 import { SCORE_LABELS } from "./score-labels";
 import { getLevel, describeLevelLadder } from "./levels";
 import type { SessionRecord } from "./history";
 import type { ScorecardData, ScoreItem } from "@/components/Scorecard";
+import type { TutorNote } from "./tutor-notes";
 
 // These tests pin contracts, not prose: the JSON keys the UI parses, the
 // presence/absence of level calibration, and that mode/question/level data
@@ -706,6 +709,81 @@ describe("freestyle mode", () => {
       expect(parseFreestyleScorecards(undefined)).toBeUndefined();
       expect(parseFreestyleScorecards("{not json")).toBeUndefined();
       expect(parseFreestyleScorecards(JSON.stringify({ foo: 1 }))).toBeUndefined();
+    });
+  });
+
+  describe("tutor notes journal", () => {
+    const notes: TutorNote[] = [
+      {
+        id: "old",
+        createdAt: Date.UTC(2026, 7, 1),
+        text: `OLD_NOTE ${"o".repeat(1200)}`,
+      },
+      {
+        id: "recent",
+        createdAt: Date.UTC(2026, 8, 1),
+        text: `RECENT_NOTE ${"r".repeat(1200)}`,
+      },
+    ];
+
+    it("adds a third sibling block without changing focus or scorecard history", () => {
+      const questionPrompt = "FOCUS_SENTINEL";
+      const sessions = [
+        {
+          id: "card",
+          mode: "coding",
+          questionTitle: "CARD_SENTINEL",
+          createdAt: 1,
+          result: {
+            recommendation: "Hire",
+            overall: 5,
+            scores: {},
+            strengths: [],
+            improvements: [],
+            summary: "Current scorecard",
+          },
+        } satisfies SessionRecord,
+      ];
+      const prompt = getSystemPrompt("freestyle", {
+        questionPrompt,
+        sessions,
+        tutorNotes: notes,
+      });
+
+      expect(prompt).toContain(questionPrompt);
+      expect(prompt).toContain(JSON.stringify(freestyleHistoryCards(sessions)));
+      expect(prompt).toContain("Tutor notes journal");
+      expect(getKickoffPrompt("freestyle", undefined, questionPrompt)).not.toContain(
+        "RECENT_NOTE"
+      );
+    });
+
+    it("keeps only the recent character-capped journal excerpt", () => {
+      const block = freestyleTutorNotesBlock(notes);
+
+      expect(block.length).toBeLessThanOrEqual(TUTOR_NOTES_PROMPT_CHAR_LIMIT);
+      expect(block).toContain("RECENT_NOTE");
+      expect(block).not.toContain("OLD_NOTE");
+      expect(block).toMatch(/historical observations, not standing rules/i);
+      expect(block).toMatch(/scorecard wins/i);
+    });
+
+    it("omits an empty journal and ignores notes in every other mode", () => {
+      expect(getSystemPrompt("freestyle", { tutorNotes: [] })).toBe(
+        getSystemPrompt("freestyle")
+      );
+      for (const mode of SESSION_MODES.filter((entry) => entry !== "freestyle")) {
+        expect(getSystemPrompt(mode, { tutorNotes: notes })).toBe(getSystemPrompt(mode));
+        expect(getSystemPrompt(mode, { tutorNotes: notes })).not.toContain("RECENT_NOTE");
+      }
+    });
+
+    it("defines one separate notes write at drill assignment or session end", () => {
+      const prompt = getSystemPrompt("freestyle");
+      expect(prompt).toContain("<notes>");
+      expect(prompt).toMatch(/assign a drill or when the user ends the session/i);
+      expect(prompt).toMatch(/at most one notes block/i);
+      expect(prompt).toMatch(/journal, not a scorecard/i);
     });
   });
 });

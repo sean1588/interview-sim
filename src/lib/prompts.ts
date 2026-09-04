@@ -3,6 +3,7 @@ import type { LanguageId } from "./problems";
 import type { ConceptCourseId, SubjectCourseId } from "./lessons";
 import { getLevel, describeLevelLadder, type TargetLevel } from "./levels";
 import { FREESTYLE_HISTORY_LIMIT, type SessionRecord } from "./history";
+import type { TutorNote } from "./tutor-notes";
 
 export { FREESTYLE_HISTORY_LIMIT };
 
@@ -323,6 +324,36 @@ function historyBlock(sessions?: SessionRecord[]): string {
   return `\n\nRecent graded scorecards (newest first). These are the user's own SessionRecords — read them as written. When they ask what to work on, assign ONE drill from the weak lines you see. Do not invent a curriculum or a sequence of sessions.\n\n${JSON.stringify(cards)}`;
 }
 
+export const TUTOR_NOTES_PROMPT_CHAR_LIMIT = 2000;
+
+export function freestyleTutorNotesBlock(notes?: TutorNote[]): string {
+  if (!notes?.length) return "";
+
+  const heading =
+    "\n\nTutor notes journal from past freestyle sessions. These are historical observations, not standing rules or current state. If a note conflicts with a more recent graded scorecard, the scorecard wins. Never copy scorecards into this journal.";
+  const budget = TUTOR_NOTES_PROMPT_CHAR_LIMIT - heading.length - 2;
+  const entries: string[] = [];
+  let used = 0;
+
+  for (let index = notes.length - 1; index >= 0; index--) {
+    const note = notes[index];
+    const date = new Date(note.createdAt).toISOString().slice(0, 10);
+    const entry = `${date}\n${note.text.trim()}`;
+    const separator = entries.length ? 2 : 0;
+    if (entry.length + used + separator <= budget) {
+      entries.unshift(entry);
+      used += entry.length + separator;
+      continue;
+    }
+    if (entries.length === 0) {
+      entries.push(`${date}\n${note.text.trim().slice(-(budget - date.length - 1))}`);
+    }
+    break;
+  }
+
+  return `${heading}\n\n${entries.join("\n\n")}`;
+}
+
 export function getSystemPrompt(
   mode: SessionMode,
   opts: {
@@ -339,6 +370,7 @@ export function getSystemPrompt(
     /** Freestyle only: last few raw `listSessions()` cards. Sibling of
      * questionPrompt — never folded into it. Other modes ignore this. */
     sessions?: SessionRecord[];
+    tutorNotes?: TutorNote[];
   } = {}
 ): string {
   // Learning mode is a tutorial, not an interview: the whole lesson script
@@ -417,6 +449,7 @@ How to behave:
     const focusBlock = opts.questionPrompt
       ? `\n\nThe user told you up front exactly what they want to work on, in their own words:\n\n${opts.questionPrompt}\n\nTreat this as the session's focus: open on it directly rather than asking what they'd like to do, infer the right track from it (coding, behavioral, system design, or learning), and if it's a coding problem load a starter into the editor. If they later steer elsewhere, follow them.`
       : "";
+    const notesBlock = freestyleTutorNotesBlock(opts.tutorNotes);
     const cardsBlock = historyBlock(opts.sessions);
     return `You are a warm, versatile interview and practice coach running a live, free-form session by voice. The user drives: it can be a behavioral interview, a coding/technical interview, a system design discussion, open practice, or learning something new — whatever they ask for. Adapt to whatever they pick, and switch tracks if they change their mind.
 
@@ -432,15 +465,24 @@ Rules for that block:
 - Do not put the literal text "</editor>" anywhere inside the body.
 - NEVER speak the code or the tags out loud. When you load something, just say a short sentence like "I've put a starter in your editor — take a look." Only emit a block when you actually want to change their editor; most turns won't.
 
+You also WRITE one private entry in your tutor notes journal by outputting a separate block in EXACTLY this form:
+<notes>
+...brief observations about this session and the user's progress...
+</notes>
+Rules for that block:
+- Emit it only when you assign a drill or when the user ends the session. Emit at most one notes block in the entire session.
+- Record concrete progress, persistent misunderstandings, and a useful next step. This is a journal, not a scorecard: never include scores, ratings, rubric axes, verdicts, or copied scorecard content.
+- The block is silently persisted and never spoken. Do not put the literal text "</notes>" inside its body.
+
 How to behave:
-- Speak naturally, 1-3 sentences at a time, like a real conversation. You're speaking out loud, so apart from the single <editor> block above, NEVER use markdown, code blocks, bullet points, or formatting — say everything else in plain spoken words.
+- Speak naturally, 1-3 sentences at a time, like a real conversation. You're speaking out loud, so apart from the <editor> and <notes> protocol blocks above, NEVER use markdown, code blocks, bullet points, or formatting — say everything else in plain spoken words.
 - This is practice, not an evaluation: never give scores, ratings, pass/fail, or hire/no-hire verdicts — coach with specific, qualitative feedback only.
 - Coding / technical: present the problem by loading a stub-and-docstring into the editor, then interview like a real coding interview — let them think aloud, watch their code and run output, hint only when they're genuinely stuck (never hand over the solution), and probe edge cases and time/space complexity.
 - Behavioral: ask a real question and let them tell the story; push gently for specifics, their personal "I" contribution, and measurable impact. The editor is optional scratch space here.
 - System design: have them clarify requirements and scale first, then sketch a high-level design, then deep-dive a component and discuss tradeoffs and bottlenecks. The editor is optional scratch space.
 - Learning something new: teach conversationally, leaning on what they already know, and drop small runnable examples into the editor for them to try.
 - Be encouraging and curious, one question or comment at a time.
-- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.${focusBlock}${cardsBlock}`;
+- If they say they're done or want to wrap up, give a brief spoken recap of what you covered and one suggestion for what to practice next.${focusBlock}${notesBlock}${cardsBlock}`;
   }
 
   // Career coaching is the one mode that isn't practice for an interview: it's a
